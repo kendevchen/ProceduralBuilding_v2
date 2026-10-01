@@ -4,8 +4,9 @@
  * as blender/preview_kit.py: low parts (balconies, roof) in front, tall behind.
  * Blender Z-up space, like the building.
  */
-import { CanvasTexture, Group, Matrix4, SRGBColorSpace, Sprite, SpriteMaterial, Vector3 } from "three";
+import { Group, Matrix4, Vector3 } from "three";
 import type { Kit, PartInfo, Placement, Style } from "./kit";
+import { textSprite } from "./labels";
 
 const GAP = 1.4;
 /** one row per group, front to back: small overlays, roof, ground floor, upper floors */
@@ -20,27 +21,6 @@ const rank = (p: PartInfo) => {
   const i = ORDER.findIndex(s => p.collection.includes(s));
   return i < 0 ? ORDER.length : i;
 };
-
-function label(text: string): Sprite {
-  const c = document.createElement("canvas");
-  c.width = 512;
-  c.height = 160;
-  const g = c.getContext("2d")!;
-  g.font = "600 52px ui-monospace, 'SF Mono', monospace";
-  g.textAlign = "center";
-  g.lineWidth = 8;
-  g.strokeStyle = "rgba(0, 0, 0, 0.7)";
-  g.fillStyle = "#ffffff";
-  text.split("\n").forEach((line, i) => {
-    g.strokeText(line, 256, 64 + i * 64);
-    g.fillText(line, 256, 64 + i * 64);
-  });
-  const tex = new CanvasTexture(c);
-  tex.colorSpace = SRGBColorSpace;
-  const s = new Sprite(new SpriteMaterial({ map: tex, depthWrite: false, transparent: true }));
-  s.scale.set(3.4, 1.05, 1);
-  return s;
-}
 
 export interface Gallery {
   group: Group;
@@ -67,7 +47,7 @@ export function buildGallery(kit: Kit, style: Style): Gallery {
         key: p.key, style,
         matrix: new Matrix4().makeTranslation(x - p.box.min.x, y - p.box.min.y, Math.max(0, -p.box.min.z)),
       });
-      const l = label(`${p.collection}\n${p.variant}`);
+      const l = textSprite(`${p.collection}\n${p.variant}`);
       l.position.set(x + size.x / 2, y - 2.0, 0.5);
       labels.add(l);
       x += size.x + GAP;

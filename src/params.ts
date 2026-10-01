@@ -10,6 +10,7 @@ export type DetailStyle = "refends" | "pilasters" | "panels";
 export type DormerStyle = "zinc" | "oeil" | "segment" | "triangle" | "mixed";
 export type BuildingType = "freestanding" | "corner" | "row";
 export type GroundUse = "residential" | "mixed" | "shops";
+export type Apartments = "auto" | "one" | "two";
 
 export interface BuildingParams {
   /** freestanding (4 street facades), corner (2 streets, 2 party walls),
@@ -71,6 +72,10 @@ export interface BuildingParams {
   awning: string;
   /** railing lace pattern, materials.LACE_PATTERNS */
   lace: number;
+  /** a double-height ballroom on the étage noble and the floor above (INTERIOR_SPEC.md §5.6) */
+  ballroom: boolean;
+  /** flats per upper floor: auto (two from twoFlatsBays front bays), one, two */
+  apartments: Apartments;
 }
 
 export function defaultParams(): BuildingParams {
@@ -82,5 +87,6 @@ export function defaultParams(): BuildingParams {
     shutterClosed: 0.15, shutterHalf: 0.15,
     curtainNone: 0.3, curtainClosed: 0.3, curtainOpen: 0.5, windowOpen: 0.15, windowDir: "in", windowAngle: 75,
     stone: "#ffffff", paint: "#22382f", shutter: "#c9c5ba", awning: "#8c2b2b", lace: 2,
+    ballroom: true, apartments: "auto",
   };
 }

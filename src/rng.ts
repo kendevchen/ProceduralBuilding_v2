@@ -35,4 +35,7 @@ export const PURPOSE = {
   partyChimney: 12,
   window: 13,
   windowAngle: 14,
+  plan: 15,
+  planService: 16,
+  planFlats: 17,
 } as const;

@@ -5,8 +5,8 @@
 ## 與 v1 的關係
 - v1 位置：`../ProceduralBuilding_v1`（GitHub `kendevchen/ProceduralBuilding_v1`；標籤 `v1-hongkong` = 線上港式版，之後新增的文件如 `HK_MODEL_INVENTORY.md` 只在 main）。本專案可直接讀取（見 `.claude/settings.json`）。
 - v2 只放用得到的東西。需要下表的功能時，**先去 v1 讀對應檔案再移植，不要重寫**。
-- 從 v1 帶來、目前與 v1 相同的檔案：`src/environment.ts`、`src/moods.ts`、`src/sky.ts`、`src/postfx.ts`、`.github/workflows/deploy.yml`。
-- 從 v1 移植後改過的檔案：`src/kit.ts`（只留名稱還原、鏡像、實例化）、`blender/export_kit.py`（自動找 `KIT` 底下的集合、保留 UV、manifest 記三角形數）。
+- 從 v1 帶來、目前與 v1 相同的檔案：`src/environment.ts`、`src/moods.ts`、`src/sky.ts`、`src/postfx.ts`。
+- 從 v1 移植後改過的檔案：`src/kit.ts`（只留名稱還原、鏡像、實例化）、`blender/export_kit.py`（自動找 `KIT` 底下的集合、保留 UV、manifest 記三角形數）、`.github/workflows/deploy.yml`（同時部署 main 和 `interior-floors` 的 `/dev/` 預覽）。
 
 ## v1 功能地圖（v2 尚未帶入）
 | 功能 | v1 位置 | 備註 |
@@ -26,8 +26,10 @@
 ## 開發
 - `npm run dev` → http://localhost:5176/
 - `npm run build`；推送到 main 會由 GitHub Actions 部署到 https://kendevchen.github.io/ProceduralBuilding_v2/
+- 新功能在分支 `interior-floors` 開發，推送後部署到 https://kendevchen.github.io/ProceduralBuilding_v2/dev/ ，正式網站不變（main 的標籤 `v2.0-exterior`）。
 - Blender 5.1.1：`/Applications/Blender.app/Contents/MacOS/Blender`
 - 零件規格與分階段計畫：`blender/KIT_SPEC.md`（含決策紀錄）。尺寸常數只改 `blender/kit_dims.json`。
+- 室內樓層（逐層隱藏、垂直剖面、平面配置、樓梯、宴會廳）的規格與分階段計畫：`INTERIOR_SPEC.md`（階段 I1–I6）。
 - `npm run kit`：建模 → 預覽圖 `blender/kit_preview.jpg` → 匯出 `public/assets/kit.glb`。零件全部由 `blender/kitlib/` 產生，不手改 `.blend`。
 - `npm run tex`：`blender/bake.py` 烘焙自製貼圖與鐵花圖樣到 `public/assets/tex/`；網頁端的材質著色器在 `src/materials.ts`。
 - `npm run rooms`：`blender/rooms.py` 產生室內圖集；`npm run ao`：`blender/bake_ao.py` 烘焙 AO（約 10 分鐘）。窗後室內與窗簾在 `src/interiors.ts`。

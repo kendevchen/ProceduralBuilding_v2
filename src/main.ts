@@ -14,9 +14,11 @@ import { buildGallery } from "./gallery";
 import { buildingStyle, generateBuilding, partyChimneys } from "./generator";
 import { Kit } from "./kit";
 import { type KitMaterials, LACE_PATTERNS, createMaterials } from "./materials";
-import { defaultParams } from "./params";
+import { type BuildingParams, defaultParams } from "./params";
 import { PostFX } from "./postfx";
 import { buildInteriors } from "./interiors";
+import { type BuildingPlan, planBuilding } from "./plan";
+import { buildPlanView } from "./planView";
 import { partyWalls, roofCap, roofShape } from "./roof";
 
 const renderer = new WebGLRenderer({ antialias: true, powerPreference: "high-performance", logarithmicDepthBuffer: true });
@@ -55,9 +57,12 @@ root.rotation.x = -Math.PI / 2;
 scene.add(root);
 const params = defaultParams();
 const view = { gallery: false };
+/** floor plans (INTERIOR_SPEC.md): the plan view of one level, its labels, the plan check */
+const interiorView = { plan: false, level: 1, labels: true, area: false, check: "—" };
 let materials: KitMaterials | null = null;
 let kit: Kit | null = null;
 let shown: Group | null = null;
+let lastPlan: BuildingPlan | null = null;
 
 function show(g: Group, center: Vector3, radius: number): void {
   if (shown) {
@@ -98,6 +103,17 @@ function rebuild(frame = false): void {
     return;
   }
   const b = generateBuilding(params, kit);
+  const plan = planBuilding(b, params);
+  lastPlan = plan;
+  interiorView.check = plan.issues.length ? `${plan.issues.length} 個問題` : "OK";
+  if (plan.issues.length) console.warn(`plan: ${plan.issues.length} issues`, plan.issues);
+  syncLevels(plan);
+  if (interiorView.plan) {
+    const g = buildPlanView(plan, interiorView.level, interiorView);
+    g.position.set(-b.width / 2, -b.length / 2, 0);
+    show(g, new Vector3(0, plan.levels[interiorView.level].floorZ, 0), Math.hypot(b.width, b.length) / 2 + 2);
+    return;
+  }
   const walls = partyWalls(b.footprint, b.edgeKinds, b.roofBase);
   const flat = roofShape(b.footprint, b.edgeKinds, b.roofBase).z2;
   const g = kit.buildGroup(b.placements.concat(partyChimneys(params, kit, b.style, walls.edges, flat)));
@@ -167,6 +183,43 @@ fLook.addColor(params, "paint").name("大門漆色").onChange(update);
 fLook.addColor(params, "shutter").name("百葉漆色").onChange(update);
 fLook.addColor(params, "awning").name("遮雨棚顏色").onChange(update);
 fLook.add(params, "lace", Object.fromEntries(LACE_PATTERNS.map((n, i) => [n, i]))).name("欄杆鐵花").onChange(update);
+const fInterior = gui.addFolder("🏢 室內樓層 (Interior)");
+fInterior.add(interiorView, "plan").name("平面檢視").onChange((on: boolean) => {
+  if (on) {
+    const z = lastPlan?.levels[interiorView.level]?.floorZ ?? 0;
+    controls.target.set(0, z, 0);
+    camera.position.set(12, z + 30, 26);
+  } else {
+    camera.position.set(36, 20, 46);
+    controls.target.set(0, 7, 0);
+  }
+  rebuild();
+});
+const levelCtrl = fInterior.add(interiorView, "level", 0, 7, 1).name("樓層").onChange(() => {
+  // keep the view, at the new floor's height
+  const z = lastPlan?.levels[interiorView.level]?.floorZ;
+  if (interiorView.plan && z !== undefined) {
+    const dz = z - controls.target.y;
+    controls.target.y += dz;
+    camera.position.y += dz;
+  }
+  rebuild();
+});
+fInterior.add(interiorView, "labels").name("房間名稱").onChange(update);
+fInterior.add(interiorView, "area").name("顯示面積").onChange(update);
+fInterior.add(params, "ballroom").name("宴會廳").onChange(update);
+fInterior.add(params, "apartments", { "自動": "auto", "一戶": "one", "兩戶": "two" }).name("每層戶數").onChange(update);
+fInterior.add(interiorView, "check").name("平面檢查").disable().listen();
+
+/** the level slider follows the building's floors and shows the level's name */
+function syncLevels(plan: BuildingPlan): void {
+  const top = plan.levels.length - 1;
+  if (interiorView.level > top) interiorView.level = top;
+  levelCtrl.max(top);
+  levelCtrl.name(`樓層（${plan.levels[interiorView.level].name}）`);
+  levelCtrl.updateDisplay();
+}
+
 const perf = { pixelRatio: DEFAULT_PIXEL_RATIO, msaa: 2 };
 const fPerf = gui.addFolder("⚡ 效能與畫質");
 fPerf.add(perf, "pixelRatio", 0.5, 2, 0.05).name("渲染像素比").onChange((v: number) => {
@@ -190,8 +243,59 @@ env.onMood = s => {
 };
 env.applyMood(env.settings.mood);
 
+/** dev: plan every combination of the test matrix (INTERIOR_SPEC.md §12) and
+ *  collect the ones checkPlan complains about */
+function planCheckAll(seeds = [1, 2], apartments: BuildingParams["apartments"][] = ["auto"]) {
+  if (!kit) return null;
+  const fails: unknown[] = [];
+  /** problems by kind (numbers and room ids stripped), with the first case of each */
+  const kinds: Record<string, { count: number; example: unknown }> = {};
+  let total = 0;
+  for (const type of ["freestanding", "corner", "row"] as const) {
+    for (const cornerStyle of ["pier", "panCoupe"] as const) {
+      for (const baysX of [2, 3, 5, 7, 10]) {
+        for (const side of type === "row" ? [8, 12, 16, 20] : [2, 3, 5, 8]) {
+          for (const floors of [1, 2, 4, 6]) {
+            for (const ballroom of [true, false]) {
+              for (const groundUse of ["residential", "mixed", "shops"] as const) {
+                for (const seed of seeds) {
+                  for (const apt of apartments) {
+                    const q: BuildingParams = {
+                      ...params, type, cornerStyle, baysX, floors, ballroom, groundUse, seed, apartments: apt,
+                      ...(type === "row" ? { depth: side } : { baysY: side }),
+                    };
+                    const plan = planBuilding(generateBuilding(q, kit), q);
+                    total++;
+                    if (plan.issues.length) {
+                      const f = { type, cornerStyle, baysX, side, floors, ballroom, groundUse, seed, apt, issues: plan.issues.slice(0, 4) };
+                      fails.push(f);
+                      for (const i of plan.issues) {
+                        const k = i.replace(/\d+F-\d+|閣樓-\d+|[\d.]+/g, "#");
+                        kinds[k] ??= { count: 0, example: f };
+                        kinds[k].count++;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return { total, failed: fails.length, kinds, sample: fails.slice(0, 30) };
+}
+
 // dev only: handles for scripted screenshots / debugging from the console
-if (import.meta.env.DEV) Object.assign(window, { __app: { camera, controls, params, view, rebuild, scene, renderer, env } });
+if (import.meta.env.DEV) {
+  Object.assign(window, {
+    __app: {
+      camera, controls, params, view, interiorView, rebuild, scene, renderer, env, planCheckAll,
+      get plan() { return lastPlan; },
+    },
+  });
+}
 
 const base = import.meta.env.BASE_URL;
 createMaterials(base).then(async m => {
