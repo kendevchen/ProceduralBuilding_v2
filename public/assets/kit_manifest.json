@@ -1,0 +1,653 @@
+{
+ "collections": {
+  "A_bay": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "A_bay.wall",
+     "tris": 10
+    },
+    {
+     "index": 1,
+     "kind": "OBJECT",
+     "name": "A_bay.window",
+     "tris": 160
+    }
+   ]
+  },
+  "A_corner": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "A_corner.pier",
+     "tris": 132
+    }
+   ]
+  },
+  "A_detail": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "A_detail.panels",
+     "tris": 204
+    },
+    {
+     "index": 1,
+     "kind": "OBJECT",
+     "name": "A_detail.pilasters",
+     "tris": 52
+    },
+    {
+     "index": 2,
+     "kind": "OBJECT",
+     "name": "A_detail.refends",
+     "tris": 112
+    }
+   ]
+  },
+  "A_end": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "A_end.pier",
+     "tris": 13
+    }
+   ]
+  },
+  "A_pc": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "A_pc.frame",
+     "tris": 40
+    }
+   ]
+  },
+  "A_shutter": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "A_shutter.closed",
+     "tris": 172
+    },
+    {
+     "index": 1,
+     "kind": "OBJECT",
+     "name": "A_shutter.folded",
+     "tris": 28
+    }
+   ]
+  },
+  "A_surround": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "A_surround.band",
+     "tris": 22
+    },
+    {
+     "index": 1,
+     "kind": "OBJECT",
+     "name": "A_surround.crossette",
+     "tris": 74
+    }
+   ]
+  },
+  "G_bay": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "G_bay.door_arched",
+     "tris": 650
+    },
+    {
+     "index": 1,
+     "kind": "OBJECT",
+     "name": "G_bay.door_glazed",
+     "tris": 478
+    },
+    {
+     "index": 2,
+     "kind": "OBJECT",
+     "name": "G_bay.door_rect",
+     "tris": 410
+    },
+    {
+     "index": 3,
+     "kind": "OBJECT",
+     "name": "G_bay.shop_cafe",
+     "tris": 310
+    },
+    {
+     "index": 4,
+     "kind": "OBJECT",
+     "name": "G_bay.shop_stone",
+     "tris": 240
+    },
+    {
+     "index": 5,
+     "kind": "OBJECT",
+     "name": "G_bay.shop_wood",
+     "tris": 98
+    },
+    {
+     "index": 6,
+     "kind": "OBJECT",
+     "name": "G_bay.wall",
+     "tris": 80
+    },
+    {
+     "index": 7,
+     "kind": "OBJECT",
+     "name": "G_bay.window_arched",
+     "tris": 582
+    },
+    {
+     "index": 8,
+     "kind": "OBJECT",
+     "name": "G_bay.window_rect",
+     "tris": 414
+    }
+   ]
+  },
+  "G_corner": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "G_corner.pier",
+     "tris": 160
+    }
+   ]
+  },
+  "G_end": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "G_end.pier",
+     "tris": 101
+    }
+   ]
+  },
+  "G_pc": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "G_pc.frame",
+     "tris": 320
+    }
+   ]
+  },
+  "N_bay": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "N_bay.wall",
+     "tris": 10
+    },
+    {
+     "index": 1,
+     "kind": "OBJECT",
+     "name": "N_bay.window",
+     "tris": 202
+    }
+   ]
+  },
+  "N_corner": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "N_corner.pier",
+     "tris": 164
+    }
+   ]
+  },
+  "N_detail": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "N_detail.panels",
+     "tris": 204
+    },
+    {
+     "index": 1,
+     "kind": "OBJECT",
+     "name": "N_detail.pilasters",
+     "tris": 52
+    },
+    {
+     "index": 2,
+     "kind": "OBJECT",
+     "name": "N_detail.refends",
+     "tris": 144
+    }
+   ]
+  },
+  "N_end": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "N_end.pier",
+     "tris": 13
+    }
+   ]
+  },
+  "N_pc": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "N_pc.frame",
+     "tris": 40
+    }
+   ]
+  },
+  "N_shutter": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "N_shutter.closed",
+     "tris": 216
+    },
+    {
+     "index": 1,
+     "kind": "OBJECT",
+     "name": "N_shutter.folded",
+     "tris": 28
+    }
+   ]
+  },
+  "N_surround": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "N_surround.band",
+     "tris": 22
+    },
+    {
+     "index": 1,
+     "kind": "OBJECT",
+     "name": "N_surround.crossette",
+     "tris": 74
+    }
+   ]
+  },
+  "R_chimney": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "R_chimney.party",
+     "tris": 802
+    },
+    {
+     "index": 1,
+     "kind": "OBJECT",
+     "name": "R_chimney.stack2",
+     "tris": 282
+    },
+    {
+     "index": 2,
+     "kind": "OBJECT",
+     "name": "R_chimney.stack4",
+     "tris": 542
+    },
+    {
+     "index": 3,
+     "kind": "OBJECT",
+     "name": "R_chimney.stack6",
+     "tris": 802
+    }
+   ]
+  },
+  "R_cornice": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "R_cornice.bay",
+     "tris": 38
+    }
+   ]
+  },
+  "R_cornice_corner": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "R_cornice_corner.pier",
+     "tris": 76
+    }
+   ]
+  },
+  "R_cornice_end": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "R_cornice_end.end",
+     "tris": 56
+    }
+   ]
+  },
+  "R_cornice_pc": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "R_cornice_pc.frame",
+     "tris": 152
+    }
+   ]
+  },
+  "R_mansard": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "R_mansard.dormer_oeil",
+     "tris": 290
+    },
+    {
+     "index": 1,
+     "kind": "OBJECT",
+     "name": "R_mansard.dormer_segment",
+     "tris": 336
+    },
+    {
+     "index": 2,
+     "kind": "OBJECT",
+     "name": "R_mansard.dormer_triangle",
+     "tris": 188
+    },
+    {
+     "index": 3,
+     "kind": "OBJECT",
+     "name": "R_mansard.dormer_zinc",
+     "tris": 152
+    },
+    {
+     "index": 4,
+     "kind": "OBJECT",
+     "name": "R_mansard.plain",
+     "tris": 30
+    }
+   ]
+  },
+  "R_mansard_corner": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "R_mansard_corner.hip",
+     "tris": 30
+    }
+   ]
+  },
+  "R_mansard_end": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "R_mansard_end.end",
+     "tris": 30
+    }
+   ]
+  },
+  "R_mansard_pc": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "R_mansard_pc.frame",
+     "tris": 152
+    }
+   ]
+  },
+  "R_ridge": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "R_ridge.cresting",
+     "tris": 18
+    },
+    {
+     "index": 1,
+     "kind": "OBJECT",
+     "name": "R_ridge.finial",
+     "tris": 300
+    },
+    {
+     "index": 2,
+     "kind": "OBJECT",
+     "name": "R_ridge.post",
+     "tris": 46
+    }
+   ]
+  },
+  "S_bay": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "S_bay.wall",
+     "tris": 10
+    },
+    {
+     "index": 1,
+     "kind": "OBJECT",
+     "name": "S_bay.window",
+     "tris": 182
+    }
+   ]
+  },
+  "S_corner": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "S_corner.pier",
+     "tris": 148
+    }
+   ]
+  },
+  "S_detail": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "S_detail.panels",
+     "tris": 204
+    },
+    {
+     "index": 1,
+     "kind": "OBJECT",
+     "name": "S_detail.pilasters",
+     "tris": 52
+    },
+    {
+     "index": 2,
+     "kind": "OBJECT",
+     "name": "S_detail.refends",
+     "tris": 128
+    }
+   ]
+  },
+  "S_end": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "S_end.pier",
+     "tris": 13
+    }
+   ]
+  },
+  "S_pc": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "S_pc.frame",
+     "tris": 40
+    }
+   ]
+  },
+  "S_shutter": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "S_shutter.closed",
+     "tris": 188
+    },
+    {
+     "index": 1,
+     "kind": "OBJECT",
+     "name": "S_shutter.folded",
+     "tris": 28
+    }
+   ]
+  },
+  "S_surround": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "S_surround.band",
+     "tris": 22
+    },
+    {
+     "index": 1,
+     "kind": "OBJECT",
+     "name": "S_surround.crossette",
+     "tris": 74
+    }
+   ]
+  },
+  "awning": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "awning.open",
+     "tris": 54
+    },
+    {
+     "index": 1,
+     "kind": "OBJECT",
+     "name": "awning.retracted",
+     "tris": 10
+    }
+   ]
+  },
+  "balcony": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "balcony.balconnet",
+     "tris": 116
+    },
+    {
+     "index": 1,
+     "kind": "OBJECT",
+     "name": "balcony.continuous",
+     "tris": 46
+    },
+    {
+     "index": 2,
+     "kind": "OBJECT",
+     "name": "balcony.corner",
+     "tris": 76
+    },
+    {
+     "index": 3,
+     "kind": "OBJECT",
+     "name": "balcony.end",
+     "tris": 73
+    },
+    {
+     "index": 4,
+     "kind": "OBJECT",
+     "name": "balcony.gardecorps",
+     "tris": 42
+    },
+    {
+     "index": 5,
+     "kind": "OBJECT",
+     "name": "balcony.pc",
+     "tris": 136
+    }
+   ]
+  },
+  "console": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "console.block",
+     "tris": 46
+    },
+    {
+     "index": 1,
+     "kind": "OBJECT",
+     "name": "console.scroll",
+     "tris": 150
+    }
+   ]
+  },
+  "head": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "head.cornice",
+     "tris": 38
+    },
+    {
+     "index": 1,
+     "kind": "OBJECT",
+     "name": "head.cornice_consoles",
+     "tris": 114
+    },
+    {
+     "index": 2,
+     "kind": "OBJECT",
+     "name": "head.keystone",
+     "tris": 10
+    },
+    {
+     "index": 3,
+     "kind": "OBJECT",
+     "name": "head.segment",
+     "tris": 191
+    },
+    {
+     "index": 4,
+     "kind": "OBJECT",
+     "name": "head.triangle",
+     "tris": 61
+    }
+   ]
+  }
+ },
+ "objects": {}
+}

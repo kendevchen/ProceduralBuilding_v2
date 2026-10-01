@@ -1,0 +1,34 @@
+{
+  "_doc": "Shared kit dimensions in metres (KIT_SPEC.md §3). Read by blender/build_kit.py and imported by src/generator.ts / src/roof.ts. Change sizes here only.",
+  "bay": 3.0,
+  "corner": 1.0,
+  "endPier": 0.5,
+  "panCoupe": { "square": 4.0, "leg": 3.0 },
+  "wall": 0.4,
+  "course": 0.4,
+  "classes": {
+    "G": { "height": 4.4 },
+    "N": { "height": 3.6, "head": 2.8 },
+    "S": { "height": 3.2, "head": 2.4 },
+    "A": { "height": 2.8, "head": 2.2 }
+  },
+  "heightProfiles": {
+    "haussmann": { "first": "N", "middle": "S", "last": "A" },
+    "uniform": { "first": "S", "middle": "S", "last": "S" }
+  },
+  "window": { "width": 1.3, "sill": 0.2 },
+  "ground": {
+    "plinth": 0.4,
+    "frieze": 4.0,
+    "window": { "width": 1.8, "sill": 0.4, "spring": 2.7 },
+    "door": { "width": 2.2, "spring": 2.7 }
+  },
+  "bandeau": { "height": 0.2, "projection": 0.06 },
+  "balcony": { "depth": 0.9, "slab": 0.18, "railing": 1.0 },
+  "gardecorps": { "width": 1.4, "bottom": 0.2, "top": 1.2 },
+  "cornice": { "height": 0.6, "projection": 0.6 },
+  "mansard": { "rise": 3.0, "run": 1.0 },
+  "dormer": { "width": 0.9, "sill": 0.6, "head": 2.0, "front": 1.3, "eave": 2.25, "ridge": 2.65 },
+  "terrasson": { "pitchDeg": 18, "maxRun": 3.0, "minFlat": 1.0 },
+  "room": { "width": 2.9, "maxDepth": 4.6 }
+}

@@ -4,3 +4,8 @@ dist/
 *.log
 # Blender auto-backups
 *.blend1
+
+# kit build output (rebuild with npm run kit)
+blender/european_kit.blend
+blender/textures.blend
+__pycache__/

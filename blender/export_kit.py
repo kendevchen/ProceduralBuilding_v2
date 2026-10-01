@@ -1,33 +1,31 @@
-"""Export the asset kit used by the 'build system' geometry nodes to a single GLB.
+"""Export the kit to a single GLB plus a manifest (KIT_SPEC.md §9).
 
-Each collection child becomes a top-level node named COL[<collection>][<idx>] with its
-transform reset (mirroring CollectionInfo's Separate Children + Reset Children).
-Collection-instance empties and nested collections are realized recursively — this
-matters: e.g. ROOMS children instance a 'floor_preset' collection and the store_roof
-object is an empty instancing 'groud_roof_preset'.
+  blender --background blender/european_kit.blend --python-exit-code 1 \
+      --python blender/export_kit.py -- public/assets/kit.glb public/assets/kit_manifest.json
 
-blender --background source/procedural_building.blend --python tools/export_kit.py -- kit.glb kit_manifest.json
+Every collection under KIT is a slot; each of its children becomes a top-level
+node named COL[<collection>][<idx>] with its transform reset (idx = order of
+the children sorted by name). The manifest maps each index back to the Blender
+name ("<collection>.<variant>") and records its triangle count, so the web app
+looks parts up by name. Collection-instance empties and sub-collections are
+realized recursively (kept from the v1 exporter). Meshes keep UV0 and UV1;
+images are not embedded -- textures ship separately in public/assets/tex/.
 """
-import bpy
 import json
 import sys
+
+import bpy
 import mathutils
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 out_glb = argv[0]
 out_manifest = argv[1]
 
-COLLECTIONS = [
-    "AC WIRE.001", "ac.001", "cloth lines WITH CLOTHES.001", "cloth lines.001",
-    "corner", "CURTAINS.001", "eletricarea", "groud side wall", "groud_front",
-    "ground_back", "ground_corner", "guardrail back", "guardrail front",
-    "guardrailside", "lights.001", "lightsground", "old store_sign", "prop_front",
-    "prop_groud", "prop_store", "roof", "roof.002", "roof_prop", "roofcorner",
-    "ROOMS.001", "shutter", "side_wall", "steel window top preset.001",
-    "store_sign", "store_sign_hanging", "storefront", "storeinside", "wall.001",
-    "watertank", "window guard.001", "window wood top preset.001", "wire",
-]
-OBJECTS = ["steel frame.001", "steel window.001", "store_roof", "wood frame.001", "wood window.001"]
+kit_root = bpy.data.collections.get("KIT")
+if kit_root is None:
+    raise RuntimeError("no KIT collection: build the .blend with build_kit.py first")
+COLLECTIONS = sorted(c.name for c in kit_root.children)
+OBJECTS = []
 
 export_scene = bpy.data.scenes.new("KIT_EXPORT")
 bpy.context.window.scene = export_scene
@@ -35,6 +33,12 @@ bpy.context.window.scene = export_scene
 manifest = {"collections": {}, "objects": {}}
 part_count = 0
 mesh_count = 0
+
+
+def tris_of(obj):
+    if obj.type != "MESH":
+        return 0
+    return sum(len(p.vertices) - 2 for p in obj.data.polygons)
 
 
 def expand(obj, matrix, root):
@@ -72,12 +76,14 @@ def export_collection_child(col_name, idx, kind, child):
         expand(child, mathutils.Matrix.Identity(4), root)
         for desc in child.children_recursive:
             expand(desc, inv @ desc.matrix_world, root)
-        return {"index": idx, "kind": "OBJECT", "name": child.name}
+        tris = tris_of(child) + sum(tris_of(d) for d in child.children_recursive)
+        return {"index": idx, "kind": "OBJECT", "name": child.name, "tris": tris}
     else:
         # sub-collection child: unit keeps its internal world-space layout
         for o in child.all_objects:
             expand(o, o.matrix_world.copy(), root)
-        return {"index": idx, "kind": "COLLECTION", "name": child.name}
+        tris = sum(tris_of(o) for o in child.all_objects)
+        return {"index": idx, "kind": "COLLECTION", "name": child.name, "tris": tris}
 
 
 for col_name in COLLECTIONS:
@@ -86,12 +92,7 @@ for col_name in COLLECTIONS:
         print("MISSING COLLECTION:", col_name)
         manifest["collections"][col_name] = {"missing": True}
         continue
-    # CollectionInfo "Separate Children" emits children in NAME-sorted order (verified
-    # against the evaluated node graph), NOT raw col.objects order — so sort by name or
-    # the generator's index picks land on the wrong variant (e.g. storeinside had
-    # 'ground room2'/'ground room1' swapped, pairing the wrong room under each storefront).
-    # No collection mixes loose objects with sub-collections, so collections-then-objects
-    # never actually interleaves; sort each list independently by name.
+    # children in NAME-sorted order: the index in COL[..][idx] is this order
     children = [("COLLECTION", c) for c in sorted(col.children, key=lambda c: c.name)] + \
                [("OBJECT", o) for o in sorted(col.objects, key=lambda o: o.name)
                 if o.parent is None or o.parent.name not in col.objects]
@@ -118,9 +119,11 @@ bpy.ops.export_scene.gltf(
     export_format="GLB",
     use_active_scene=True,
     export_apply=True,
-    export_yup=False,  # keep Blender Z-up; three.js side rotates the root
-    export_image_format="AUTO",
-    export_materials="EXPORT",
+    export_yup=False,           # keep Blender Z-up; the web app rotates the root
+    export_texcoords=True,      # UV0 (pattern, metres) + UV1 (AO atlas)
+    export_normals=True,
+    export_materials="EXPORT",  # only the names matter: materials.ts rebuilds them
+    export_image_format="NONE",
     export_animations=False,
     export_skins=False,
 )
@@ -128,4 +131,5 @@ bpy.ops.export_scene.gltf(
 with open(out_manifest, "w", encoding="utf-8") as f:
     json.dump(manifest, f, indent=1)
 
-print("EXPORT_OK", part_count, "parts,", mesh_count, "meshes ->", out_glb)
+total = sum(e["tris"] for c in manifest["collections"].values() for e in c.get("children", []))
+print("EXPORT_OK", part_count, "parts,", mesh_count, "meshes,", total, "triangles ->", out_glb)

@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "kit": "sh blender/make_kit.sh",
+    "tex": "sh blender/make_kit.sh tex"
   },
   "dependencies": {
     "lil-gui": "^0.20.0",
