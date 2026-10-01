@@ -8,7 +8,9 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "kit": "sh blender/make_kit.sh",
-    "tex": "sh blender/make_kit.sh tex"
+    "tex": "sh blender/make_kit.sh tex",
+    "rooms": "sh blender/make_kit.sh rooms",
+    "ao": "sh blender/make_kit.sh ao"
   },
   "dependencies": {
     "lil-gui": "^0.20.0",

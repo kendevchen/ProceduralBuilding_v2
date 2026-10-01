@@ -16,8 +16,8 @@
  * its own material variant, with a matching depth material for the shadows.
  */
 import {
-  type Material, MeshDepthMaterial, MeshStandardMaterial, RGBADepthPacking, RepeatWrapping,
-  SRGBColorSpace, type Texture, TextureLoader, Vector2, DoubleSide,
+  ClampToEdgeWrapping, type Material, MeshBasicMaterial, MeshDepthMaterial, MeshStandardMaterial, RGBADepthPacking,
+  RepeatWrapping, SRGBColorSpace, type Texture, TextureLoader, Vector2, DoubleSide,
 } from "three";
 import dims from "../blender/kit_dims.json";
 
@@ -231,11 +231,59 @@ const LACE_MAP = /* glsl */ `
 }
 `;
 
+// ---- interiors: room boxes painted from the atlas (interiors.ts, rooms.py) ----
+const ROOM_VERT = /* glsl */ `
+attribute vec3 roomLocal;
+attribute vec4 roomInfo;
+attribute float roomH;
+varying vec3 vRoom;
+varying vec4 vRoomInfo;
+varying float vRoomH;
+`;
+
+const ROOM_FRAG_PARS = /* glsl */ `
+varying vec3 vRoom;
+varying vec4 vRoomInfo;
+varying float vRoomH;
+uniform sampler2D uAtlas;
+uniform float uNight;
+`;
+
+// same pinhole as rooms.py: 16 m in front of the room's open front, framing
+// 4H x H there; cell k of the 2 x 8 atlas at column k % 2, row k / 2
+const ROOM_FRAG = /* glsl */ `
+{
+  float H = vRoomH;
+  float persp = 16.0 / (vRoom.y + 16.0);
+  float u = 0.5 + (vRoom.x - vRoomInfo.y) * persp / (4.0 * H);
+  float v = 0.5 + (vRoom.z - 0.5 * H) * persp / H;
+  if (vRoomInfo.z > 0.5) u = 1.0 - u;
+  u = clamp(u, 0.003, 0.997);
+  v = clamp(v, 0.01, 0.99);
+  vec2 cell = vec2(mod(vRoomInfo.x, 2.0), floor(vRoomInfo.x / 2.0 + 0.01));
+  vec3 photo = texture2D(uAtlas, vec2((cell.x + u) * 0.5, (cell.y + v) / 8.0)).rgb;
+  float light = vRoomInfo.w;
+  // day: rooms read darker than the street; night: lit rooms glow warm, the others go dark
+  float lit = light > 0.75 ? 1.0 : 0.0;
+  vec3 warm = mix(vec3(1.0), vec3(1.0, 0.8, 0.58), lit * uNight);
+  float gain = mix(0.42 * light, mix(0.06, 1.9 * light, lit), uNight);
+  float falloff = mix(1.0, 0.6, clamp(vRoom.y / 5.0, 0.0, 1.0));
+  diffuseColor.rgb = photo * warm * gain * falloff;
+}
+`;
+
+// glass: transparent, more opaque and reflective at grazing angles (Fresnel)
+const GLASS_FRAG = /* glsl */ `
+float glassF = pow(1.0 - clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0), 3.0);
+gl_FragColor = vec4(outgoingLight, clamp(diffuseColor.a + glassF * 0.75, 0.0, 1.0));
+`;
+
 // ---------------------------------------------------------------- building
 
-function surface(name: string, spec: SurfaceSpec, color: Texture, rh: Texture): MeshStandardMaterial {
+function surface(name: string, spec: SurfaceSpec, color: Texture, rh: Texture, ao: Texture | null): MeshStandardMaterial {
   const mat = new MeshStandardMaterial({
     name, color: spec.color, roughness: 1, metalness: spec.metalness ?? 0,
+    aoMap: ao, aoMapIntensity: 1,
   });
   mat.userData.tint = spec.tint;
   const defines: Record<string, string> = {};
@@ -280,6 +328,11 @@ function laceShader(shader: { vertexShader: string; fragmentShader: string; unif
 
 export interface KitMaterials {
   byName: Map<string, Material>;
+  /** room boxes and curtains (interiors.ts) */
+  interior: Material;
+  voile: Material;
+  /** 0 day .. 1 night: lit rooms glow, the others go dark */
+  setNight(v: number): void;
   /** railing lace material and its shadow depth material, per atlas pattern */
   lace(pattern: number): Material;
   laceDepth(pattern: number): Material;
@@ -294,8 +347,10 @@ export async function createMaterials(base: string): Promise<KitMaterials> {
     return t;
   });
   const sets = [...new Set(Object.values(SURFACES).map(s => s.tex))];
-  const [laceTex, ...setTex] = await Promise.all([
+  const [laceTex, atlas, aoTex, ...setTex] = await Promise.all([
     load("iron_lace.png", true),
+    load("interiors.jpg", true),
+    load("kit_ao.jpg", false),
     ...sets.flatMap(s => [load(`${s}_color.jpg`, true), load(`${s}_rh.png`, false)]),
   ]);
   const tex = new Map(sets.map((s, i) => [s, { color: setTex[2 * i], rh: setTex[2 * i + 1] }]));
@@ -303,10 +358,38 @@ export async function createMaterials(base: string): Promise<KitMaterials> {
   const byName = new Map<string, Material>();
   for (const [name, spec] of Object.entries(SURFACES)) {
     const t = tex.get(spec.tex)!;
-    byName.set(name, surface(name, spec, t.color, t.rh));
+    byName.set(name, surface(name, spec, t.color, t.rh, aoTex));
+    // the geometry made in the browser (roof top, party walls) has no UV1
+    byName.set(`${name}:noao`, surface(name, spec, t.color, t.rh, null));
   }
   // opaque reflective glass until the interiors arrive (phase F)
-  byName.set("glass", new MeshStandardMaterial({ name: "glass", color: 0x26313b, roughness: 0.03, metalness: 0, envMapIntensity: 1.6 }));
+  aoTex.channel = 1;
+  aoTex.wrapS = aoTex.wrapT = ClampToEdgeWrapping;
+  const glass = new MeshStandardMaterial({
+    name: "glass", color: 0x1c252c, roughness: 0.02, metalness: 0, envMapIntensity: 1.8,
+    transparent: true, opacity: 0.12, depthWrite: false,
+  });
+  glass.onBeforeCompile = shader => {
+    shader.fragmentShader = shader.fragmentShader.replace("#include <opaque_fragment>", GLASS_FRAG);
+  };
+  glass.customProgramCacheKey = () => "kit-glass";
+  byName.set("glass", glass);
+
+  atlas.wrapS = atlas.wrapT = ClampToEdgeWrapping;
+  const night = { value: 0 };
+  const interior = new MeshBasicMaterial({ name: "interior", side: DoubleSide });
+  interior.onBeforeCompile = shader => {
+    shader.uniforms.uAtlas = { value: atlas };
+    shader.uniforms.uNight = night;
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", `#include <common>\n${ROOM_VERT}`)
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvRoom = roomLocal; vRoomInfo = roomInfo; vRoomH = roomH;");
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", `#include <common>\n${ROOM_FRAG_PARS}`)
+      .replace("#include <map_fragment>", ROOM_FRAG);
+  };
+  interior.customProgramCacheKey = () => "kit-interior";
+  const voile = new MeshStandardMaterial({ name: "voile", color: 0xe6ddcc, roughness: 0.92, side: DoubleSide });
   byName.set("debug", new MeshStandardMaterial({ name: "debug", color: 0xff00ff }));
 
   const laceMats = new Map<number, Material>();
@@ -337,5 +420,5 @@ export async function createMaterials(base: string): Promise<KitMaterials> {
   const laceBase = lace(0);
   laceBase.userData.lace = true;
   byName.set("iron_lace", laceBase);
-  return { byName, lace, laceDepth };
+  return { byName, lace, laceDepth, interior, voile, setNight: v => { night.value = v; } };
 }

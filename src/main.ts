@@ -16,6 +16,7 @@ import { Kit } from "./kit";
 import { type KitMaterials, LACE_PATTERNS, createMaterials } from "./materials";
 import { defaultParams } from "./params";
 import { PostFX } from "./postfx";
+import { buildInteriors } from "./interiors";
 import { partyWalls, roofCap, roofShape } from "./roof";
 
 const renderer = new WebGLRenderer({ antialias: true, powerPreference: "high-performance", logarithmicDepthBuffer: true });
@@ -101,14 +102,19 @@ function rebuild(frame = false): void {
   const flat = roofShape(b.footprint, b.edgeKinds, b.roofBase).z2;
   const g = kit.buildGroup(b.placements.concat(partyChimneys(params, kit, b.style, walls.edges, flat)));
   const cap = roofCap(b.footprint, b.edgeKinds, b.roofBase);
-  const roof = new Mesh(cap.geometry, materials.byName.get("zinc"));
+  const roof = new Mesh(cap.geometry, materials.byName.get("zinc:noao"));
   roof.castShadow = roof.receiveShadow = true;
   g.add(roof);
   if (walls.edges.length) {
-    const wall = new Mesh(walls.geometry, materials.byName.get("plaster"));
+    const wall = new Mesh(walls.geometry, materials.byName.get("plaster:noao"));
     wall.castShadow = wall.receiveShadow = true;
     g.add(wall);
   } else walls.geometry.dispose();
+  const inside = buildInteriors(b.rooms);
+  g.add(new Mesh(inside.rooms, materials.interior));
+  const curtains = new Mesh(inside.curtains, materials.voile);
+  curtains.receiveShadow = true;
+  g.add(curtains);
   g.position.set(-b.width / 2, -b.length / 2, 0); // footprint centred on the origin
   show(g, new Vector3(0, cap.top / 2, 0), Math.hypot(b.width, b.length, cap.top) / 2);
 }
@@ -168,6 +174,7 @@ env.addGui(gui);
 
 // mood extras beyond lights + sky: the post-processing grade
 env.onMood = s => {
+  materials?.setNight(s.night);
   post.bloom.strength = s.bloom;
   post.bloom.threshold = s.bloomThreshold;
   post.bloom.radius = s.bloomRadius;
@@ -184,6 +191,7 @@ const base = import.meta.env.BASE_URL;
 createMaterials(base).then(async m => {
   materials = m;
   kit = new Kit(m);
+  m.setNight(env.settings.night);
   await kit.load(`${base}assets/kit.glb`, `${base}assets/kit_manifest.json`);
   rebuild();
   document.getElementById("loading")?.remove();

@@ -214,8 +214,9 @@ export class Kit {
           const material = isLace ? this.materials.lace(b.pattern) : base;
           const im = new InstancedMesh(geom, material, b.matrices.length);
           im.name = key;
-          im.castShadow = true;
-          im.receiveShadow = true;
+          // glass: transparent, drawn after the rooms behind it, casts no shadow
+          im.castShadow = !material.transparent;
+          im.receiveShadow = !material.transparent;
           if (isLace) im.customDepthMaterial = this.materials.laceDepth(b.pattern);
           for (let i = 0; i < b.matrices.length; i++) {
             im.setMatrixAt(i, b.matrices[i]);

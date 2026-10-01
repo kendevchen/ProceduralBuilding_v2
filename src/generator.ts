@@ -15,6 +15,7 @@ import dims from "../blender/kit_dims.json";
 import type { Placement, Style } from "./kit";
 import type { BuildingParams, DetailStyle, DormerStyle, PedimentStyle } from "./params";
 import { PURPOSE, rand } from "./rng";
+import type { RoomKind, RoomSlot } from "./interiors";
 import { type EdgeKind, type V2, roofShape } from "./roof";
 
 export interface PartIndex {
@@ -49,6 +50,15 @@ export interface Building {
   footprint: V2[];
   /** kind of each footprint edge (edge i runs from point i to i + 1) */
   edgeKinds: EdgeKind[];
+  /** a room behind every window (interiors.ts) */
+  rooms: RoomSlot[];
+}
+
+/** where a bay stands on its facade, for the room boxes behind its windows */
+interface Geo {
+  along: number;
+  length: number;
+  depth: number;
 }
 
 const DETAILS: DetailStyle[] = ["refends", "pilasters", "panels"];
@@ -135,12 +145,24 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
   const placements: Placement[] = [];
   const MIRROR = new Matrix4().makeScale(-1, 1, 1);
   const DIAG = new Matrix4().makeRotationZ(-Math.PI / 4).setPosition(leg / 2, leg / 2, 0);
-  type Put = (collection: string, variant: string, x: number, z: number, opts?: { mirror?: boolean; angle?: number; y?: number }) => void;
+  type Put = (collection: string, variant: string, x: number, z: number, opts?: { mirror?: boolean; angle?: number; y?: number }) => Matrix4;
   const putter = (frame: Matrix4): Put => (collection, variant, x, z, opts = {}) => {
     const m = frame.clone().multiply(new Matrix4().makeTranslation(x, opts.y ?? 0, z));
     if (opts.angle) m.multiply(new Matrix4().makeRotationZ(opts.angle));
     if (opts.mirror) m.multiply(MIRROR);
     placements.push({ key: kit.key(collection, variant), matrix: m, style });
+    return m;
+  };
+  const rooms: RoomSlot[] = [];
+  const groundRoom = (m: Matrix4, variant: string, geo: Geo, seedKey: number[]) => {
+    const base = { matrix: m, half: 1.45, depth: geo.depth, along: geo.along, length: geo.length, seed: seedKey };
+    if (variant.startsWith("window")) {
+      rooms.push({ ...base, kind: "ground", y0: 0.25, floor: 0.45, height: 3.55, curtain: { half: 0.82, sill: 0.5, head: 2.6 } });
+    } else if (variant.startsWith("shop")) {
+      rooms.push({ ...base, kind: variant as RoomKind, y0: variant === "shop_wood" ? -0.2 : 0.27, floor: 0.02, height: 3.95 });
+    } else if (variant === "door_glazed") {
+      rooms.push({ ...base, kind: "hall", y0: 0.33, floor: 0.05, height: 3.9 });
+    }
   };
 
   // balcony of every (row, bay): continuous rows on street facades, the rule
@@ -166,9 +188,15 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
   };
 
   /** the upper floors, cornice and mansard of one bay at x (bay-local frame) */
-  const upperBay = (put: Put, kind: SideKind, si: number, i: number, n: number, x: number, dormerKind: string | null) => {
+  const upperBay = (put: Put, kind: SideKind, si: number, i: number, n: number, x: number, dormerKind: string | null, geo: Geo) => {
     rows.forEach((r, ri) => {
-      put(`${r.cls}_bay`, "window", x, r.z);
+      const wm = put(`${r.cls}_bay`, "window", x, r.z);
+      const H = dims.classes[r.cls].height;
+      rooms.push({
+        matrix: wm, kind: "upper", y0: 0.25, floor: 0.2, height: H - 0.35, half: 1.45,
+        depth: geo.depth, along: geo.along, length: geo.length,
+        curtain: { half: 0.6, sill: 0.26, head: dims.classes[r.cls].head - 0.07 }, seed: [seed, si, i, ri],
+      });
       const b = balconyOf(kind, si, ri, i);
       put("balcony", b, x, r.z);
       if (p.consoles && b !== "gardecorps") for (const cx of CONSOLES[b]) put("console", "scroll", x + cx, r.z);
@@ -197,7 +225,13 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
       put(`${r.cls}_shutter`, rightClosed ? "closed" : "folded", x, r.z, { mirror: true });
     });
     put("R_cornice", "bay", x, wallTop);
-    put("R_mansard", dormerKind ? `dormer_${dormerKind}` : "plain", x, roofBase);
+    const mm = put("R_mansard", dormerKind ? `dormer_${dormerKind}` : "plain", x, roofBase);
+    if (dormerKind) {
+      rooms.push({
+        matrix: mm, kind: "attic", y0: 1.1, floor: 0.1, height: 2.7, half: 1.45, tunnel: true,
+        depth: Math.min(3.2, geo.depth - 1.0), along: geo.along, length: geo.length, seed: [seed, si, i, 77],
+      });
+    }
     if (p.cresting && kind === "street") put("R_ridge", "cresting", x, roofBase);
   };
 
@@ -269,9 +303,10 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
       // the diagonal's middle bay: standard modules turned -45 degrees
       const dput = putter(sideFrames[si].clone().multiply(DIAG));
       const ground = p.groundUse !== "residential" ? "shop_cafe" : `window_${p.groundWindow}`;
-      dput("G_bay", ground, 0, 0);
+      const diag: Geo = { along: 500, length: 1000, depth: 1.8 };
+      groundRoom(dput("G_bay", ground, 0, 0), ground, diag, [seed, si, -1, -1]);
       if (ground === "shop_cafe") dput("awning", "open", 0, SHOP_TOP);
-      upperBay(dput, "street", si, -1, 1, 0, p.dormerStyle === "mixed" ? "oeil" : p.dormerStyle);
+      upperBay(dput, "street", si, -1, 1, 0, p.dormerStyle === "mixed" ? "oeil" : p.dormerStyle, diag);
     } else if (left === "endL") {
       ends(put, kind, 0, false);
     }
@@ -286,15 +321,15 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
       ? DOORS[Math.floor(rand(seed, PURPOSE.doorStyle) * DOORS.length)]
       : `door_${p.doorStyle}`;
     const shops = street ? shopsOf(si, n, door) : [];
+    const depth = Math.min(4.6, (si % 2 === 0 ? L : W) / 2 - 0.45);
     for (let i = 0; i < n; i++) {
       const x = x0 + bay * (i + 0.5);
-      if (i === door) put("G_bay", doorVariant, x, 0);
-      else if (shops[i]) {
-        put("G_bay", shops[i]!, x, 0);
-        put("awning", awningFor(shops[i]!, si, i), x, SHOP_TOP);
-      } else put("G_bay", street ? `window_${p.groundWindow}` : "window_rect", x, 0);
+      const geo: Geo = { along: x, length, depth };
+      const variant = i === door ? doorVariant : shops[i] ?? (street ? `window_${p.groundWindow}` : "window_rect");
+      groundRoom(put("G_bay", variant, x, 0), variant, geo, [seed, si, i, -1]);
+      if (shops[i]) put("awning", awningFor(shops[i]!, si, i), x, SHOP_TOP);
       const withDormer = p.dormerEvery === 1 || i % 2 === 0;
-      upperBay(put, kind, si, i, n, x, withDormer ? (street ? dormer(p.dormerStyle, si, i) : "zinc") : null);
+      upperBay(put, kind, si, i, n, x, withDormer ? (street ? dormer(p.dormerStyle, si, i) : "zinc") : null, geo);
     }
   });
 
@@ -338,7 +373,7 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
     if (!along) mm.multiply(new Matrix4().makeRotationZ(Math.PI / 2));
     world("R_chimney", kind, mm);
   }
-  return { placements, style, width: W, length: L, rows, wallTop, roofBase, footprint, edgeKinds };
+  return { placements, style, width: W, length: L, rows, wallTop, roofBase, footprint, edgeKinds, rooms };
 }
 
 /** chimney stacks along the party walls' tops, where the roof is flat */

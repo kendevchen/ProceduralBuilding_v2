@@ -22,6 +22,6 @@ npm run build
 - [x] 階段 C 立面細節：窗套、窗楣山花、托架、百葉、窗間壁裝飾、大門變化、裝飾層級規則
 - [x] 階段 D 屋頂：多種老虎窗、屋脊花飾與尖頂飾、煙囪
 - [x] 階段 E 平面與街面：斜切轉角、街角與連棟、盲牆與防火山牆、店面與遮雨棚、內院立面
-- [ ] 階段 F 室內與烘焙：自建房間圖集、窗簾、AO
+- [x] 階段 F 室內與烘焙：自建房間圖集、窗後室內、窗簾、透明玻璃、日夜燈光、AO
 
-零件改了之後重建 kit：`npm run kit`；貼圖改了之後重新烘焙：`npm run tex`（都需要 Blender 5.1+，見 [`blender/README.md`](blender/README.md)）。
+零件改了之後重建 kit：`npm run kit`（之後可再 `npm run ao` 重烘 AO）；貼圖：`npm run tex`；室內圖集：`npm run rooms`（都需要 Blender 5.1+，見 [`blender/README.md`](blender/README.md)）。

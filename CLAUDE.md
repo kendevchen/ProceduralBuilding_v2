@@ -30,4 +30,5 @@
 - 零件規格與分階段計畫：`blender/KIT_SPEC.md`（含決策紀錄）。尺寸常數只改 `blender/kit_dims.json`。
 - `npm run kit`：建模 → 預覽圖 `blender/kit_preview.jpg` → 匯出 `public/assets/kit.glb`。零件全部由 `blender/kitlib/` 產生，不手改 `.blend`。
 - `npm run tex`：`blender/bake.py` 烘焙自製貼圖與鐵花圖樣到 `public/assets/tex/`；網頁端的材質著色器在 `src/materials.ts`。
+- `npm run rooms`：`blender/rooms.py` 產生室內圖集；`npm run ao`：`blender/bake_ao.py` 烘焙 AO（約 10 分鐘）。窗後室內與窗簾在 `src/interiors.ts`。
 - 素材全部自製：FrenchBuilding.blend 只參考拆件方式與搭配規則，不沿用幾何與貼圖；不用 Kenney 或下載模型。
