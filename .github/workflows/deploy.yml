@@ -1,10 +1,13 @@
-# Build with Vite and publish dist/ to GitHub Pages on every push to main.
+# Build with Vite and publish to GitHub Pages:
+#   main            -> https://kendevchen.github.io/ProceduralBuilding_v2/
+#   interior-floors -> https://kendevchen.github.io/ProceduralBuilding_v2/dev/  (development preview)
+# A push to either branch rebuilds both, since Pages publishes one site.
 # (Pages must be set to "GitHub Actions" as its source, not "Deploy from a branch".)
 name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [main, interior-floors]
   workflow_dispatch:
 
 permissions:
@@ -21,15 +24,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run build
+      - name: Build main
+        working-directory: main
+        run: npm ci && npm run build
+      - name: Check out the development branch
+        id: dev
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          ref: interior-floors
+          path: dev
+      - name: Build the development preview under /dev/
+        if: steps.dev.outcome == 'success'
+        working-directory: dev
+        run: |
+          npm ci
+          npx vite build --base /ProceduralBuilding_v2/dev/ --outDir ../main/dist/dev
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: main/dist
 
   deploy:
     needs: build
