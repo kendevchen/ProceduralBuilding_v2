@@ -33,4 +33,6 @@ export const PURPOSE = {
   shopKind: 10,
   awning: 11,
   partyChimney: 12,
+  window: 13,
+  windowAngle: 14,
 } as const;

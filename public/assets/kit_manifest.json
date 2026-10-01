@@ -12,7 +12,7 @@
      "index": 1,
      "kind": "OBJECT",
      "name": "A_bay.window",
-     "tris": 160
+     "tris": 38
     }
    ]
   },
@@ -55,6 +55,16 @@
      "kind": "OBJECT",
      "name": "A_end.pier",
      "tris": 13
+    }
+   ]
+  },
+  "A_leaf": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "A_leaf.left",
+     "tris": 62
     }
    ]
   },
@@ -200,7 +210,7 @@
      "index": 1,
      "kind": "OBJECT",
      "name": "N_bay.window",
-     "tris": 202
+     "tris": 60
     }
    ]
   },
@@ -243,6 +253,16 @@
      "kind": "OBJECT",
      "name": "N_end.pier",
      "tris": 13
+    }
+   ]
+  },
+  "N_leaf": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "N_leaf.left",
+     "tris": 72
     }
    ]
   },
@@ -454,7 +474,7 @@
      "index": 1,
      "kind": "OBJECT",
      "name": "S_bay.window",
-     "tris": 182
+     "tris": 60
     }
    ]
   },
@@ -497,6 +517,16 @@
      "kind": "OBJECT",
      "name": "S_end.pier",
      "tris": 13
+    }
+   ]
+  },
+  "S_leaf": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "S_leaf.left",
+     "tris": 62
     }
    ]
   },

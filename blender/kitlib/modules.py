@@ -269,7 +269,21 @@ def upper_window(D, cls):
     mb.wall(0, 0, 0, 0, "stone", outer=wall)
     loop = P.opening_loop(hw, sill, head)
     P.reveal(mb, loop, "stone")
-    P.french_window(mb, 2 * hw, sill, head, TRANSOM[cls], PANES[cls])
+    P.french_window(mb, 2 * hw, sill, head, TRANSOM[cls], PANES[cls], leaves=False)
+    return mb
+
+
+def upper_leaf(D, cls):
+    """left casement of a French window with its hinge at the origin (the
+    generator places it at x = -xi, y = HINGE_Y and turns it to open it; the
+    right casement is this one mirrored)"""
+    hw, sill, head = D["window"]["width"] / 2, D["window"]["sill"], D["classes"][cls]["head"]
+    xi, z0, z1 = P.leaf_span(2 * hw, sill, head, TRANSOM[cls])
+    tmp = MeshBuilder()
+    P.leaf(tmp, 0, xi, z0, z1, PANES[cls])
+    mb = MeshBuilder()
+    for f, mat, uv in zip(tmp.faces, tmp.mats, tmp.uvs):
+        mb.face([(tmp.verts[i].x, tmp.verts[i].y - P.HINGE_Y, tmp.verts[i].z) for i in f], mat, uv)
     return mb
 
 
@@ -855,6 +869,7 @@ def catalog(D):
         out += [
             (f"{cls}_bay", "window", lambda D, cls=cls: upper_window(D, cls), {"x": (-hb, hb), "z": (0, H)}),
             (f"{cls}_bay", "wall", lambda D, cls=cls: upper_wall(D, cls), {"x": (-hb, hb), "z": (0, H)}),
+            (f"{cls}_leaf", "left", lambda D, cls=cls: upper_leaf(D, cls), {"within": ((0, hw), (-0.04, 0.04), (sill, head))}),
             (f"{cls}_corner", "pier", lambda D, cls=cls: upper_corner_pier(D, cls),
              {"within": ((-0.07, c), (-0.07, c), (0, H))}),
             (f"{cls}_pc", "frame", lambda D, cls=cls: upper_pc_frame(D, cls), {"within": ((-0.1, sq), (-0.1, sq), (0, H))}),

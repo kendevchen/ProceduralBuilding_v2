@@ -110,7 +110,7 @@ function rebuild(frame = false): void {
     wall.castShadow = wall.receiveShadow = true;
     g.add(wall);
   } else walls.geometry.dispose();
-  const inside = buildInteriors(b.rooms);
+  const inside = buildInteriors(b.rooms, params.curtainNone, params.curtainClosed, params.curtainOpen);
   g.add(new Mesh(inside.rooms, materials.interior));
   const curtains = new Mesh(inside.curtains, materials.voile);
   curtains.receiveShadow = true;
@@ -153,6 +153,12 @@ fFacade.add(params, "detailPattern", { "不放": "off", "全部相同": "same", 
 fFacade.add(params, "detailStyle", { "橫向溝槽": "refends", "壁柱": "pilasters", "浮雕飾板": "panels" }).name("裝飾樣式").onChange(update);
 fFacade.add(params, "shutterClosed", 0, 1, 0.01).name("百葉全關機率").onChange(update);
 fFacade.add(params, "shutterHalf", 0, 1, 0.01).name("百葉半開機率").onChange(update);
+fFacade.add(params, "curtainNone", 0, 1, 0.01).name("無窗簾機率").onChange(update);
+fFacade.add(params, "curtainClosed", 0, 1, 0.01).name("窗簾拉上機率").onChange(update);
+fFacade.add(params, "curtainOpen", 0, 1, 0.01).name("窗簾拉開程度").onChange(update);
+fFacade.add(params, "windowOpen", 0, 1, 0.01).name("開窗機率").onChange(update);
+fFacade.add(params, "windowDir", { "內開": "in", "外開": "out" }).name("開窗方向").onChange(update);
+fFacade.add(params, "windowAngle", 10, 110, 1).name("最大開窗角度 °").onChange(update);
 fFacade.add(params, "doorStyle", { "拱形馬車大門": "arched", "方形馬車大門": "rect", "玻璃大門": "glazed", "隨機": "random" }).name("大門款式").onChange(update);
 fFacade.add(params, "groundWindow", { "拱窗": "arched", "方窗": "rect" }).name("一樓窗").onChange(update);
 const fLook = gui.addFolder("🎨 外觀 (Look)");

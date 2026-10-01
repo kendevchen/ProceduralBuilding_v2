@@ -66,6 +66,9 @@ const DOORS = ["door_arched", "door_rect", "door_glazed"];
 const CHIMNEYS = ["stack2", "stack4", "stack6"];
 const SHOPS = ["shop_wood", "shop_stone", "shop_cafe"];
 const SHOP_TOP = 3.4;
+/** casement hinges (bay-local): x = +-LEAF_X, y = HINGE_Y (parts.py leaf_span, HINGE_Y) */
+const LEAF_X = dims.window.width / 2 - 0.06;
+const HINGE_Y = 0.195;
 /** consoles under a balcony slab, bay-local x */
 const CONSOLES: Record<Exclude<Balcony, "gardecorps">, number[]> = {
   continuous: [-1.1, 1.1],
@@ -192,11 +195,12 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
     rows.forEach((r, ri) => {
       const wm = put(`${r.cls}_bay`, "window", x, r.z);
       const H = dims.classes[r.cls].height;
-      rooms.push({
+      const room: RoomSlot = {
         matrix: wm, kind: "upper", y0: 0.25, floor: 0.2, height: H - 0.35, half: 1.45,
         depth: geo.depth, along: geo.along, length: geo.length,
         curtain: { half: 0.6, sill: 0.26, head: dims.classes[r.cls].head - 0.07 }, seed: [seed, si, i, ri],
-      });
+      };
+      rooms.push(room);
       const b = balconyOf(kind, si, ri, i);
       put("balcony", b, x, r.z);
       if (p.consoles && b !== "gardecorps") for (const cx of CONSOLES[b]) put("console", "scroll", x + cx, r.z);
@@ -221,8 +225,18 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
       const half = !closed && u < p.shutterClosed + p.shutterHalf;
       const leftClosed = closed || (half && rand(seed, si, i, ri, PURPOSE.shutterSide) < 0.5);
       const rightClosed = closed || (half && !leftClosed);
-      put(`${r.cls}_shutter`, leftClosed ? "closed" : "folded", x, r.z);
-      put(`${r.cls}_shutter`, rightClosed ? "closed" : "folded", x, r.z, { mirror: true });
+      // casements: open on some windows (not behind closed shutters), turning on
+      // their hinges into the room or out; open outwards they cover the folded shutters
+      const opened = !leftClosed && !rightClosed && rand(seed, si, i, ri, PURPOSE.window) < p.windowOpen;
+      const out = opened && p.windowDir === "out";
+      const sgn = out ? -1 : 1;
+      // casements open inwards would cut through the curtains: hang them deeper
+      if (opened && !out && room.curtain) room.curtain.y = 0.75;
+      const turn = (k: number) => opened ? sgn * (0.35 + 0.65 * rand(seed, si, i, ri, PURPOSE.windowAngle + k)) * p.windowAngle * Math.PI / 180 : 0;
+      put(`${r.cls}_leaf`, "left", x - LEAF_X, r.z, { y: HINGE_Y, angle: turn(0) });
+      put(`${r.cls}_leaf`, "left", x + LEAF_X, r.z, { y: HINGE_Y, angle: -turn(1), mirror: true });
+      if (!(out && !leftClosed)) put(`${r.cls}_shutter`, leftClosed ? "closed" : "folded", x, r.z);
+      if (!(out && !rightClosed)) put(`${r.cls}_shutter`, rightClosed ? "closed" : "folded", x, r.z, { mirror: true });
     });
     put("R_cornice", "bay", x, wallTop);
     const mm = put("R_mansard", dormerKind ? `dormer_${dormerKind}` : "plain", x, roofBase);

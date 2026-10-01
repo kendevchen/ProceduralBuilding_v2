@@ -31,7 +31,7 @@ export interface RoomSlot {
   along: number;
   length: number;
   /** window for the curtains (module-local); none: no curtains */
-  curtain?: { half: number; sill: number; head: number };
+  curtain?: { half: number; sill: number; head: number; y?: number };
   /** dormers: a short tunnel from the window back to the room front */
   tunnel?: boolean;
   /** stable random key */
@@ -62,7 +62,8 @@ export interface Interiors {
   curtains: BufferGeometry;
 }
 
-export function buildInteriors(slots: RoomSlot[], noCurtain = 0.3, closedCurtain = 0.3): Interiors {
+/** curtainOpen: how far open curtains are drawn back, 0 almost meeting .. 1 bunched at the sides */
+export function buildInteriors(slots: RoomSlot[], noCurtain = 0.3, closedCurtain = 0.3, curtainOpen = 0.5): Interiors {
   const b = new Buffers();
   const cpos: number[] = [];
   const v = new Vector3();
@@ -111,13 +112,17 @@ export function buildInteriors(slots: RoomSlot[], noCurtain = 0.3, closedCurtain
       const c = s.curtain;
       const open = u >= noCurtain + closedCurtain;
       const panels: [number, number][] = open
-        ? [[-c.half, -c.half + 0.25 + r(11) * 0.3], [c.half - 0.25 - r(12) * 0.3, c.half]]
+        ? (() => {
+          // each panel covers half the window less the drawn-back share, varied per side
+          const w = (k: number) => Math.max(0.12, c.half * (1 - curtainOpen * 0.85) * (0.8 + 0.4 * r(k)));
+          return [[-c.half, -c.half + w(11)], [c.half - w(12), c.half]] as [number, number][];
+        })()
         : [[-c.half, c.half]];
       const SEG = 24;
       for (const [x0, x1] of panels) {
         for (let k = 0; k < SEG; k++) {
           const p = (t: number, z: number) => {
-            v.set(x0 + (x1 - x0) * t, s.y0 + 0.06 + Math.sin(t * Math.PI * 2 * Math.max(2, Math.round((x1 - x0) / 0.18))) * 0.016, z)
+            v.set(x0 + (x1 - x0) * t, s.y0 + (c.y ?? 0.06) + Math.sin(t * Math.PI * 2 * Math.max(2, Math.round((x1 - x0) / 0.18))) * 0.016, z)
               .applyMatrix4(s.matrix);
             return [v.x, v.y, v.z];
           };

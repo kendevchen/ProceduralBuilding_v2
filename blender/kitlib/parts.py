@@ -166,9 +166,19 @@ def leaf(mb, x0, x1, z0, z1, panes, mat="frame"):
     glass_rect(mb, x0 + s, x1 - s, g0, g1)
 
 
-def french_window(mb, w, z0, z1, transom, panes):
+def leaf_span(w, z0, z1, transom):
+    """x extent (+-xi) and z range of a French window's leaves"""
+    xi = w / 2 - FW
+    top = z1 - FW
+    if transom:
+        top = top - transom - 0.035
+    return xi, z0 + FW, top
+
+
+def french_window(mb, w, z0, z1, transom, panes, leaves=True):
     """two-leaf French window filling the opening x in [-w/2, w/2], z in [z0, z1];
-    `transom`: height of the fanlight above the leaves (None: no fanlight)"""
+    `transom`: height of the fanlight above the leaves (None: no fanlight);
+    leaves=False leaves the casements out (they are separate modules)"""
     hw = w / 2
     dormant_frame(mb, opening_loop(hw, z0, z1))
     xi = hw - FW
@@ -179,8 +189,12 @@ def french_window(mb, w, z0, z1, transom, panes):
         glass_rect(mb, -xi, xi, zt + 0.035, top)
         mb.box((-0.011, 0.185, zt + 0.035), (0.011, 0.205, top), "frame", skip=("+y",))
         top = zt - 0.035
-    leaf(mb, -xi, 0, z0 + FW, top, panes)
-    leaf(mb, 0, xi, z0 + FW, top, panes)
+    if leaves:
+        leaf(mb, -xi, 0, z0 + FW, top, panes)
+        leaf(mb, 0, xi, z0 + FW, top, panes)
+
+
+HINGE_Y = (LY0 + LY1) / 2
 
 
 def gardecorps(mb, D):

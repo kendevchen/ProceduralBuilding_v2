@@ -52,6 +52,15 @@ export interface BuildingParams {
   /** chance of a window with both shutters closed / one closed */
   shutterClosed: number;
   shutterHalf: number;
+  /** chance of a window without curtains / with them drawn closed (else open) */
+  curtainNone: number;
+  curtainClosed: number;
+  /** how far open curtains are drawn back, 0..1 */
+  curtainOpen: number;
+  /** chance of open casements, which way they open, and how far at most (degrees) */
+  windowOpen: number;
+  windowDir: "in" | "out";
+  windowAngle: number;
   /** stone tint (sRGB hex), multiplies the stone texture */
   stone: string;
   /** paint of the doors (and later the shopfronts) */
@@ -71,6 +80,7 @@ export function defaultParams(): BuildingParams {
     seed: 1, doorStyle: "arched", groundWindow: "arched", otherBalcony: "gardecorps", consoles: true,
     ornament: 2, pediment: "alternate", detailPattern: "off", detailStyle: "pilasters",
     shutterClosed: 0.15, shutterHalf: 0.15,
+    curtainNone: 0.3, curtainClosed: 0.3, curtainOpen: 0.5, windowOpen: 0.15, windowDir: "in", windowAngle: 75,
     stone: "#ffffff", paint: "#22382f", shutter: "#c9c5ba", awning: "#8c2b2b", lace: 2,
   };
 }
