@@ -3,7 +3,7 @@
 目標：用 Blender Python 製作歐式建築零件庫（kit.glb），加上排列規則，在網頁上程序化生成。
 
 ## 與 v1 的關係
-- v1 位置：`../Claude_AutoBuilding`（GitHub `kendevchen/ProceduralBuilding_v1`，標籤 `v1-hongkong`）。本專案可直接讀取（見 `.claude/settings.json`）。
+- v1 位置：`../ProceduralBuilding_v1`（GitHub `kendevchen/ProceduralBuilding_v1`；標籤 `v1-hongkong` = 線上港式版，之後新增的文件如 `HK_MODEL_INVENTORY.md` 只在 main）。本專案可直接讀取（見 `.claude/settings.json`）。
 - v2 只放用得到的東西。需要下表的功能時，**先去 v1 讀對應檔案再移植，不要重寫**。
 - 從 v1 帶來、目前與 v1 相同的檔案：`src/environment.ts`、`src/moods.ts`、`src/sky.ts`、`src/postfx.ts`、`blender/export_kit.py`、`.github/workflows/deploy.yml`。
 
@@ -20,7 +20,7 @@
 | 雪、雨、濕潤（使用者不需要） | `src/snow.ts`、`src/rain.ts`、`src/wet.ts` | |
 
 ## 外部參考素材（不在 repo 內）
-- `../Claude_AutoBuilding/Shared_Assets_Library/`：參考站原始碼（含法式 `FrenchBuilding.blend`，MIT）、Kenney 城市套件（CC0）。授權細項見該資料夾 README。
+- `../ProceduralBuilding_v1/Shared_Assets_Library/`：參考站原始碼（含法式 `FrenchBuilding.blend`，MIT）、Kenney 城市套件（CC0）。授權細項見該資料夾 README。
 
 ## 開發
 - `npm run dev` → http://localhost:5176/
