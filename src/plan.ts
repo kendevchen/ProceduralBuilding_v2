@@ -760,6 +760,12 @@ function layoutFloor(g: Grid, b: Building, p: BuildingParams, lv: PlanLevel, win
       }
     }
     mergeRuns(ctx, "shopBack");
+    // mixed use: the front's left corner, left of the entrance, is a study of its own
+    if (p.groundUse === "mixed") {
+      const corner = ctx.units.filter(u => u.type === null && !u.shop && u.y0 <= T + EPS && u.win.length > 0 &&
+        u.cells.some(c => c.col === 0)).sort((a, c) => a.x0 - c.x0)[0];
+      if (corner) corner.type = "study";
+    }
     const hall = ctx.units.find(u => u.type === "vestibule");
     if (hall) {
       const nb = ctx.units.filter(u => u.type === null && xAdjacent(u, hall));

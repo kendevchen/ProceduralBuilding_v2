@@ -372,7 +372,8 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
     const out: (string | null)[] = [];
     let run: string | null = null;
     for (let i = 0; i < n; i++) {
-      const shop = i !== door && p.groundUse !== "residential" &&
+      // mixed use keeps the front's left corner for the study (INTERIOR_SPEC.md §5.4)
+      const shop = i !== door && p.groundUse !== "residential" && !(p.groundUse === "mixed" && si === 0 && i === 0) &&
         (p.groundUse === "shops" || rand(seed, si, i, PURPOSE.shop) < 0.5);
       if (!shop) run = null;
       else if (!run) run = SHOPS[Math.floor(rand(seed, si, i, PURPOSE.shopKind) * SHOPS.length)];
