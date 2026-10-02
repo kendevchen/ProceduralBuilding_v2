@@ -51,7 +51,7 @@ export const ROOM_INFO: Record<RoomType, { name: string; color: string }> = {
   bedroom: { name: "臥室", color: "#8fb8de" },
   kitchen: { name: "廚房", color: "#5fb3a8" },
   wc: { name: "廁所", color: "#9ad8e3" },
-  maid: { name: "女傭房", color: "#b8a1d9" },
+  maid: { name: "閣樓房", color: "#b8a1d9" },
   storage: { name: "儲藏間", color: "#bdb5a6" },
 };
 
