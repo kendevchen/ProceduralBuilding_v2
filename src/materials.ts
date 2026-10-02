@@ -17,7 +17,7 @@
  */
 import {
   ClampToEdgeWrapping, type Material, MeshBasicMaterial, MeshDepthMaterial, MeshStandardMaterial, RGBADepthPacking,
-  RepeatWrapping, SRGBColorSpace, type Texture, TextureLoader, Vector2, DoubleSide,
+  RepeatWrapping, SRGBColorSpace, type Texture, TextureLoader, Vector2, Vector3, DoubleSide,
 } from "three";
 import dims from "../blender/kit_dims.json";
 
@@ -62,6 +62,42 @@ const SURFACES: Record<string, SurfaceSpec> = {
 export const LACE_PATTERNS = ["欄杆與圓環", "交織圓環", "渦卷", "菱形"];
 const LACE_TILE = 0.9; // metres per atlas tile (bake.py)
 
+/**
+ * The facade looks (setLook): Haussmann is the kit as it is; "paris" is the
+ * pale limestone of a 1900s Paris street front: cream, smooth, fine joints,
+ * a darker zinc roof and cream shutters. Only colour and shader values, no parts.
+ */
+export type FacadeLook = "haussmann" | "paris";
+
+interface LookSpec {
+  texMix: number;
+  sat: number;
+  bright: number;
+  joint: number;
+  block: number;
+  tone: [number, number, number];
+  /** multiplier on the zinc roof, and the default shutter paint */
+  zinc: number;
+  shutter: string;
+}
+
+export const FACADE_LOOKS: Record<FacadeLook, LookSpec> = {
+  haussmann: { texMix: 1, sat: 1, bright: 1, joint: 1, block: 1, tone: [1, 1, 1], zinc: 1, shutter: "#c9c5ba" },
+  paris: { texMix: 0.6, sat: 0.85, bright: 1.1, joint: 0.5, block: 0.6, tone: [1.04, 0.99, 0.86], zinc: 0.68, shutter: "#e8e3d4" },
+};
+
+/** the uniforms stone and plaster share: changing a value restyles every building at once */
+const look = {
+  stone: {
+    uTexMix: { value: 1 }, uSat: { value: 1 }, uBright: { value: 1 }, uJointDepth: { value: 1 }, uBlockVar: { value: 1 },
+    uTone: { value: new Vector3(1, 1, 1) },
+  },
+};
+const neutral = {
+  uTexMix: { value: 1 }, uSat: { value: 1 }, uBright: { value: 1 }, uJointDepth: { value: 1 }, uBlockVar: { value: 1 },
+  uTone: { value: new Vector3(1, 1, 1) },
+};
+
 // ---------------------------------------------------------------- GLSL
 
 const VERT_PARS = /* glsl */ `
@@ -103,6 +139,20 @@ uniform float uTriScale;
 uniform vec2 uTriRough;
 uniform float uTriHeight;
 uniform float uJamb;
+// the facade look (setLook): how much of the texture's detail, its saturation and brightness, joint depth, block variation
+uniform float uTexMix;
+uniform float uSat;
+uniform float uBright;
+uniform float uJointDepth;
+uniform float uBlockVar;
+uniform vec3 uTone;
+
+// the texture with less of its detail, less saturated, brighter, toned (identity for the Haussmann look)
+vec3 facadeTone(vec3 c) {
+  c = mix(vec3(0.8), c, uTexMix);
+  float l = dot(c, vec3(0.299, 0.587, 0.114));
+  return mix(vec3(l), c, uSat) * uBright * uTone;
+}
 
 float triHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 
@@ -160,13 +210,13 @@ vec3 patTangentU(vec3 n, vec3 p, vec2 uv) {
 const FRAG_MAP = /* glsl */ `
 #ifdef MAP_UV
   vec2 triUv = (vPatUv + vUvShift) * uTriScale;
-  diffuseColor.rgb *= texture2D(uTriColor, triUv).rgb;
+  diffuseColor.rgb *= facadeTone(texture2D(uTriColor, triUv).rgb);
   vec2 triRH = texture2D(uTriRH, triUv).rg;
 #else
   vec3 triW = pow(abs(vTriNrm), vec3(4.0));
   triW /= triW.x + triW.y + triW.z;
   vec3 triP = vTriPos * uTriScale;
-  diffuseColor.rgb *= triSample(uTriColor, triP, triW).rgb;
+  diffuseColor.rgb *= facadeTone(triSample(uTriColor, triP, triW).rgb);
   vec2 triRH = triSample(uTriRH, triP, triW).rg;
 #endif
 float triRough = mix(uTriRough.x, uTriRough.y, triRH.r);
@@ -179,7 +229,7 @@ float triH = (triRH.g - 0.5) * uTriHeight;
   #else
     float joint = ashlar(vPatUv, uJamb, 0.0, 1.0, blockRnd);
   #endif
-  diffuseColor.rgb *= (1.0 + (blockRnd - 0.5) * 0.09) * mix(1.0, 0.78, joint);
+  diffuseColor.rgb *= (1.0 + (blockRnd - 0.5) * 0.09 * uBlockVar) * mix(1.0, 0.78, joint * uJointDepth);
   triRough = mix(triRough, 1.0, joint * 0.5);
 #endif
 #ifdef PAT_SEAMS
@@ -301,6 +351,8 @@ function surface(name: string, spec: SurfaceSpec, color: Texture, rh: Texture, a
       uTriRough: { value: new Vector2(...spec.rough) },
       uTriHeight: { value: spec.height },
       uJamb: { value: spec.jamb ?? 0.65 },
+      // stone and plaster follow the facade look; the other surfaces keep the plain values
+      ...(spec.tint === "stone" ? look.stone : neutral),
     });
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", `#include <common>\n${VERT_PARS}`)
@@ -331,6 +383,8 @@ export interface KitMaterials {
   /** room boxes and curtains (interiors.ts) */
   interior: Material;
   voile: Material;
+  /** the stone, plaster and roof colours of a facade look */
+  setLook(l: FacadeLook): void;
   /** 0 day .. 1 night: lit rooms glow, the others go dark */
   setNight(v: number): void;
   /** railing lace material and its shadow depth material, per atlas pattern */
@@ -420,5 +474,15 @@ export async function createMaterials(base: string): Promise<KitMaterials> {
   const laceBase = lace(0);
   laceBase.userData.lace = true;
   byName.set("iron_lace", laceBase);
-  return { byName, lace, laceDepth, interior, voile, setNight: v => { night.value = v; } };
+  const setLook = (l: FacadeLook) => {
+    const s = FACADE_LOOKS[l], u = look.stone;
+    u.uTexMix.value = s.texMix;
+    u.uSat.value = s.sat;
+    u.uBright.value = s.bright;
+    u.uJointDepth.value = s.joint;
+    u.uBlockVar.value = s.block;
+    u.uTone.value.set(...s.tone);
+    for (const n of ["zinc", "zinc:noao"]) (byName.get(n) as MeshStandardMaterial).color.setScalar(s.zinc);
+  };
+  return { byName, lace, laceDepth, interior, voile, setLook, setNight: v => { night.value = v; } };
 }

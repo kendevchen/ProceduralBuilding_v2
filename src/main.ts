@@ -13,7 +13,7 @@ import { Environment } from "./environment";
 import { buildGallery } from "./gallery";
 import { buildingStyle, generateBuilding, partyChimneys } from "./generator";
 import { Kit } from "./kit";
-import { type KitMaterials, LACE_PATTERNS, createMaterials } from "./materials";
+import { FACADE_LOOKS, type FacadeLook, type KitMaterials, LACE_PATTERNS, createMaterials } from "./materials";
 import { type BuildingParams, defaultParams } from "./params";
 import { PostFX } from "./postfx";
 import { buildInteriors, planRule } from "./interiors";
@@ -281,6 +281,14 @@ fFacade.add(params, "doorStyle", { "拱形馬車大門": "arched", "方形馬車
 fFacade.add(params, "groundWindow", { "拱窗": "arched", "方窗": "rect" }).name("一樓窗").onChange(update);
 fFacade.add({ clear: () => windows.clearAll() }, "clear").name("清除所有個別設定的窗戶");
 const fLook = gui.addFolder("🎨 外觀 (Look)");
+fLook.add({ look: "haussmann" as FacadeLook }, "look", { "奧斯曼（原本）": "haussmann", "巴黎淺色石灰岩": "paris" }).name("外牆材質")
+  .onChange((l: FacadeLook) => {
+    materials?.setLook(l);
+    // the look brings its own shutter paint (it can still be changed after)
+    params.shutter = FACADE_LOOKS[l].shutter;
+    gui.controllersRecursive().forEach(c => c.updateDisplay());
+    rebuild();
+  });
 fLook.addColor(params, "stone").name("石材色調").onChange(update);
 fLook.addColor(params, "paint").name("大門漆色").onChange(update);
 fLook.addColor(params, "shutter").name("百葉漆色").onChange(update);
