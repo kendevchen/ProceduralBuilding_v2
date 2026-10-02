@@ -1,8 +1,9 @@
 /**
  * A simple sidewalk and street trees around the building, ported from v1's
  * streetlife.ts (its water tanks and rooftop sign stay behind): a paved slab
- * with a kerb band and a tactile guide strip along the street sides, and
- * procedural trees (faceted canopies on forked trunks) with iron grates.
+ * of grey granite slabs with a granite kerb and a cobbled gutter along the street
+ * sides, and procedural trees (faceted canopies on forked trunks) in cast-iron
+ * grilles set in cobbles.
  * Everything is drawn here, no textures from files.
  *
  * Built in WORLD space (Y-up): the building is centred on the origin, its front
@@ -13,7 +14,7 @@
  */
 import {
   BoxGeometry, BufferGeometry, CanvasTexture, Color, CylinderGeometry, ExtrudeGeometry, Float32BufferAttribute, Group,
-  IcosahedronGeometry, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, Path, PlaneGeometry, Quaternion,
+  IcosahedronGeometry, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, Path, Quaternion,
   RepeatWrapping, Shape, SRGBColorSpace, Vector3,
 } from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
@@ -56,41 +57,85 @@ function repeatTexture(c: HTMLCanvasElement): CanvasTexture {
   return t;
 }
 
-/** warm beige square paving, 3 x 3 tiles per texture, per-tile shade variation */
+/** shade of a grey granite, slightly cool, from a 0..1 value */
+const granite = (v: number, lo: number, hi: number) => {
+  const g = Math.round(lo + (hi - lo) * v);
+  return `rgb(${g - 2}, ${g}, ${g + 3})`;
+};
+
+/** grey granite slabs 1.0 x 0.5 m laid in running bond, each its own shade and speckle; a texture is 2 x 2 m */
 function pavingTexture(): CanvasTexture {
-  const size = 384;
+  const size = 512, unit = size / 2;
   const [c, g] = canvas(size, size);
-  g.fillStyle = "#8f8676"; // grout
+  g.fillStyle = "#5e6063"; // joint
   g.fillRect(0, 0, size, size);
-  const n = 3;
-  const cell = size / n;
-  for (let y = 0; y < n; y++) {
-    for (let x = 0; x < n; x++) {
-      const v = rand(y * n + x, 5);
-      g.fillStyle = `rgb(${196 + v * 22}, ${180 + v * 20}, ${150 + v * 18})`;
-      g.fillRect(x * cell + 3, y * cell + 3, cell - 6, cell - 6);
+  const rowH = unit * 0.5, len = unit;
+  for (let r = 0; r < 4; r++) {
+    for (let k = -1; k < 3; k++) {
+      const x = k * len + (r % 2) * (len / 2), y = r * rowH;
+      g.fillStyle = granite(rand(k + 4, r, 31), 150, 172);
+      g.fillRect(x + 1.5, y + 1.5, len - 3, rowH - 3);
     }
   }
+  for (let i = 0; i < 2600; i++) { // speckle
+    g.fillStyle = rand(i, 41) < 0.5 ? "rgba(255,255,255,0.18)" : "rgba(40,42,46,0.22)";
+    g.fillRect(rand(i, 42) * size, rand(i, 43) * size, 1.4, 1.4);
+  }
   const t = repeatTexture(c);
-  t.repeat.set(1 / 1.5, 1 / 1.5); // a texture is 1.5 m: tiles of 0.5 m (the slab's UVs are metres)
+  t.repeat.set(1 / 2, 1 / 2);
   return t;
 }
 
-/** yellow tactile paving with a dot grid */
-function tactileTexture(): CanvasTexture {
-  const size = 128;
+/** cobbles (pavés) 0.1 m in staggered rows; a texture is 0.8 m */
+function cobbleTexture(): CanvasTexture {
+  const size = 256, n = 8, cell = size / n;
   const [c, g] = canvas(size, size);
-  g.fillStyle = "#e2b52a";
+  g.fillStyle = "#4b4d50";
   g.fillRect(0, 0, size, size);
-  g.fillStyle = "#b98f17";
-  for (let y = 0; y < 2; y++) {
-    for (let x = 0; x < 2; x++) {
+  for (let r = 0; r < n; r++) {
+    for (let k = -1; k < n; k++) {
+      const x = k * cell + (r % 2) * (cell / 2) + 1, y = r * cell + 1;
+      g.fillStyle = granite(rand(k + 3, r, 51), 104, 146);
       g.beginPath();
-      g.arc((x + 0.5) * 64, (y + 0.5) * 64, 17, 0, Math.PI * 2);
+      g.roundRect(x, y, cell - 2, cell - 2, 5);
       g.fill();
     }
   }
-  return repeatTexture(c);
+  const t = repeatTexture(c);
+  t.repeat.set(1 / 0.8, 1 / 0.8);
+  return t;
+}
+
+/** cast-iron tree grille: concentric rings of slots round a central hole; a texture is 1.2 m, centred */
+function grilleTexture(): CanvasTexture {
+  const size = 512, mid = size / 2, m = size / 1.2;
+  const [c, g] = canvas(size, size);
+  g.fillStyle = "#26282a";
+  g.fillRect(0, 0, size, size);
+  g.strokeStyle = "#0c0d0e";
+  g.lineCap = "round";
+  g.lineWidth = 0.035 * m;
+  for (const [r, n] of [[0.2, 8], [0.31, 12], [0.42, 16]] as const) {
+    for (let k = 0; k < n; k++) {
+      const a = (k / n) * Math.PI * 2;
+      g.beginPath();
+      g.arc(mid, mid, r * m, a, a + (Math.PI * 2 * 0.62) / n);
+      g.stroke();
+    }
+  }
+  g.fillStyle = "#0c0d0e";
+  g.beginPath();
+  g.arc(mid, mid, 0.09 * m, 0, Math.PI * 2);
+  g.fill();
+  g.strokeStyle = "#3a3d40"; // rim
+  g.lineWidth = 0.02 * m;
+  g.beginPath();
+  g.arc(mid, mid, 0.53 * m, 0, Math.PI * 2);
+  g.stroke();
+  const t = repeatTexture(c);
+  t.repeat.set(1 / 1.2, 1 / 1.2);
+  t.offset.set(0.5, 0.5);
+  return t;
 }
 
 // ---------------------------------------------------------------------------
@@ -132,14 +177,17 @@ function slab(outer: Rect, rad: [number, number, number, number], y0: number, de
   return g;
 }
 
-/** a flat strip lying on the ground, its UVs in tiles of `tile` metres */
-function strip(r: Rect, y: number, tile: number): BufferGeometry {
-  const w = r.x1 - r.x0, h = r.z1 - r.z0;
-  const g = new PlaneGeometry(w, h);
+/** a flat disc (or a ring, with a hole) of radius r on y in [0, depth]; the cap UVs are metres from its centre */
+function disc(r: number, hole: number, depth: number): BufferGeometry {
+  const shape = new Shape();
+  shape.absarc(0, 0, r, 0, Math.PI * 2, false);
+  if (hole > 0) {
+    const h = new Path();
+    h.absarc(0, 0, hole, 0, Math.PI * 2, true);
+    shape.holes.push(h);
+  }
+  const g = new ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 24 });
   g.rotateX(-Math.PI / 2);
-  g.translate((r.x0 + r.x1) / 2, y, (r.z0 + r.z1) / 2);
-  const uv = g.getAttribute("uv");
-  for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) * w) / tile, (uv.getY(i) * h) / tile);
   return g;
 }
 
@@ -221,22 +269,21 @@ export class StreetLife {
   readonly params = defaultStreet();
 
   private mats = {
-    paving: new MeshStandardMaterial({ name: "paving", map: pavingTexture(), roughness: 0.92 }),
-    curb: new MeshStandardMaterial({ name: "curb", color: 0xb9b6ae, roughness: 0.85 }),
-    tactile: new MeshStandardMaterial({
-      name: "tactile", map: tactileTexture(), roughness: 0.8,
-      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
-    }),
-    grate: new MeshStandardMaterial({ name: "tree grate", color: 0x2a2826, roughness: 0.7, metalness: 0.5 }),
+    paving: new MeshStandardMaterial({ name: "paving", map: pavingTexture(), roughness: 0.85 }),
+    curb: new MeshStandardMaterial({ name: "curb", color: 0xa3a5a4, roughness: 0.8 }),
+    cobbles: new MeshStandardMaterial({ name: "cobbles", map: cobbleTexture(), roughness: 0.9 }),
+    grate: new MeshStandardMaterial({ name: "tree grille", map: grilleTexture(), roughness: 0.6, metalness: 0.5 }),
     trunk: new MeshStandardMaterial({ name: "trunk", color: 0x5b4632, roughness: 0.95 }),
     leaves: new MeshStandardMaterial({ name: "leaves", vertexColors: true, roughness: 0.85, flatShading: true }),
   };
   private trees = [0, 1, 2].map(makeTree);
-  private grateGeom = new BoxGeometry(1.3, 0.02, 1.3);
+  /** the iron grille of a tree pit, and the cobbles round it */
+  private grille = disc(D.tree.grate, 0, 0.014);
+  private ring = disc(D.tree.grate + D.tree.ring, D.tree.grate - 0.01, 0.006);
 
   constructor() {
     for (const t of this.trees) t.canopy.userData.shared = t.trunk.userData.shared = true;
-    this.grateGeom.userData.shared = true;
+    this.grille.userData.shared = this.ring.userData.shared = true;
   }
 
   /** rebuild the sidewalk and the trees for a building */
@@ -289,24 +336,19 @@ export class StreetLife {
     this.add(slab(inner, innerRad, 0, D.top), this.mats.paving, "sidewalk", false);
     this.add(slab(out, rad, 0, D.top + D.curbRise, { r: inner, rad: innerRad }), this.mats.curb, "curb", false);
 
-    // a guide strip along each street side, partway out from the facade
-    const off = w * 0.4, half = D.tactile / 2;
-    const y = D.top + 0.004;
-    const at = {
-      x0: -W / 2 - (sw[3] ? off : 0), x1: W / 2 + (sw[1] ? off : 0),
-      z0: -L / 2 - (sw[2] ? off : 0), z1: L / 2 + (sw[0] ? off : 0),
+    // the cobbled gutter outside the kerb on the street sides (on the other sides the band lies
+    // under the building)
+    const g = D.gutter;
+    const gOut: Rect = {
+      x0: out.x0 - (sw[3] ? g : 0), x1: out.x1 + (sw[1] ? g : 0), z0: out.z0 - (sw[2] ? g : 0), z1: out.z1 + (sw[0] ? g : 0),
     };
-    const parts: BufferGeometry[] = [];
-    const tile = 0.12;
-    if (sw[0]) parts.push(strip({ x0: at.x0 - half, x1: at.x1 + half, z0: at.z1 - half, z1: at.z1 + half }, y, tile));
-    if (sw[2]) parts.push(strip({ x0: at.x0 - half, x1: at.x1 + half, z0: at.z0 - half, z1: at.z0 + half }, y, tile));
-    if (sw[1]) parts.push(strip({ x0: at.x1 - half, x1: at.x1 + half, z0: at.z0 + half, z1: at.z1 - half }, y, tile));
-    if (sw[3]) parts.push(strip({ x0: at.x0 - half, x1: at.x0 + half, z0: at.z0 + half, z1: at.z1 - half }, y, tile));
-    if (parts.length) {
-      const g = mergeGeometries(parts)!;
-      parts.forEach(p => p.dispose());
-      this.add(g, this.mats.tactile, "tactile paving", false);
-    }
+    const gIn: Rect = {
+      x0: out.x0 + (sw[3] ? 0 : g), x1: out.x1 - (sw[1] ? 0 : g), z0: out.z0 + (sw[2] ? 0 : g), z1: out.z1 - (sw[0] ? 0 : g),
+    };
+    const corner = [sw[2] && sw[3], sw[2] && sw[1], sw[0] && sw[1], sw[0] && sw[3]];
+    const gRad = rad.map((v, i) => (corner[i] ? v + g : 0.001)) as [number, number, number, number];
+    const gInRad = rad.map((v, i) => (corner[i] ? v : 0.001)) as [number, number, number, number];
+    this.add(slab(gOut, gRad, 0, 0.02, { r: gIn, rad: gInRad }), this.mats.cobbles, "gutter", false);
   }
 
   private buildTrees(b: Building, seed: number, w: number): void {
@@ -347,7 +389,7 @@ export class StreetLife {
       _q.setFromAxisAngle(new Vector3(0, 1, 0), rand(seed, k, PURPOSE.treeTurn) * Math.PI * 2);
       const scale = T.scale * (0.85 + 0.3 * rand(seed, k, PURPOSE.treeSize));
       byVariant[v].push(new Matrix4().compose(new Vector3(sp.x, top, sp.z), _q, new Vector3(scale, scale, scale)));
-      grates.push(new Matrix4().makeTranslation(sp.x, top + 0.01, sp.z));
+      grates.push(new Matrix4().makeTranslation(sp.x, top, sp.z));
     });
 
     const inst = (geom: BufferGeometry, mat: MeshStandardMaterial, list: Matrix4[], name: string, cast: boolean) => {
@@ -365,6 +407,9 @@ export class StreetLife {
       inst(t.canopy, this.mats.leaves, byVariant[v], "tree canopy", true);
       inst(t.trunk, this.mats.trunk, byVariant[v], "tree trunk", true);
     });
-    if (this.params.sidewalk) inst(this.grateGeom, this.mats.grate, grates, "tree grate", false);
+    if (this.params.sidewalk) {
+      inst(this.ring, this.mats.cobbles, grates, "tree pit cobbles", false);
+      inst(this.grille, this.mats.grate, grates, "tree grille", false);
+    }
   }
 }
