@@ -93,7 +93,7 @@ export interface Building {
 }
 
 /** the key of a window: facade side, bay (-1 the pan coupé's diagonal), and "g" for the ground floor or the upper row */
-export const windowKey = (side: number, bay: number, row: number | "g") => `${side}|${bay}|${row}`;
+export const windowKey = (side: number, bay: number, row: number | "g" | "r") => `${side}|${bay}|${row}`;
 
 /** a window that can be picked and set on its own (main.ts): its opening in its module's frame */
 export interface WindowSlot {
@@ -103,8 +103,8 @@ export interface WindowSlot {
   half: number;
   z0: number;
   z1: number;
-  /** what can be set: an upper window, a ground-floor window, the entrance door, a shop front */
-  kind: "upper" | "ground" | "door" | "shop";
+  /** what can be set: an upper window, a ground-floor window, the entrance door, a shop front, a dormer */
+  kind: "upper" | "ground" | "door" | "shop" | "dormer";
 }
 
 export interface ChimneyInfo {
@@ -231,6 +231,11 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
   /** the window the placements now being made belong to */
   let tag: string | undefined;
   const own = (key: string): WindowOverride => p.facade[key] ?? {};
+  /** a dormer as set on its own, else by the rule */
+  const dormerOf = (si: number, i: number, rule: string | null): string | null => {
+    const d = own(windowKey(si, i, "r")).dormer;
+    return d ? (d === "none" ? null : d) : rule;
+  };
   const MIRROR = new Matrix4().makeScale(-1, 1, 1);
   const DIAG = new Matrix4().makeRotationZ(-Math.PI / 4).setPosition(leg / 2, leg / 2, 0);
   type Put = (collection: string, variant: string, x: number, z: number, opts?: { mirror?: boolean; angle?: number; y?: number }) => Matrix4;
@@ -356,10 +361,19 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
       tag = undefined;
     });
     put("R_cornice", "bay", x, wallTop);
+    tag = windowKey(si, i, "r");
     const mm = put("R_mansard", dormerKind ? `dormer_${dormerKind}` : "plain", x, roofBase);
+    tag = undefined;
+    const dm = dims.dormer, at = dm.atelier;
+    // a bay without a dormer can be picked too (to give it one)
+    windows.push(dormerKind === "atelier"
+      ? { key: windowKey(si, i, "r"), matrix: mm, half: at.front / 2 - at.pier, z0: at.sill, z1: at.head, kind: "dormer" }
+      : { key: windowKey(si, i, "r"), matrix: mm, half: dm.front / 2, z0: dormerKind ? dm.sill : 0.4, z1: dormerKind ? dm.head : 2.2, kind: "dormer" });
     if (dormerKind) {
+      const glass = dormerKind === "atelier";
       rooms.push({
         matrix: mm, kind: "attic", y0: 1.1, floor: 0.1, height: 2.7, half: 1.45, tunnel: true,
+        tunnelSize: glass ? { x: at.front / 2 - at.pier, z0: at.sill - 0.1, z1: at.head - 0.1 } : undefined,
         depth: Math.min(3.2, geo.depth - 1.0), along: geo.along, length: geo.length, seed: [seed, si, i, 77],
         at: { side: si, bay: i, level: rows.length + 1 },
       });
@@ -445,7 +459,7 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
       groundRoom(dput("G_bay", ground, 0, 0), ground, diag, [seed, si, -1, -1]);
       if (ground === "shop_cafe") dput("awning", "open", 0, SHOP_TOP);
       tag = undefined;
-      const diagDormer = p.dormerStyle === "mixed" ? "oeil" : p.dormerStyle;
+      const diagDormer = dormerOf(si, -1, p.dormerStyle === "mixed" ? "oeil" : p.dormerStyle);
       upperBay(dput, "street", si, -1, 1, 0, diagDormer, diag);
       side.diag = { x: 0, ground, dormer: diagDormer, frame: sideFrames[si].clone().multiply(DIAG) };
     } else if (left === "endL") {
@@ -476,7 +490,7 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
       if (shops[i]) put("awning", awningFor(shops[i]!, si, i), x, SHOP_TOP);
       tag = undefined;
       const withDormer = p.dormerEvery === 1 || i % 2 === 0;
-      const dormerKind = withDormer ? (street ? dormer(p.dormerStyle, si, i) : "zinc") : null;
+      const dormerKind = dormerOf(si, i, withDormer ? (street ? dormer(p.dormerStyle, si, i) : "zinc") : null);
       upperBay(put, kind, si, i, n, x, dormerKind, geo);
       side.bays.push({ x, ground: variant, dormer: dormerKind });
     }

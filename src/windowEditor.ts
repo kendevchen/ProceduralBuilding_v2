@@ -29,6 +29,7 @@ const CHOICES = {
   curtain: { "沿用全域": AUTO, "無窗簾": "none", "拉上": "closed", "拉開": "open" },
   ground: { "沿用全域": AUTO, "拱窗": "arched", "方窗": "rect" },
   door: { "沿用全域": AUTO, "拱形馬車大門": "arched", "方形馬車大門": "rect", "玻璃大門": "glazed" },
+  dormer: { "沿用全域": AUTO, "不放": "none", "鋅板": "zinc", "圓窗": "oeil", "弧頂": "segment", "三角山花": "triangle", "大玻璃窗": "atelier" },
 } as const;
 
 type Field = keyof typeof CHOICES;
@@ -154,7 +155,7 @@ export class WindowEditor {
   private buildFolder(slot: WindowSlot): void {
     const p = this.host.params;
     const [side, bay, row] = slot.key.split("|");
-    const floor = row === "g" ? "1F" : `${Number(row) + 2}F`;
+    const floor = row === "g" ? "1F" : row === "r" ? "閣樓（老虎窗）" : `${Number(row) + 2}F`;
     const where = `${SIDES[Number(side)] ?? ""} ${bay === "-1" ? "斜切轉角" : `第 ${Number(bay) + 1} 開間`} · ${floor}`;
     const f = this.host.gui.addFolder(`🎯 選取的窗戶：${where}`);
     this.folder = f;
@@ -193,8 +194,10 @@ export class WindowEditor {
       plain("ground", "一樓窗");
     } else if (slot.kind === "door") {
       plain("door", "大門款式");
+    } else if (slot.kind === "dormer") {
+      plain("dormer", "老虎窗款式");
     }
-    if (slot.kind !== "door" && slot.kind !== "shop") {
+    if (slot.kind !== "door" && slot.kind !== "shop" && slot.kind !== "dormer") {
       plain("curtain", "窗簾");
       state.curtainOpen = own().curtainOpen ?? p.curtainOpen;
       f.add(state, "curtainOpen", 0, 1, 0.01).name("窗簾拉開程度").onChange((v: number) => set({ curtainOpen: v }));

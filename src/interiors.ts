@@ -35,6 +35,8 @@ export interface RoomSlot {
   curtain?: { half: number; sill: number; head: number; y?: number; gathered?: boolean };
   /** dormers: a short tunnel from the window back to the room front */
   tunnel?: boolean;
+  /** the tunnel's half width and height range when it is not the usual dormer's (the atelier) */
+  tunnelSize?: { x: number; z0: number; z1: number };
   /** curtains only: the window looks into a room box made for another (the ballroom's upper row) */
   noBox?: boolean;
   /** set on this window alone (params.facade): its curtains, and how far open ones are drawn back */
@@ -138,7 +140,7 @@ export function buildInteriors(slots: RoomSlot[], noCurtain = 0.3, closedCurtain
       quad([[-hw, dl, h], [hw, dr, h], [hw, 0, h], [-hw, 0, h]]); // ceiling
       if (s.tunnel) {
         // dormer: walls from the window (y = 0.02) to the room front
-        const ty = 0.02 - s.y0, tx = 0.42, z0 = 0.52, z1 = 1.88;
+        const ty = 0.02 - s.y0, tx = s.tunnelSize?.x ?? 0.42, z0 = s.tunnelSize?.z0 ?? 0.52, z1 = s.tunnelSize?.z1 ?? 1.88;
         quad([[-tx, ty, z0], [-tx, 0, z0], [-tx, 0, z1], [-tx, ty, z1]]);
         quad([[tx, 0, z0], [tx, ty, z0], [tx, ty, z1], [tx, 0, z1]]);
         quad([[-tx, ty, z0], [tx, ty, z0], [tx, 0, z0], [-tx, 0, z0]]);
