@@ -91,14 +91,13 @@ export class Cutaway {
   }
 
   /**
-   * Place the plane at t (0..1) within the building's bounds (world space):
-   * horizontal from the ground (0) to the top (1); across from the left end (0,
-   * nothing kept) to the right end (1); along from the front (0, all kept) to
-   * the back (1).
+   * Place the plane (world space): horizontal at height `at`, keeping what is
+   * below; across the front at x = at, keeping the left; parallel to the front
+   * at z = at, keeping the back.
    */
-  place(mode: CutMode, axis: CutAxis, t: number, min: Vector3, max: Vector3): void {
-    if (mode === "horizontal") this.plane.set(new Vector3(0, -1, 0), min.y + (max.y - min.y) * t);
-    else if (axis === "across") this.plane.set(new Vector3(-1, 0, 0), min.x + (max.x - min.x) * t);
-    else this.plane.set(new Vector3(0, 0, -1), max.z - (max.z - min.z) * t);
+  place(mode: CutMode, axis: CutAxis, at: number): void {
+    if (mode === "horizontal") this.plane.set(new Vector3(0, -1, 0), at);
+    else if (axis === "across") this.plane.set(new Vector3(-1, 0, 0), at);
+    else this.plane.set(new Vector3(0, 0, -1), at);
   }
 }

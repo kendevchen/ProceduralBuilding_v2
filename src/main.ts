@@ -4,7 +4,7 @@
  * is assembled from the kit (blender/ -> public/assets/kit.glb) by generator.ts.
  */
 import {
-  ACESFilmicToneMapping, Clock, GridHelper, Group, type InstancedMesh, Mesh, MeshStandardMaterial,
+  ACESFilmicToneMapping, Box3, Clock, GridHelper, Group, type InstancedMesh, Mesh, MeshStandardMaterial,
   PerspectiveCamera, PlaneGeometry, SRGBColorSpace, Scene, type Sprite, Vector3, WebGLRenderer,
 } from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -72,8 +72,13 @@ let lastPlan: BuildingPlan | null = null;
 /** cutting the building open (INTERIOR_SPEC.md §2): t is the plane's place, 0..1 within the bounds */
 const cut = { on: false, mode: "horizontal" as CutMode, axis: "across" as CutAxis, t: 0.6, sweep: false, dir: 1 };
 const cutaway = new Cutaway();
-/** world bounds of the building, for placing the plane and framing the camera */
+/** world bounds of the building (all it is made of, a little beyond), for placing the plane and framing the camera */
 const bounds = { min: new Vector3(-8, 0, -6), max: new Vector3(8, 22, 6) };
+const CUT_MARGIN = 0.05;
+/** the footprint, to turn the plane's place into the building's own coordinates */
+const site = { width: 16, length: 12 };
+/** whether the building on show wears the cut materials */
+let cutShown = false;
 /** the white model of the interior, the atlas rooms it replaces while cut, the room names */
 let interior: Group | null = null;
 let roomBoxes: Mesh | null = null;
@@ -113,6 +118,7 @@ function rebuild(frame = false): void {
   if (!kit || !materials) return;
   interior = roomBoxes = null;
   labels = null;
+  cutShown = false; // every new group starts with the plain materials
   if (view.gallery) {
     const gal = buildGallery(kit, buildingStyle(params));
     show(gal.group, new Vector3(0, gal.height / 2, 0), Math.hypot(gal.width, gal.depth, gal.height) / 2);
@@ -152,32 +158,48 @@ function rebuild(frame = false): void {
   g.add(curtains);
   interior = buildRooms3d(plan, b, kit, cutaway.interior);
   g.add(interior);
+  g.position.set(-b.width / 2, -b.length / 2, 0); // footprint centred on the origin
+  show(g, new Vector3(0, cap.top / 2, 0), Math.hypot(b.width, b.length, cap.top) / 2);
+  // the cut runs over everything that stands out too (balconies, cornices, chimneys)
+  g.updateWorldMatrix(true, true);
+  const box = new Box3().setFromObject(g);
+  bounds.min.copy(box.min).subScalar(CUT_MARGIN);
+  bounds.max.copy(box.max).addScalar(CUT_MARGIN);
+  site.width = b.width;
+  site.length = b.length;
   labels = new RoomLabels(plan, interiorView.area);
   g.add(labels.group);
-  g.position.set(-b.width / 2, -b.length / 2, 0); // footprint centred on the origin
-  bounds.min.set(-b.width / 2, 0, -b.length / 2);
-  bounds.max.set(b.width / 2, cap.top + 1.2, b.length / 2);
-  show(g, new Vector3(0, cap.top / 2, 0), Math.hypot(b.width, b.length, cap.top) / 2);
-  applyCut();
+  applyCut(true);
 }
 
-/** cut open or whole: swap the materials, show the white model instead of the atlas rooms */
-function applyCut(): void {
-  const on = cut.on && !view.gallery && !interiorView.plan;
-  if (shown) cutaway.apply(shown, on);
-  if (interior) interior.visible = on;
-  if (roomBoxes) roomBoxes.visible = !on;
-  placeCut();
+/** the plane's place (world space) for the slider, and whether it misses the building on the side kept */
+function cutPosition(): { at: number; whole: boolean } {
+  const { min, max } = bounds;
+  if (cut.mode === "horizontal") return { at: min.y + (max.y - min.y) * cut.t, whole: cut.t >= 0.999 };
+  if (cut.axis === "across") return { at: min.x + (max.x - min.x) * cut.t, whole: cut.t >= 0.999 };
+  return { at: max.z - (max.z - min.z) * cut.t, whole: cut.t <= 0.001 };
 }
 
-function placeCut(): void {
-  cutaway.place(cut.mode, cut.axis, cut.t, bounds.min, bounds.max);
+/**
+ * Place the cut, and open the building or close it: while cut its materials
+ * are the cut variants and the white model stands in for the atlas rooms. A
+ * plane that misses the building restores it as it is uncut.
+ */
+function applyCut(force = false): void {
+  const { at, whole } = cutPosition();
+  const on = cut.on && !whole && !view.gallery && !interiorView.plan;
+  if (force || on !== cutShown) {
+    if (shown) cutaway.apply(shown, on);
+    if (interior) interior.visible = on;
+    if (roomBoxes) roomBoxes.visible = !on;
+    cutShown = on;
+  }
+  cutaway.place(cut.mode, cut.axis, at);
   toolbar.show(cut.mode, cut.axis, cut.t);
-  const h = bounds.min.y + (bounds.max.y - bounds.min.y) * cut.t;
-  toolbar.setLevel(cut.mode === "horizontal" ? levelAt(h) : "");
+  toolbar.setLevel(on && cut.mode === "horizontal" ? levelAt(at) : "");
   // the plane in the building's own (Blender) coordinates, for the room names
-  const at = cut.mode === "horizontal" ? h : (cut.axis === "across" ? bounds.max.x - bounds.min.x : bounds.max.z - bounds.min.z) * cut.t;
-  labels?.update(cut.on && interiorView.labels && !view.gallery && !interiorView.plan, cut.mode, cut.axis, at);
+  const own = cut.mode === "horizontal" ? at : cut.axis === "across" ? at + site.width / 2 : site.length / 2 - at;
+  labels?.update(on && interiorView.labels, cut.mode, cut.axis, own);
 }
 
 /** name of the floor a height (m) is in, for the horizontal cut */
@@ -305,15 +327,15 @@ const toolbar = new Toolbar({
   save: () => (saveNext = true),
   mode: m => {
     cut.mode = m;
-    placeCut();
+    applyCut();
   },
   axis: a => {
     cut.axis = a;
-    placeCut();
+    applyCut();
   },
   slide: t => {
     cut.t = t;
-    placeCut();
+    applyCut();
   },
   sweep: on => (cut.sweep = on),
 });
@@ -403,7 +425,7 @@ if (import.meta.env.DEV) {
   Object.assign(window, {
     __app: {
       camera, controls, params, view, interiorView, rebuild, scene, renderer, env, planCheckAll,
-      cut, cutaway, toolbar, applyCut, placeCut, frameHome,
+      cut, cutaway, toolbar, applyCut, frameHome,
       get plan() { return lastPlan; },
     },
   });
@@ -439,7 +461,7 @@ renderer.setAnimationLoop(() => {
     cut.t += (cut.dir * dt) / SWEEP_SECONDS;
     if (cut.t > 0.98) [cut.t, cut.dir] = [0.98, -1];
     if (cut.t < 0.04) [cut.t, cut.dir] = [0.04, 1];
-    placeCut();
+    applyCut();
   }
   controls.update();
   env.tick(camera.position);
