@@ -32,7 +32,7 @@ export interface RoomSlot {
   along: number;
   length: number;
   /** window for the curtains (module-local); none: no curtains */
-  curtain?: { half: number; sill: number; head: number; y?: number };
+  curtain?: { half: number; sill: number; head: number; y?: number; gathered?: boolean };
   /** dormers: a short tunnel from the window back to the room front */
   tunnel?: boolean;
   /** curtains only: the window looks into a room box made for another (the ballroom's upper row) */
@@ -149,7 +149,14 @@ export function buildInteriors(slots: RoomSlot[], noCurtain = 0.3, closedCurtain
       if (u < noCurtain) continue;
       const c = s.curtain;
       const open = !plan?.closed && u >= noCurtain + closedCurtain;
-      const panels: [number, number][] = open
+      // gathered: the casements swing in through the window, so the curtain is
+      // held flat on the wall in two bunches beside the opening
+      const panels: [number, number][] = c.gathered
+        ? (() => {
+          const edge = c.half + 0.08, w = (k: number) => 0.26 + 0.16 * r(k);
+          return [[-edge - w(11), -edge], [edge, edge + w(12)]] as [number, number][];
+        })()
+        : open
         ? (() => {
           // each panel covers half the window less the drawn-back share, varied per side
           const w = (k: number) => Math.max(0.12, c.half * (1 - curtainOpen * 0.85) * (0.8 + 0.4 * r(k)));

@@ -306,8 +306,9 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
       const opened = !leftClosed && !rightClosed && rand(seed, si, i, ri, PURPOSE.window) < p.windowOpen;
       const out = opened && p.windowDir === "out";
       const sgn = out ? -1 : 1;
-      // casements open inwards would cut through the curtains: hang them deeper
-      if (opened && !out && room.curtain) room.curtain.y = 0.75;
+      // casements open inwards would cut through the curtains: gather them on the
+      // wall beside the window, just off its inner face
+      if (opened && !out && room.curtain) Object.assign(room.curtain, { gathered: true, y: dims.wall + 0.03 - room.y0 });
       const turn = (k: number) => opened ? sgn * (0.35 + 0.65 * rand(seed, si, i, ri, PURPOSE.windowAngle + k)) * p.windowAngle * Math.PI / 180 : 0;
       put(`${r.cls}_leaf`, "left", x - LEAF_X, r.z, { y: HINGE_Y, angle: turn(0) });
       put(`${r.cls}_leaf`, "left", x + LEAF_X, r.z, { y: HINGE_Y, angle: -turn(1), mirror: true });
