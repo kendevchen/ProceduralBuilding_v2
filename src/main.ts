@@ -81,7 +81,7 @@ let shown: Group | null = null;
 let lastPlan: BuildingPlan | null = null;
 
 /** cutting the building open (INTERIOR_SPEC.md §2): t is the plane's place, 0..1 within the bounds */
-const cut = { on: false, mode: "horizontal" as CutMode, axis: "across" as CutAxis, flip: false, t: 0.6, sweep: false, dir: 1 };
+const cut = { on: false, mode: "horizontal" as CutMode, axis: "across" as CutAxis, flip: false, t: 1, sweep: false, dir: 1 };
 const cutaway = new Cutaway();
 /** world bounds of the building (all it is made of, a little beyond), for placing the plane and framing the camera */
 const bounds = { min: new Vector3(-8, 0, -6), max: new Vector3(8, 22, 6) };
@@ -195,23 +195,25 @@ function rebuild(frame = false): void {
   applyCut(true);
 }
 
-/** the plane's place (world space) for the slider, and whether it misses the building on the side kept */
-function cutPosition(): { at: number; whole: boolean } {
+/** the plane's place (world space) for the slider */
+function cutPosition(): { at: number } {
   const { min, max } = bounds;
-  if (cut.mode === "horizontal") return { at: min.y + (max.y - min.y) * cut.t, whole: cut.t >= 0.999 };
+  if (cut.mode === "horizontal") return { at: min.y + (max.y - min.y) * cut.t };
   // the plane always sits at the same place; flipped, it keeps the other side, so the other end is the uncut one
-  if (cut.axis === "across") return { at: min.x + (max.x - min.x) * cut.t, whole: cut.flip ? cut.t <= 0.001 : cut.t >= 0.999 };
-  return { at: max.z - (max.z - min.z) * cut.t, whole: cut.flip ? cut.t >= 0.999 : cut.t <= 0.001 };
+  if (cut.axis === "across") return { at: min.x + (max.x - min.x) * cut.t };
+  return { at: max.z - (max.z - min.z) * cut.t };
 }
 
 /**
  * Place the cut, and open the building or close it: while cut its materials
  * are the cut variants and the white model stands in for the atlas rooms. A
- * plane that misses the building restores it as it is uncut.
+ * plane past the building leaves it whole, with the interior still in place (the toggle hides it).
  */
 function applyCut(force = false): void {
-  const { at, whole } = cutPosition();
-  const on = cut.on && !whole && !view.gallery && !interiorView.plan;
+  // the interior is on show whenever the toggle is on, also with the plane past the building (nothing cut away,
+  // the real rooms behind the windows); the toggle hides it
+  const { at } = cutPosition();
+  const on = cut.on && !view.gallery && !interiorView.plan;
   if (force || on !== cutShown) {
     if (shown) cutaway.apply(shown, on);
     if (interior) interior.visible = on;
