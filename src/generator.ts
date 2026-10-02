@@ -13,7 +13,7 @@
 import { Color, Matrix4 } from "three";
 import dims from "../blender/kit_dims.json";
 import type { Placement, Style } from "./kit";
-import type { BuildingParams, DetailStyle, DormerStyle, PedimentStyle } from "./params";
+import type { BuildingParams, DetailStyle, DormerStyle, PedimentStyle, WindowOverride } from "./params";
 import { PURPOSE, rand } from "./rng";
 import type { RoomKind, RoomSlot } from "./interiors";
 import { type EdgeKind, type V2, roofShape } from "./roof";
@@ -88,6 +88,23 @@ export interface Building {
   tall: number[];
   /** chimney stacks on the roof's flat top */
   chimneys: ChimneyInfo[];
+  /** every window and door of the facades, for picking */
+  windows: WindowSlot[];
+}
+
+/** the key of a window: facade side, bay (-1 the pan coupé's diagonal), and "g" for the ground floor or the upper row */
+export const windowKey = (side: number, bay: number, row: number | "g") => `${side}|${bay}|${row}`;
+
+/** a window that can be picked and set on its own (main.ts): its opening in its module's frame */
+export interface WindowSlot {
+  key: string;
+  /** the module's frame (Blender space) */
+  matrix: Matrix4;
+  half: number;
+  z0: number;
+  z1: number;
+  /** what can be set: an upper window, a ground-floor window, the entrance door, a shop front */
+  kind: "upper" | "ground" | "door" | "shop";
 }
 
 export interface ChimneyInfo {
@@ -210,6 +227,10 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
   const tallBays = new Set(p.ballroomFacade === "tall" ? ballroom ?? [] : []);
 
   const placements: Placement[] = [];
+  const windows: WindowSlot[] = [];
+  /** the window the placements now being made belong to */
+  let tag: string | undefined;
+  const own = (key: string): WindowOverride => p.facade[key] ?? {};
   const MIRROR = new Matrix4().makeScale(-1, 1, 1);
   const DIAG = new Matrix4().makeRotationZ(-Math.PI / 4).setPosition(leg / 2, leg / 2, 0);
   type Put = (collection: string, variant: string, x: number, z: number, opts?: { mirror?: boolean; angle?: number; y?: number }) => Matrix4;
@@ -217,13 +238,20 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
     const m = frame.clone().multiply(new Matrix4().makeTranslation(x, opts.y ?? 0, z));
     if (opts.angle) m.multiply(new Matrix4().makeRotationZ(opts.angle));
     if (opts.mirror) m.multiply(MIRROR);
-    placements.push({ key: kit.key(collection, variant), matrix: m, style });
+    placements.push({ key: kit.key(collection, variant), matrix: m, style, tag });
     return m;
   };
   const rooms: RoomSlot[] = [];
   const groundRoom = (m: Matrix4, variant: string, geo: Geo, seedKey: number[]) => {
     const at = { side: seedKey[1], bay: seedKey[2], level: 0 };
-    const base = { matrix: m, half: 1.45, depth: geo.depth, along: geo.along, length: geo.length, seed: seedKey, at };
+    const key = windowKey(at.side, at.bay, "g");
+    const o = own(key);
+    const base = { matrix: m, half: 1.45, depth: geo.depth, along: geo.along, length: geo.length, seed: seedKey, at,
+      curtainMode: o.curtain, curtainOpen: o.curtainOpen };
+    const g = dims.ground;
+    if (variant.startsWith("window")) windows.push({ key, matrix: m, half: g.window.width / 2, z0: g.window.sill, z1: g.window.spring + g.window.width / 2, kind: "ground" });
+    else if (variant.startsWith("door")) windows.push({ key, matrix: m, half: g.door.width / 2, z0: 0, z1: g.door.spring + g.door.width / 2, kind: "door" });
+    else windows.push({ key, matrix: m, half: 1.2, z0: 0, z1: SHOP_TOP, kind: "shop" });
     if (variant.startsWith("window")) {
       rooms.push({ ...base, kind: "ground", y0: 0.25, floor: 0.45, height: 3.55, curtain: { half: 0.82, sill: 0.5, head: 2.6 } });
     } else if (variant.startsWith("shop")) {
@@ -236,6 +264,8 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
   // balcony of every (row, bay): continuous rows on street facades, the rule
   // for the others; window heads read the floor above
   const balconyOf = (kind: SideKind, si: number, ri: number, i: number): Balcony => {
+    const set = own(windowKey(si, i, ri)).balcony;
+    if (set) return set;
     if (kind === "court") return "gardecorps";
     if (rows[ri].continuous) return "continuous";
     switch (p.otherBalcony) {
@@ -263,6 +293,9 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
     rows.forEach((r, ri) => {
       const tall = hall && tallBays.has(i) && ri < 2;
       if (tall && ri === 1) return;
+      const key = windowKey(si, i, ri);
+      const o = own(key);
+      tag = key;
       const pair = tall ? `${r.cls}${rows[1].cls}_tall` : null;
       const wm = put(pair ?? `${r.cls}_bay`, "window", x, r.z);
       const H = dims.classes[r.cls].height;
@@ -273,47 +306,54 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
         height: hall && ri === 0 ? both - 0.35 : H - 0.35, half: 1.45, noBox: hall && ri === 1,
         depth: geo.depth, along: geo.along, length: geo.length,
         curtain: { half: 0.6, sill: 0.26, head: head - 0.07 }, seed: [seed, si, i, ri],
-        at: { side: si, bay: i, level: ri + 1 },
+        at: { side: si, bay: i, level: ri + 1 }, curtainMode: o.curtain, curtainOpen: o.curtainOpen,
       };
       rooms.push(room);
+      windows.push({ key, matrix: wm, half: dims.window.width / 2, z0: dims.window.sill, z1: head, kind: "upper" });
       const b = balconyOf(kind, si, ri, i);
       put("balcony", b, x, r.z);
-      if (p.consoles && b !== "gardecorps") for (const cx of CONSOLES[b]) put("console", "scroll", x + cx, r.z);
-      if (kind === "street") {
+      if ((o.consoles ?? p.consoles) && b !== "gardecorps") for (const cx of CONSOLES[b]) put("console", "scroll", x + cx, r.z);
+      const ornament = o.ornament ?? p.ornament;
+      if (kind === "street" || o.ornament !== undefined || o.head || o.detail) {
         // the Haussmann hierarchy: the étage noble richest, simpler going up;
         // under a slab (the floor above has a balcony here) only a keystone fits
-        if (p.ornament >= 1) put(pair ?? `${r.cls}_surround`, pair ? "surround" : r.cls === "N" ? "crossette" : "band", x, r.z);
-        if (p.ornament >= 2) {
+        if (ornament >= 1) put(pair ?? `${r.cls}_surround`, pair ? "surround" : r.cls === "N" ? "crossette" : "band", x, r.z);
+        let h: string | null = null;
+        if (o.head) h = o.head === "none" ? null : o.head;
+        else if (ornament >= 2) {
           const up = tall ? ri + 2 : ri + 1;
           const above = up < rows.length ? balconyOf(kind, si, up, i) : "gardecorps";
-          let h: string | null = null;
           if (above !== "gardecorps") h = "keystone";
           else if (r.cls === "N") h = pediment(p.pediment, i, n);
-          else if (r.cls === "S") h = p.ornament >= 3 && i % 2 === 0 ? "segment" : "cornice";
-          if (h) put("head", h, x, r.z + head);
+          else if (r.cls === "S") h = ornament >= 3 && i % 2 === 0 ? "segment" : "cornice";
         }
-        const d = detailOf(ri);
+        if (h) put("head", h, x, r.z + head);
+        const d = o.detail ? (o.detail === "none" ? null : o.detail) : kind === "street" ? detailOf(ri) : null;
         if (d && !tall) put(`${r.cls}_detail`, d, x, r.z);
       }
       // persiennes: open (folded into the reveals), one closed, or both closed
       const u = rand(seed, si, i, ri, PURPOSE.shutter);
       const closed = u < p.shutterClosed;
       const half = !closed && u < p.shutterClosed + p.shutterHalf;
-      const leftClosed = closed || (half && rand(seed, si, i, ri, PURPOSE.shutterSide) < 0.5);
-      const rightClosed = closed || (half && !leftClosed);
+      let leftClosed = closed || (half && rand(seed, si, i, ri, PURPOSE.shutterSide) < 0.5);
+      let rightClosed = closed || (half && !leftClosed);
+      if (o.shutters) [leftClosed, rightClosed] = [o.shutters === "left" || o.shutters === "closed", o.shutters === "right" || o.shutters === "closed"];
       // casements: open on some windows (not behind closed shutters), turning on
       // their hinges into the room or out; open outwards they cover the folded shutters
-      const opened = !leftClosed && !rightClosed && rand(seed, si, i, ri, PURPOSE.window) < p.windowOpen;
-      const out = opened && p.windowDir === "out";
+      const wanted = o.window ? o.window === "open" : rand(seed, si, i, ri, PURPOSE.window) < p.windowOpen;
+      const opened = !leftClosed && !rightClosed && wanted;
+      const out = opened && (o.dir ?? p.windowDir) === "out";
       const sgn = out ? -1 : 1;
       // casements open inwards would cut through the curtains: gather them on the
       // wall beside the window, just off its inner face
       if (opened && !out && room.curtain) Object.assign(room.curtain, { gathered: true, y: dims.wall + 0.03 - room.y0 });
-      const turn = (k: number) => opened ? sgn * (0.35 + 0.65 * rand(seed, si, i, ri, PURPOSE.windowAngle + k)) * p.windowAngle * Math.PI / 180 : 0;
+      // a window set on its own opens both casements to its angle; the others to a random share of the global one
+      const turn = (k: number) => opened ? sgn * (o.angle ?? (0.35 + 0.65 * rand(seed, si, i, ri, PURPOSE.windowAngle + k)) * p.windowAngle) * Math.PI / 180 : 0;
       put(`${r.cls}_leaf`, "left", x - LEAF_X, r.z, { y: HINGE_Y, angle: turn(0) });
       put(`${r.cls}_leaf`, "left", x + LEAF_X, r.z, { y: HINGE_Y, angle: -turn(1), mirror: true });
       if (!(out && !leftClosed)) put(`${r.cls}_shutter`, leftClosed ? "closed" : "folded", x, r.z);
       if (!(out && !rightClosed)) put(`${r.cls}_shutter`, rightClosed ? "closed" : "folded", x, r.z, { mirror: true });
+      tag = undefined;
     });
     put("R_cornice", "bay", x, wallTop);
     const mm = put("R_mansard", dormerKind ? `dormer_${dormerKind}` : "plain", x, roofBase);
@@ -398,10 +438,12 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
       }
       // the diagonal's middle bay: standard modules turned -45 degrees
       const dput = putter(sideFrames[si].clone().multiply(DIAG));
-      const ground = p.groundUse !== "residential" ? "shop_cafe" : `window_${p.groundWindow}`;
+      const ground = p.groundUse !== "residential" ? "shop_cafe" : `window_${own(windowKey(si, -1, "g")).ground ?? p.groundWindow}`;
       const diag: Geo = { along: 500, length: 1000, depth: 1.8 };
+      tag = windowKey(si, -1, "g");
       groundRoom(dput("G_bay", ground, 0, 0), ground, diag, [seed, si, -1, -1]);
       if (ground === "shop_cafe") dput("awning", "open", 0, SHOP_TOP);
+      tag = undefined;
       const diagDormer = p.dormerStyle === "mixed" ? "oeil" : p.dormerStyle;
       upperBay(dput, "street", si, -1, 1, 0, diagDormer, diag);
       side.diag = { x: 0, ground, dormer: diagDormer, frame: sideFrames[si].clone().multiply(DIAG) };
@@ -425,9 +467,13 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
     for (let i = 0; i < n; i++) {
       const x = x0 + bay * (i + 0.5);
       const geo: Geo = { along: x, length, depth };
-      const variant = i === door ? doorVariant : shops[i] ?? (street ? `window_${p.groundWindow}` : "window_rect");
+      const o = own(windowKey(si, i, "g"));
+      const variant = i === door ? (o.door ? `door_${o.door}` : doorVariant)
+        : shops[i] ?? (street || o.ground ? `window_${o.ground ?? p.groundWindow}` : "window_rect");
+      tag = windowKey(si, i, "g");
       groundRoom(put("G_bay", variant, x, 0), variant, geo, [seed, si, i, -1]);
       if (shops[i]) put("awning", awningFor(shops[i]!, si, i), x, SHOP_TOP);
+      tag = undefined;
       const withDormer = p.dormerEvery === 1 || i % 2 === 0;
       const dormerKind = withDormer ? (street ? dormer(p.dormerStyle, si, i) : "zinc") : null;
       upperBay(put, kind, si, i, n, x, dormerKind, geo);
@@ -479,7 +525,7 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
   }
   return {
     placements, style, width: W, length: L, rows, wallTop, roofBase, footprint, edgeKinds, rooms,
-    sides, door: doorBay, ballroom, tall: [...tallBays], chimneys,
+    sides, door: doorBay, ballroom, tall: [...tallBays], chimneys, windows,
   };
 }
 

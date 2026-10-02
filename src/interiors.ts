@@ -37,6 +37,9 @@ export interface RoomSlot {
   tunnel?: boolean;
   /** curtains only: the window looks into a room box made for another (the ballroom's upper row) */
   noBox?: boolean;
+  /** set on this window alone (params.facade): its curtains, and how far open ones are drawn back */
+  curtainMode?: "none" | "closed" | "open";
+  curtainOpen?: number;
   /** the window on the floor plan: facade side, bay (-1 the pan coupé), level */
   at?: { side: number; bay: number; level: number };
   /** stable random key */
@@ -145,10 +148,13 @@ export function buildInteriors(slots: RoomSlot[], noCurtain = 0.3, closedCurtain
 
     // voile curtains: none, drawn closed, or open in two panels
     if (s.curtain) {
-      const u = plan?.closed ? noCurtain : r(10);
-      if (u < noCurtain) continue;
+      // the window's own setting, else the plan (WCs closed), else chance
+      const mode = s.curtainMode ?? (plan?.closed ? "closed" : null);
+      const u = r(10);
+      if (mode === "none" || (!mode && u < noCurtain)) continue;
       const c = s.curtain;
-      const open = !plan?.closed && u >= noCurtain + closedCurtain;
+      const open = mode ? mode === "open" : u >= noCurtain + closedCurtain;
+      const drawn = s.curtainOpen ?? curtainOpen;
       // gathered: the casements swing in through the window, so the curtain is
       // held flat on the wall in two bunches beside the opening
       const panels: [number, number][] = c.gathered
@@ -159,7 +165,7 @@ export function buildInteriors(slots: RoomSlot[], noCurtain = 0.3, closedCurtain
         : open
         ? (() => {
           // each panel covers half the window less the drawn-back share, varied per side
-          const w = (k: number) => Math.max(0.12, c.half * (1 - curtainOpen * 0.85) * (0.8 + 0.4 * r(k)));
+          const w = (k: number) => Math.max(0.12, c.half * (1 - drawn * 0.85) * (0.8 + 0.4 * r(k)));
           return [[-c.half, -c.half + w(11)], [c.half - w(12), c.half]] as [number, number][];
         })()
         : [[-c.half, c.half]];

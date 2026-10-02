@@ -25,6 +25,7 @@ import { buildRooms3d } from "./rooms3d";
 import { RoomLabels } from "./roomLabels";
 import { buildStairs } from "./stairs";
 import { StreetLife } from "./streetlife";
+import { WindowEditor } from "./windowEditor";
 import type { Look } from "./finishes";
 import { Toolbar } from "./toolbar";
 
@@ -129,6 +130,7 @@ function rebuild(frame = false): void {
   if (view.gallery) {
     const gal = buildGallery(kit, buildingStyle(params));
     show(gal.group, new Vector3(0, gal.height / 2, 0), Math.hypot(gal.width, gal.depth, gal.height) / 2);
+    windows.update(null, null);
     if (frame) frameGallery(gal.width, gal.depth / 2);
     return;
   }
@@ -142,6 +144,7 @@ function rebuild(frame = false): void {
     const g = buildPlanView(plan, interiorView.level, interiorView);
     g.position.set(-b.width / 2, -b.length / 2, 0);
     show(g, new Vector3(0, plan.levels[interiorView.level].floorZ, 0), Math.hypot(b.width, b.length) / 2 + 2);
+    windows.update(null, null);
     return;
   }
   const walls = partyWalls(b.footprint, b.edgeKinds, b.roofBase);
@@ -171,6 +174,7 @@ function rebuild(frame = false): void {
   street.rebuild(b, params.seed);
   street.group.visible = true;
   show(g, new Vector3(0, cap.top / 2, 0), Math.hypot(b.width, b.length, cap.top) / 2);
+  windows.update(b, g);
   // the cut runs over everything that stands out too (balconies, cornices, chimneys)
   g.updateWorldMatrix(true, true);
   const box = new Box3().setFromObject(g);
@@ -274,6 +278,7 @@ fFacade.add(params, "windowDir", { "內開": "in", "外開": "out" }).name("開�
 fFacade.add(params, "windowAngle", 10, 110, 1).name("最大開窗角度 °").onChange(update);
 fFacade.add(params, "doorStyle", { "拱形馬車大門": "arched", "方形馬車大門": "rect", "玻璃大門": "glazed", "隨機": "random" }).name("大門款式").onChange(update);
 fFacade.add(params, "groundWindow", { "拱窗": "arched", "方窗": "rect" }).name("一樓窗").onChange(update);
+fFacade.add({ clear: () => windows.clearAll() }, "clear").name("清除所有個別設定的窗戶");
 const fLook = gui.addFolder("🎨 外觀 (Look)");
 fLook.addColor(params, "stone").name("石材色調").onChange(update);
 fLook.addColor(params, "paint").name("大門漆色").onChange(update);
@@ -323,6 +328,14 @@ function syncLevels(plan: BuildingPlan): void {
   levelCtrl.name(`樓層（除錯：${plan.levels[interiorView.level].name}）`);
   levelCtrl.updateDisplay();
 }
+
+/** click a window to set its facade details on its own (windowEditor.ts) */
+const windows = new WindowEditor({
+  canvas: renderer.domElement, camera, gui, params,
+  shown: () => (view.gallery || interiorView.plan ? null : shown),
+  clip: () => (cutShown ? cutaway.plane : null),
+  rebuild: () => rebuild(),
+});
 
 // ---- the section panel and the bottom toolbar ----
 let saveNext = false;
@@ -443,7 +456,7 @@ if (import.meta.env.DEV) {
   Object.assign(window, {
     __app: {
       camera, controls, params, view, interiorView, rebuild, scene, renderer, env, planCheckAll,
-      cut, cutaway, toolbar, applyCut, frameHome, bounds, site, street,
+      cut, cutaway, toolbar, applyCut, frameHome, bounds, site, street, windows,
       get plan() { return lastPlan; },
       get kit() { return kit; },
     },

@@ -34,6 +34,8 @@ export interface Placement {
   /** Blender Z-up space */
   matrix: Matrix4;
   style?: Style;
+  /** the window it belongs to (generator.ts windowKey), for picking; kept per instance in userData.tags */
+  tag?: string;
 }
 
 /** an opening of a module (modules.openings in blender/kitlib) */
@@ -85,6 +87,7 @@ interface Bucket {
   pattern: number;
   matrices: Matrix4[];
   styles: (Style | undefined)[];
+  tags: (string | undefined)[];
 }
 
 export class Kit {
@@ -237,15 +240,17 @@ export class Kit {
           const pattern = isLace ? (pl.style?.lace ?? 0) : 0;
           const id = `${mirrored}|${pattern}`;
           let b = buckets.get(id);
-          if (!b) buckets.set(id, (b = { mirrored, pattern, matrices: [], styles: [] }));
+          if (!b) buckets.set(id, (b = { mirrored, pattern, matrices: [], styles: [], tags: [] }));
           b.matrices.push(mirrored ? tmp.clone().multiply(MIRROR_X) : tmp.clone());
           b.styles.push(pl.style);
+          b.tags.push(pl.tag);
         }
         for (const b of buckets.values()) {
           const geom = b.mirrored ? this.mirroredGeometry(mesh.geometry) : mesh.geometry;
           const material = isLace ? this.materials.lace(b.pattern) : base;
           const im = new InstancedMesh(geom, material, b.matrices.length);
           im.name = key;
+          if (b.tags.some(t => t)) im.userData.tags = b.tags;
           // glass: transparent, drawn after the rooms behind it, casts no shadow
           im.castShadow = !material.transparent;
           im.receiveShadow = !material.transparent;

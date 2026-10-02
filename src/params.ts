@@ -10,6 +10,27 @@ export type DetailStyle = "refends" | "pilasters" | "panels";
 export type DormerStyle = "zinc" | "oeil" | "segment" | "triangle" | "mixed";
 export type BuildingType = "freestanding" | "corner" | "row";
 export type GroundUse = "residential" | "mixed" | "shops";
+
+/** one window's own facade details, set by clicking it (main.ts); a field left out follows the global setting */
+export interface WindowOverride {
+  /** ornament level 0..3 (surround, head) */
+  ornament?: number;
+  /** window head: a kit head variant, or none */
+  head?: "none" | "triangle" | "segment" | "cornice" | "cornice_consoles" | "keystone";
+  balcony?: "gardecorps" | "balconnet" | "continuous";
+  consoles?: boolean;
+  detail?: DetailStyle | "none";
+  shutters?: "open" | "left" | "right" | "closed";
+  window?: "closed" | "open";
+  dir?: "in" | "out";
+  angle?: number;
+  curtain?: "none" | "closed" | "open";
+  /** how far open curtains are drawn back, 0..1 */
+  curtainOpen?: number;
+  /** ground floor: the window's shape, or the entrance door's style */
+  ground?: GroundWindow;
+  door?: Exclude<DoorStyle, "random">;
+}
 export type Apartments = "auto" | "one" | "two";
 
 export interface BuildingParams {
@@ -78,6 +99,8 @@ export interface BuildingParams {
   ballroomFacade: "rows" | "tall";
   /** flats per upper floor: auto (two from twoFlatsBays front bays), one, two */
   apartments: Apartments;
+  /** windows set one by one, by generator.ts windowKey */
+  facade: Record<string, WindowOverride>;
 }
 
 export function defaultParams(): BuildingParams {
@@ -89,6 +112,6 @@ export function defaultParams(): BuildingParams {
     shutterClosed: 0.03, shutterHalf: 0.03,
     curtainNone: 0.5, curtainClosed: 0, curtainOpen: 0.5, windowOpen: 1, windowDir: "in", windowAngle: 75,
     stone: "#ffffff", paint: "#22382f", shutter: "#c9c5ba", awning: "#8c2b2b", lace: 2,
-    ballroom: true, ballroomFacade: "rows", apartments: "auto",
+    ballroom: true, ballroomFacade: "rows", apartments: "auto", facade: {},
   };
 }
