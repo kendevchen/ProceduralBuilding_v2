@@ -229,9 +229,8 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
     const open = plan.rooms.filter(r => r.level === lv.index && openAbove(r.id, lv.index));
     edges.forEach((e, i) => {
       // on up through the slab beside the stair wells and the ballroom (its tall windows cross it)
-      const s = (p: V2) => (p[0] - e.a[0]) * e.dir[0] + (p[1] - e.a[1]) * e.dir[1];
       for (const r of open) {
-        const on = r.polygon.filter(p => edgeAt(inner, p) === i).map(s);
+        const on = onEdge(r.polygon, e);
         if (on.length < 2) continue;
         const pad = I.walls.cage / 2;
         lining(e, i, lv.index, Math.max(0, Math.min(...on) - pad), Math.min(e.len, Math.max(...on) + pad), z1, z2, r);
@@ -243,7 +242,7 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
       // finished: room by room along the edge (the walls between them hide the joins)
       for (const r of plan.rooms) {
         if (r.level !== lv.index && !(r.levels === 2 && r.level === lv.index - 1)) continue;
-        const on = r.polygon.filter(p => edgeAt(inner, p) === i).map(s);
+        const on = onEdge(r.polygon, e);
         if (on.length < 2) continue;
         lining(e, i, lv.index, Math.max(0, Math.min(...on) - 0.06), Math.min(e.len, Math.max(...on) + 0.06), z0, z1, r);
       }
@@ -407,6 +406,17 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
     group.add(mesh);
   }
   return group;
+}
+
+/** where along an outer edge the points of a polygon lie on it (a corner point lies on both its edges) */
+function onEdge(poly: V2[], e: { a: V2; len: number; dir: V2 }, tol = 0.02): number[] {
+  const out: number[] = [];
+  for (const p of poly) {
+    const s = (p[0] - e.a[0]) * e.dir[0] + (p[1] - e.a[1]) * e.dir[1];
+    const d = Math.abs((p[0] - e.a[0]) * e.dir[1] - (p[1] - e.a[1]) * e.dir[0]);
+    if (d < tol && s > -tol && s < e.len + tol) out.push(s);
+  }
+  return out;
 }
 
 function centroid(poly: V2[]): V2 {
