@@ -606,6 +606,79 @@ def dormer_atelier(D):
     return mb
 
 
+def _studio_glass(D):
+    """the studio dormer's glass opening: half width, sill, head (module x, z)"""
+    a = D["dormer"]["studio"]
+    return a["front"] / 2 - a["pier"], a["sill"], a["head"]
+
+
+def dormer_studio(D):
+    """the studio dormer: a French window of glass in an iron grid (mullions, one
+    transom near the top) from just above the cornice nearly to the roof,
+    between plain stone piers; a zinc roof slopes down to the front and reaches
+    out over it, its eave a little lower than at the back."""
+    mb = MeshBuilder()
+    rise, run, k, sl = _slope(D)
+    hb = D["bay"] / 2
+    a = D["dormer"]["studio"]
+    fw = a["front"] / 2
+    gw, sill, head = _studio_glass(D)
+    yf = DORMER_FRONT_Y
+    ye = yf - a["overhang"]                # the eave, out in front
+    ze = a["eave"]
+    ex = fw + 0.08                         # the roof's reach at the sides
+    t = 0.07                               # roof thickness
+
+    def roof_z(y):
+        return ze + (rise - ze) * (y - ye) / (run - ye)
+
+    # the slope on either side, and its top roll over the whole bay
+    for x0, x1 in ((-hb, -fw), (fw, hb)):
+        mb.planar([(x0, 0), (x1, 0), (x1, rise), (x0, rise)], "zinc", s_axis=(1, 0, 0), t_axis=(0, k, 1),
+                  uv=lambda s, t: (s, t * sl))
+    mb.sweep([(-hb, run, rise), (hb, run, rise)], P.circle(0, 0.012, 0.045), "zinc", closed_profile=True, caps=True)
+
+    # the roof: top, soffit, fascia at the eave and the sides
+    L = run - ye
+    mb.face([(-ex, ye, ze), (ex, ye, ze), (ex, run, rise), (-ex, run, rise)], "zinc", [(0, 0), (2 * ex, 0), (2 * ex, L), (0, L)])
+    mb.face([(-ex, run, rise - t), (ex, run, rise - t), (ex, ye, ze - t), (-ex, ye, ze - t)], "zinc", [(0, 0), (2 * ex, 0), (2 * ex, L), (0, L)])
+    mb.face([(-ex, ye, ze - t), (ex, ye, ze - t), (ex, ye, ze), (-ex, ye, ze)], "zinc", [(0, 0), (2 * ex, 0), (2 * ex, t), (0, t)])
+    for sx in (-1, 1):
+        x = sx * ex
+        pts = [(x, ye, ze - t), (x, run, rise - t), (x, run, rise), (x, ye, ze)]
+        mb.face(pts if sx > 0 else pts[::-1], "zinc", [(0, 0), (L, 0), (L, t), (0, t)])
+    # cheeks from the front back to the slope, under the roof
+    zt = roof_z(yf) - t                    # where the front meets the roof's underside
+    for sgn in (1, -1):
+        prof = [(yf, 0), (0, 0), (zt * k, zt), (yf, zt)]
+        if sgn > 0:
+            mb.planar(prof, "zinc", origin=(fw, 0, 0), s_axis=(0, 1, 0))
+        else:
+            mb.planar([(-y, z) for y, z in prof], "zinc", origin=(-fw, 0, 0), s_axis=(0, -1, 0))
+
+    # the stone front with the opening, piers standing proud, a sill band
+    loop = P.opening_loop(gw, sill, head)
+    mb.wall(0, 0, 0, 0, "stone_trim", y=yf, outer=[(-fw, 0), (fw, 0), (fw, zt), (-fw, zt)], holes=[loop])
+    mb.sweep([(x, yf, z) for x, z in loop], [(0, 0), (0, -DORMER_REVEAL)], "stone_trim", N=(0, -1, 0), closed_path=True)
+    for sgn in (-1, 1):
+        x0, x1 = sorted((sgn * fw, sgn * (gw + 0.03)))
+        mb.box((x0, yf - 0.04, 0.0), (x1, yf, zt), "stone_trim", skip=("+y", "-z", "+z"))
+    mb.box((-gw - 0.03, yf - 0.03, head), (gw + 0.03, yf, zt), "stone_trim", skip=("+y", "+z"))
+    mb.box((-fw - 0.03, yf - 0.06, 0.0), (fw + 0.03, yf, sill - 0.02), "stone_trim", skip=("+y", "-z"))
+
+    # the window grid (pale painted frame): frame, five mullions, one transom near the top, the glass behind
+    fy0 = yf + DORMER_FRAME
+    P.dormant_frame(mb, loop, y0=fy0, y1=fy0 + DORMER_FRAME, w=0.04, mat="frame")
+    P.glass_rect(mb, -gw + 0.04, gw - 0.04, sill + 0.04, head - 0.04, y=fy0 + 0.02)
+    n = 6
+    for i in range(1, n):
+        x = -gw + 2 * gw * i / n
+        mb.box((x - 0.012, fy0, sill + 0.04), (x + 0.012, fy0 + 0.03, head - 0.04), "frame", skip=("+y",))
+    zt_bar = sill + (head - sill) * 0.82
+    mb.box((-gw + 0.04, fy0, zt_bar - 0.014), (gw - 0.04, fy0 + 0.03, zt_bar + 0.014), "frame", skip=("+y",))
+    return mb
+
+
 def mansard_dormer_zinc(D):
     return _dormer(D, "zinc")
 
@@ -1017,6 +1090,11 @@ def openings(D):
     entry["recess"] = {"halfWidth": round(gw, 4), "floor": round(sill - 0.05, 4), "ceiling": round(head + 0.15, 4),
                        "front": round(DORMER_FRONT_Y + 2 * DORMER_FRAME, 4)}
     out["R_mansard.dormer_atelier"] = entry
+    gw, sill, head = _studio_glass(D)
+    entry = one(P.opening_loop(gw, sill, head), DORMER_FRONT_Y + DORMER_REVEAL)
+    entry["recess"] = {"halfWidth": round(gw, 4), "floor": round(sill - 0.05, 4), "ceiling": round(head + 0.1, 4),
+                       "front": round(DORMER_FRONT_Y + 2 * DORMER_FRAME, 4)}
+    out["R_mansard.dormer_studio"] = entry
     return out
 
 
@@ -1107,6 +1185,7 @@ def catalog(D):
         ("R_mansard", "dormer_segment", lambda D: _dormer(D, "segment"), {"x": (-hb, hb), "within": ((-hb, hb), (-0.2, 1.1), (0, R + 0.06))}),
         ("R_mansard", "dormer_triangle", lambda D: _dormer(D, "triangle"), {"x": (-hb, hb), "within": ((-hb, hb), (-0.2, 1.1), (0, R + 0.06))}),
         ("R_mansard", "dormer_atelier", dormer_atelier, {"x": (-hb, hb), "within": ((-hb, hb), (-0.2, 1.1), (0, R + 0.06))}),
+        ("R_mansard", "dormer_studio", dormer_studio, {"x": (-hb, hb), "within": ((-hb, hb), (-0.45, 1.1), (0, R + 0.06))}),
         ("R_cornice_pc", "frame", cornice_pc, {"within": ((-0.61, sq), (-0.61, sq), (0, D["cornice"]["height"]))}),
         ("R_cornice_end", "end", cornice_end, {"within": ((0, e), (-0.61, 0), (0, D["cornice"]["height"]))}),
         ("R_mansard_pc", "frame", mansard_pc, {"within": ((-0.05, sq), (-0.05, sq), (-0.05, R + 0.06))}),

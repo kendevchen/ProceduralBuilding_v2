@@ -954,6 +954,41 @@
     {
      "index": 3,
      "kind": "OBJECT",
+     "name": "R_mansard.dormer_studio",
+     "tris": 168,
+     "openings": [
+      {
+       "loop": [
+        [
+         1.15,
+         2.45
+        ],
+        [
+         -1.15,
+         2.45
+        ],
+        [
+         -1.15,
+         0.12
+        ],
+        [
+         1.15,
+         0.12
+        ]
+       ],
+       "reveal": 0.07
+      }
+     ],
+     "recess": {
+      "halfWidth": 1.15,
+      "floor": 0.07,
+      "ceiling": 2.55,
+      "front": 0.09
+     }
+    },
+    {
+     "index": 4,
+     "kind": "OBJECT",
      "name": "R_mansard.dormer_triangle",
      "tris": 188,
      "openings": [
@@ -987,7 +1022,7 @@
      }
     },
     {
-     "index": 4,
+     "index": 5,
      "kind": "OBJECT",
      "name": "R_mansard.dormer_zinc",
      "tris": 152,
@@ -1022,7 +1057,7 @@
      }
     },
     {
-     "index": 5,
+     "index": 6,
      "kind": "OBJECT",
      "name": "R_mansard.plain",
      "tris": 30

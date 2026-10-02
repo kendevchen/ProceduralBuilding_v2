@@ -504,8 +504,8 @@ function facadeWindows(g: Grid, levels: PlanLevel[]): PlanWindow[] {
         else if (v.startsWith("shop")) [kind, width] = ["shop", SHOP];
       } else if (lv.cls === "R") {
         if (fb.info.dormer) {
-          const a = dims.dormer.atelier;
-          [kind, width] = ["dormer", fb.info.dormer === "oeil" ? OEIL : fb.info.dormer === "atelier" ? a.front - 2 * a.pier : dims.dormer.width];
+          const big = fb.info.dormer === "atelier" ? dims.dormer.atelier : fb.info.dormer === "studio" ? dims.dormer.studio : null;
+          [kind, width] = ["dormer", fb.info.dormer === "oeil" ? OEIL : big ? big.front - 2 * big.pier : dims.dormer.width];
         }
       } else [kind, width] = ["window", dims.window.width];
       if (!kind) continue;

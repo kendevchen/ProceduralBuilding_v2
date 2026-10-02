@@ -364,16 +364,17 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
     tag = windowKey(si, i, "r");
     const mm = put("R_mansard", dormerKind ? `dormer_${dormerKind}` : "plain", x, roofBase);
     tag = undefined;
-    const dm = dims.dormer, at = dm.atelier;
+    const dm = dims.dormer;
+    const at = dormerKind === "atelier" ? dm.atelier : dormerKind === "studio" ? dm.studio : null;
     // a bay without a dormer can be picked too (to give it one)
-    windows.push(dormerKind === "atelier"
+    windows.push(at
       ? { key: windowKey(si, i, "r"), matrix: mm, half: at.front / 2 - at.pier, z0: at.sill, z1: at.head, kind: "dormer" }
       : { key: windowKey(si, i, "r"), matrix: mm, half: dm.front / 2, z0: dormerKind ? dm.sill : 0.4, z1: dormerKind ? dm.head : 2.2, kind: "dormer" });
     if (dormerKind) {
-      const glass = dormerKind === "atelier";
+      const glass = at !== null;
       rooms.push({
         matrix: mm, kind: "attic", y0: 1.1, floor: 0.1, height: 2.7, half: 1.45, tunnel: true,
-        tunnelSize: glass ? { x: at.front / 2 - at.pier, z0: at.sill - 0.1, z1: at.head - 0.1 } : undefined,
+        tunnelSize: glass ? { x: at!.front / 2 - at!.pier, z0: at!.sill - 0.1, z1: at!.head - 0.1 } : undefined,
         depth: Math.min(3.2, geo.depth - 1.0), along: geo.along, length: geo.length, seed: [seed, si, i, 77],
         at: { side: si, bay: i, level: rows.length + 1 },
       });

@@ -29,7 +29,7 @@ const CHOICES = {
   curtain: { "沿用全域": AUTO, "無窗簾": "none", "拉上": "closed", "拉開": "open" },
   ground: { "沿用全域": AUTO, "拱窗": "arched", "方窗": "rect" },
   door: { "沿用全域": AUTO, "拱形馬車大門": "arched", "方形馬車大門": "rect", "玻璃大門": "glazed" },
-  dormer: { "沿用全域": AUTO, "不放": "none", "鋅板": "zinc", "圓窗": "oeil", "弧頂": "segment", "三角山花": "triangle", "大玻璃窗": "atelier" },
+  dormer: { "沿用全域": AUTO, "不放": "none", "鋅板": "zinc", "圓窗": "oeil", "弧頂": "segment", "三角山花": "triangle", "大玻璃落地窗": "studio", "大玻璃窗（平頂）": "atelier" },
 } as const;
 
 type Field = keyof typeof CHOICES;

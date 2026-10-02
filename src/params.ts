@@ -30,8 +30,8 @@ export interface WindowOverride {
   /** ground floor: the window's shape, or the entrance door's style */
   ground?: GroundWindow;
   door?: Exclude<DoorStyle, "random">;
-  /** a dormer: its kind, or none (the atelier is the large glass one) */
-  dormer?: Exclude<DormerStyle, "mixed"> | "atelier" | "none";
+  /** a dormer: its kind, or none (the studio and the atelier are the large glass ones) */
+  dormer?: Exclude<DormerStyle, "mixed"> | "studio" | "atelier" | "none";
 }
 export type Apartments = "auto" | "one" | "two";
 
@@ -115,7 +115,7 @@ export function defaultParams(): BuildingParams {
     curtainNone: 0.5, curtainClosed: 0, curtainOpen: 0.5, windowOpen: 1, windowDir: "in", windowAngle: 75,
     stone: "#ffffff", paint: "#22382f", shutter: "#c9c5ba", awning: "#8c2b2b", lace: 2,
     ballroom: true, ballroomFacade: "rows", apartments: "auto",
-    // the left corner's study: on the ground floor its curtains drawn fully back, in the attic the glass atelier dormer
-    facade: { "0|0|g": { curtain: "open", curtainOpen: 1 }, "0|0|r": { dormer: "atelier" } },
+    // the left corner's study: on the ground floor its curtains drawn fully back, in the attic the glass studio dormer
+    facade: { "0|0|g": { curtain: "open", curtainOpen: 1 }, "0|0|r": { dormer: "studio" } },
   };
 }

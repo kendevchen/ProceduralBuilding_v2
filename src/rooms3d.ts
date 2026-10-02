@@ -321,20 +321,24 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
         [sOf(Pc[i]), zc], [sOf(P0[i]), zk]], [], at(() => T), inward);
       return;
     }
-    // knee wall, then the slope with the dormers' recesses cut out
-    walls.quad(v3(P0[i], attic.floorZ), v3(P0[j], attic.floorZ), v3(P0[j], zk), v3(P0[i], zk), inward);
-    const holes: V2[][] = [];
+    // knee wall, then the slope, with the dormers' recesses cut out of both (a tall dormer reaches below the slope)
+    const recesses: { s0: number; s1: number; z0: number; z1: number }[] = [];
     for (const w of dormers) {
       if (edgeAt(inner, w.at) !== i) continue;
       const mod = moduleOf(w);
       const rc = mod && kit.info(mod.key)?.recess;
       if (!rc) continue;
       const sc = sOf(w.at);
-      holes.push([[sc - rc.halfWidth, rb + rc.floor], [sc + rc.halfWidth, rb + rc.floor],
-        [sc + rc.halfWidth, rb + rc.ceiling], [sc - rc.halfWidth, rb + rc.ceiling]]);
+      recesses.push({ s0: sc - rc.halfWidth, s1: sc + rc.halfWidth, z0: rb + rc.floor, z1: rb + rc.ceiling });
     }
+    const cut = (lo: number, hi: number): V2[][] => recesses
+      .map(r => ({ ...r, z0: Math.max(r.z0, lo + GAP), z1: Math.min(r.z1, hi - GAP) }))
+      .filter(r => r.z1 - r.z0 > 0.01)
+      .map(r => [[r.s0, r.z0], [r.s1, r.z0], [r.s1, r.z1], [r.s0, r.z1]] as V2[]);
+    walls.polygon([[sOf(P0[i]), attic.floorZ], [sOf(P0[j]), attic.floorZ], [sOf(P0[j]), zk], [sOf(P0[i]), zk]],
+      cut(attic.floorZ, zk), at(() => T), inward);
     const slopeFacing = inward.clone().multiplyScalar(rise).addScaledVector(UP, -run).normalize();
-    walls.polygon([[sOf(P0[i]), zk], [sOf(P0[j]), zk], [sOf(Pc[j]), zc], [sOf(Pc[i]), zc]], holes, at(insetAt), slopeFacing);
+    walls.polygon([[sOf(P0[i]), zk], [sOf(P0[j]), zk], [sOf(Pc[j]), zc], [sOf(Pc[i]), zc]], cut(zk, zc), at(insetAt), slopeFacing);
   });
   ceilings.polygon(Pc, [], p => v3(p, zc), DOWN);
 
@@ -351,8 +355,11 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
     const F3 = (x: number, y: number, z: number) => new Vector3(x, y, z).transformDirection(frame);
     const back = (z: number) => insetAt(rb + z);
     const { halfWidth: hw, floor: z0, ceiling: z1, front: yf } = rc;
-    walls.quad(L(-hw, yf, z0), L(-hw, back(z0), z0), L(-hw, back(z1), z1), L(-hw, yf, z1), F3(1, 0, 0));
-    walls.quad(L(hw, yf, z0), L(hw, back(z0), z0), L(hw, back(z1), z1), L(hw, yf, z1), F3(-1, 0, 0));
+    // the sides follow the lining back: the knee wall, then the slope (a tall dormer's recess crosses the knee)
+    const kz = zk - rb;
+    const cheek: V2[] = [[yf, z0], [back(z0), z0], ...(z0 < kz && z1 > kz ? [[back(kz), kz] as V2] : []), [back(z1), z1], [yf, z1]];
+    walls.polygon(cheek, [], p => L(-hw, p[0], p[1]), F3(1, 0, 0));
+    walls.polygon(cheek, [], p => L(hw, p[0], p[1]), F3(-1, 0, 0));
     walls.quad(L(-hw, yf, z0), L(hw, yf, z0), L(hw, back(z0), z0), L(-hw, back(z0), z0), F3(0, 0, 1));
     walls.quad(L(-hw, yf, z1), L(hw, yf, z1), L(hw, back(z1), z1), L(-hw, back(z1), z1), F3(0, 0, -1));
     // its front, around the window, and the reveal back to the window frame
