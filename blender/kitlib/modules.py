@@ -647,10 +647,12 @@ def dormer_studio(D):
         x = sx * ex
         pts = [(x, ye, ze - t), (x, run, rise - t), (x, run, rise), (x, ye, ze)]
         mb.face(pts if sx > 0 else pts[::-1], "zinc", [(0, 0), (L, 0), (L, t), (0, t)])
-    # cheeks from the front back to the slope, under the roof
+    # cheeks from the front back to the slope, their top along the roof's underside
     zt = roof_z(yf) - t                    # where the front meets the roof's underside
+    m = (rise - ze) / (run - ye)           # the underside's rise per metre back
+    zm = (ze - t - m * ye) / (1 - m * k)   # where the underside meets the slope (y = z * k)
     for sgn in (1, -1):
-        prof = [(yf, 0), (0, 0), (zt * k, zt), (yf, zt)]
+        prof = [(yf, 0), (0, 0), (zm * k, zm), (yf, zt)]
         if sgn > 0:
             mb.planar(prof, "zinc", origin=(fw, 0, 0), s_axis=(0, 1, 0))
         else:
