@@ -29,8 +29,9 @@
 - 新功能在分支 `interior-floors` 開發，推送後部署到 https://kendevchen.github.io/ProceduralBuilding_v2/dev/ ，正式網站不變（main 的標籤 `v2.0-exterior`）。
 - Blender 5.1.1：`/Applications/Blender.app/Contents/MacOS/Blender`
 - 零件規格與分階段計畫：`blender/KIT_SPEC.md`（含決策紀錄）。尺寸常數只改 `blender/kit_dims.json`。
-- 室內樓層（逐層隱藏、垂直剖面、平面配置、樓梯、宴會廳）的規格與分階段計畫：`INTERIOR_SPEC.md`（階段 I1–I6）。
+- 室內樓層（剖開建築：水平剖、縱剖，平面配置、樓梯、宴會廳）的規格與分階段計畫：`INTERIOR_SPEC.md`（階段 I1–I5）。
 - `npm run kit`：建模 → 預覽圖 `blender/kit_preview.jpg` → 匯出 `public/assets/kit.glb`。零件全部由 `blender/kitlib/` 產生，不手改 `.blend`。
 - `npm run tex`：`blender/bake.py` 烘焙自製貼圖與鐵花圖樣到 `public/assets/tex/`；網頁端的材質著色器在 `src/materials.ts`。
 - `npm run rooms`：`blender/rooms.py` 產生室內圖集；`npm run ao`：`blender/bake_ao.py` 烘焙 AO（約 10 分鐘）。窗後室內與窗簾在 `src/interiors.ts`。
+- 剖開建築：平面配置 `src/plan.ts`、室內白模 `src/rooms3d.ts`、切面與切開用的材質 `src/cutaway.ts`、房間名稱 `src/roomLabels.ts`、剖切面板與底部工具列 `src/toolbar.ts`。外牆內面的開口輪廓來自 `modules.openings()`，經 manifest 傳到網頁端。
 - 素材全部自製：FrenchBuilding.blend 只參考拆件方式與搭配規則，不沿用幾何與貼圖；不用 Kenney 或下載模型。

@@ -20,6 +20,10 @@ import { buildInteriors } from "./interiors";
 import { type BuildingPlan, planBuilding } from "./plan";
 import { buildPlanView } from "./planView";
 import { partyWalls, roofCap, roofShape } from "./roof";
+import { type CutAxis, type CutMode, Cutaway } from "./cutaway";
+import { buildRooms3d } from "./rooms3d";
+import { RoomLabels } from "./roomLabels";
+import { Toolbar } from "./toolbar";
 
 const renderer = new WebGLRenderer({ antialias: true, powerPreference: "high-performance", logarithmicDepthBuffer: true });
 const DEFAULT_PIXEL_RATIO = Math.min(devicePixelRatio, 1.25);
@@ -27,6 +31,7 @@ renderer.setPixelRatio(DEFAULT_PIXEL_RATIO);
 renderer.setSize(innerWidth, innerHeight);
 renderer.toneMapping = ACESFilmicToneMapping;
 renderer.outputColorSpace = SRGBColorSpace;
+renderer.localClippingEnabled = true; // the section plane (cutaway.ts)
 document.getElementById("app")!.appendChild(renderer.domElement);
 
 const scene = new Scene();
@@ -64,6 +69,16 @@ let kit: Kit | null = null;
 let shown: Group | null = null;
 let lastPlan: BuildingPlan | null = null;
 
+/** cutting the building open (INTERIOR_SPEC.md §2): t is the plane's place, 0..1 within the bounds */
+const cut = { on: false, mode: "horizontal" as CutMode, axis: "across" as CutAxis, t: 0.6, sweep: false, dir: 1 };
+const cutaway = new Cutaway();
+/** world bounds of the building, for placing the plane and framing the camera */
+const bounds = { min: new Vector3(-8, 0, -6), max: new Vector3(8, 22, 6) };
+/** the white model of the interior, the atlas rooms it replaces while cut, the room names */
+let interior: Group | null = null;
+let roomBoxes: Mesh | null = null;
+let labels: RoomLabels | null = null;
+
 function show(g: Group, center: Vector3, radius: number): void {
   if (shown) {
     root.remove(shown);
@@ -96,6 +111,8 @@ function frameGallery(width: number, front: number): void {
 
 function rebuild(frame = false): void {
   if (!kit || !materials) return;
+  interior = roomBoxes = null;
+  labels = null;
   if (view.gallery) {
     const gal = buildGallery(kit, buildingStyle(params));
     show(gal.group, new Vector3(0, gal.height / 2, 0), Math.hypot(gal.width, gal.depth, gal.height) / 2);
@@ -127,12 +144,58 @@ function rebuild(frame = false): void {
     g.add(wall);
   } else walls.geometry.dispose();
   const inside = buildInteriors(b.rooms, params.curtainNone, params.curtainClosed, params.curtainOpen);
-  g.add(new Mesh(inside.rooms, materials.interior));
+  roomBoxes = new Mesh(inside.rooms, materials.interior);
+  roomBoxes.userData.uncut = true;
+  g.add(roomBoxes);
   const curtains = new Mesh(inside.curtains, materials.voile);
   curtains.receiveShadow = true;
   g.add(curtains);
+  interior = buildRooms3d(plan, b, kit, cutaway.interior);
+  g.add(interior);
+  labels = new RoomLabels(plan, interiorView.area);
+  g.add(labels.group);
   g.position.set(-b.width / 2, -b.length / 2, 0); // footprint centred on the origin
+  bounds.min.set(-b.width / 2, 0, -b.length / 2);
+  bounds.max.set(b.width / 2, cap.top + 1.2, b.length / 2);
   show(g, new Vector3(0, cap.top / 2, 0), Math.hypot(b.width, b.length, cap.top) / 2);
+  applyCut();
+}
+
+/** cut open or whole: swap the materials, show the white model instead of the atlas rooms */
+function applyCut(): void {
+  const on = cut.on && !view.gallery && !interiorView.plan;
+  if (shown) cutaway.apply(shown, on);
+  if (interior) interior.visible = on;
+  if (roomBoxes) roomBoxes.visible = !on;
+  placeCut();
+}
+
+function placeCut(): void {
+  cutaway.place(cut.mode, cut.axis, cut.t, bounds.min, bounds.max);
+  toolbar.show(cut.mode, cut.axis, cut.t);
+  const h = bounds.min.y + (bounds.max.y - bounds.min.y) * cut.t;
+  toolbar.setLevel(cut.mode === "horizontal" ? levelAt(h) : "");
+  // the plane in the building's own (Blender) coordinates, for the room names
+  const at = cut.mode === "horizontal" ? h : (cut.axis === "across" ? bounds.max.x - bounds.min.x : bounds.max.z - bounds.min.z) * cut.t;
+  labels?.update(cut.on && interiorView.labels && !view.gallery && !interiorView.plan, cut.mode, cut.axis, at);
+}
+
+/** name of the floor a height (m) is in, for the horizontal cut */
+function levelAt(z: number): string {
+  const lv = lastPlan?.levels;
+  if (!lv || z < lv[0].floorZ) return "";
+  for (let i = lv.length - 1; i >= 0; i--) if (z >= lv[i].floorZ) return z > lv[i].ceilingZ + 0.4 && i === lv.length - 1 ? "屋頂" : lv[i].name;
+  return "";
+}
+
+/** the default view, framing the whole building (in the narrower of the two fields of view) */
+function frameHome(): void {
+  const r = Math.hypot(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z, bounds.max.y) / 2;
+  const vfov = (camera.fov * Math.PI) / 180;
+  const hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect);
+  const d = (r / Math.sin(Math.min(vfov, hfov) / 2)) * 1.05;
+  controls.target.set(0, bounds.max.y * 0.42, 0);
+  camera.position.copy(controls.target).addScaledVector(new Vector3(36, 13, 46).normalize(), d);
 }
 
 // ---- GUI ----
@@ -143,6 +206,7 @@ gui.add(view, "gallery").name("零件總覽").onChange((on: boolean) => {
     camera.position.set(36, 20, 46);
     controls.target.set(0, 7, 0);
   }
+  toolbar.enableCut(!on && !interiorView.plan);
   rebuild(true);
 });
 const fBuilding = gui.addFolder("🏛 建築 (Building)");
@@ -184,7 +248,7 @@ fLook.addColor(params, "shutter").name("百葉漆色").onChange(update);
 fLook.addColor(params, "awning").name("遮雨棚顏色").onChange(update);
 fLook.add(params, "lace", Object.fromEntries(LACE_PATTERNS.map((n, i) => [n, i]))).name("欄杆鐵花").onChange(update);
 const fInterior = gui.addFolder("🏢 室內樓層 (Interior)");
-fInterior.add(interiorView, "plan").name("平面檢視").onChange((on: boolean) => {
+fInterior.add(interiorView, "plan").name("平面檢視（除錯）").onChange((on: boolean) => {
   if (on) {
     const z = lastPlan?.levels[interiorView.level]?.floorZ ?? 0;
     controls.target.set(0, z, 0);
@@ -193,9 +257,10 @@ fInterior.add(interiorView, "plan").name("平面檢視").onChange((on: boolean) 
     camera.position.set(36, 20, 46);
     controls.target.set(0, 7, 0);
   }
+  toolbar.enableCut(!on && !view.gallery);
   rebuild();
 });
-const levelCtrl = fInterior.add(interiorView, "level", 0, 7, 1).name("樓層").onChange(() => {
+const levelCtrl = fInterior.add(interiorView, "level", 0, 7, 1).name("樓層（除錯）").onChange(() => {
   // keep the view, at the new floor's height
   const z = lastPlan?.levels[interiorView.level]?.floorZ;
   if (interiorView.plan && z !== undefined) {
@@ -216,8 +281,54 @@ function syncLevels(plan: BuildingPlan): void {
   const top = plan.levels.length - 1;
   if (interiorView.level > top) interiorView.level = top;
   levelCtrl.max(top);
-  levelCtrl.name(`樓層（${plan.levels[interiorView.level].name}）`);
+  levelCtrl.name(`樓層（除錯：${plan.levels[interiorView.level].name}）`);
   levelCtrl.updateDisplay();
+}
+
+// ---- the section panel and the bottom toolbar ----
+let saveNext = false;
+const toolbar = new Toolbar({
+  next: () => {
+    params.seed = (params.seed % 999) + 1;
+    gui.controllersRecursive().forEach(c => c.updateDisplay());
+    rebuild();
+  },
+  rotate: on => {
+    controls.autoRotate = on;
+    controls.autoRotateSpeed = 0.8;
+  },
+  cut: on => {
+    cut.on = on;
+    applyCut();
+  },
+  home: () => frameHome(),
+  save: () => (saveNext = true),
+  mode: m => {
+    cut.mode = m;
+    placeCut();
+  },
+  axis: a => {
+    cut.axis = a;
+    placeCut();
+  },
+  slide: t => {
+    cut.t = t;
+    placeCut();
+  },
+  sweep: on => (cut.sweep = on),
+});
+toolbar.show(cut.mode, cut.axis, cut.t);
+
+/** download the frame just rendered as a PNG (called right after rendering, while the canvas still holds it) */
+function savePicture(): void {
+  renderer.domElement.toBlob(blob => {
+    if (!blob) return;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `building-${params.seed}${cut.on ? `-${cut.mode === "horizontal" ? "水平" : "縱剖"}` : ""}.png`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }, "image/png");
 }
 
 const perf = { pixelRatio: DEFAULT_PIXEL_RATIO, msaa: 2 };
@@ -292,6 +403,7 @@ if (import.meta.env.DEV) {
   Object.assign(window, {
     __app: {
       camera, controls, params, view, interiorView, rebuild, scene, renderer, env, planCheckAll,
+      cut, cutaway, toolbar, applyCut, placeCut, frameHome,
       get plan() { return lastPlan; },
     },
   });
@@ -319,9 +431,21 @@ addEventListener("resize", () => {
 });
 
 const clock = new Clock();
+const SWEEP_SECONDS = 14; // one way
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1);
+  if (cut.on && cut.sweep) {
+    // back and forth, short of the ends (all gone / all there)
+    cut.t += (cut.dir * dt) / SWEEP_SECONDS;
+    if (cut.t > 0.98) [cut.t, cut.dir] = [0.98, -1];
+    if (cut.t < 0.04) [cut.t, cut.dir] = [0.04, 1];
+    placeCut();
+  }
   controls.update();
   env.tick(camera.position);
   post.render(dt);
+  if (saveNext) {
+    saveNext = false;
+    savePicture();
+  }
 });

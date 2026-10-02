@@ -84,8 +84,16 @@ export interface Building {
   door: number;
   /** front bays of the double-height ballroom on the first two upper floors, or null */
   ballroom: number[] | null;
-  /** chimney stacks on the roof's flat top (Blender xy) */
-  chimneys: V2[];
+  /** chimney stacks on the roof's flat top */
+  chimneys: ChimneyInfo[];
+}
+
+export interface ChimneyInfo {
+  /** Blender xy */
+  at: V2;
+  /** the kit part, and its turn about z */
+  key: string;
+  angle: number;
 }
 
 /** where a bay stands on its facade, for the room boxes behind its windows */
@@ -439,7 +447,7 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
   const xs = roof.p2.map(q => q[0]), ys = roof.p2.map(q => q[1]);
   const [rx0, rx1, ry0, ry1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
   const along = rx1 - rx0 >= ry1 - ry0;
-  const chimneys: V2[] = [];
+  const chimneys: ChimneyInfo[] = [];
   for (let i = 0; i < (along ? p.baysX : p.baysY); i++) {
     const t = corner + bay * (i + 0.5);
     const cx = along ? t : (rx0 + rx1) / 2, cy = along ? (ry0 + ry1) / 2 : t;
@@ -449,7 +457,7 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
     const mm = new Matrix4().makeTranslation(cx, cy, roof.z2);
     if (!along) mm.multiply(new Matrix4().makeRotationZ(Math.PI / 2));
     world("R_chimney", kind, mm);
-    chimneys.push([cx, cy]);
+    chimneys.push({ at: [cx, cy], key: kit.key("R_chimney", kind), angle: along ? 0 : Math.PI / 2 });
   }
   return {
     placements, style, width: W, length: L, rows, wallTop, roofBase, footprint, edgeKinds, rooms,

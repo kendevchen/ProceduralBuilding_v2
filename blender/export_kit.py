@@ -7,7 +7,8 @@ Every collection under KIT is a slot; each of its children becomes a top-level
 node named COL[<collection>][<idx>] with its transform reset (idx = order of
 the children sorted by name). The manifest maps each index back to the Blender
 name ("<collection>.<variant>") and records its triangle count, so the web app
-looks parts up by name. Collection-instance empties and sub-collections are
+looks parts up by name, plus the opening outlines of the modules that have
+them (modules.openings, for the interior's inner walls). Collection-instance empties and sub-collections are
 realized recursively (kept from the v1 exporter). Meshes keep UV0 and UV1;
 images are not embedded -- textures ship separately in public/assets/tex/.
 """
@@ -77,7 +78,11 @@ def export_collection_child(col_name, idx, kind, child):
         for desc in child.children_recursive:
             expand(desc, inv @ desc.matrix_world, root)
         tris = tris_of(child) + sum(tris_of(d) for d in child.children_recursive)
-        return {"index": idx, "kind": "OBJECT", "name": child.name, "tris": tris}
+        entry = {"index": idx, "kind": "OBJECT", "name": child.name, "tris": tris}
+        # opening outlines (and dormer recesses) set by build_kit.py
+        if "kit_openings" in child:
+            entry.update(json.loads(child["kit_openings"]))
+        return entry
     else:
         # sub-collection child: unit keeps its internal world-space layout
         for o in child.all_objects:

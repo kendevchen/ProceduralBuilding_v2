@@ -36,6 +36,23 @@ export interface Placement {
   style?: Style;
 }
 
+/** an opening of a module (modules.openings in blender/kitlib) */
+export interface PartOpening {
+  /** module-local (x, z) outline */
+  loop: [number, number][];
+  /** depth (y) where the module's own reveal ends and the inner wall's begins */
+  reveal: number;
+}
+
+/** a dormer's attic tunnel behind the window, module-local */
+export interface PartRecess {
+  halfWidth: number;
+  floor: number;
+  ceiling: number;
+  /** depth (y) of its front, just behind the window frame */
+  front: number;
+}
+
 export interface PartInfo {
   collection: string;
   variant: string;
@@ -43,6 +60,8 @@ export interface PartInfo {
   tris: number;
   /** bounds in Blender space */
   box: Box3;
+  openings?: PartOpening[];
+  recess?: PartRecess;
 }
 
 interface ManifestChild {
@@ -51,6 +70,8 @@ interface ManifestChild {
   /** Blender object name, "<collection>.<variant>" */
   name: string;
   tris?: number;
+  openings?: PartOpening[];
+  recess?: PartRecess;
 }
 interface Manifest {
   collections: Record<string, { children?: ManifestChild[]; missing?: boolean }>;
@@ -71,6 +92,7 @@ export class Kit {
   /** "<collection>.<variant>" -> node name */
   private keys = new Map<string, string>();
   private infos: PartInfo[] = [];
+  private byKey = new Map<string, PartInfo>();
   private mirrorCache = new Map<BufferGeometry, BufferGeometry>();
   private warned = new Set<string>();
 
@@ -113,7 +135,12 @@ export class Kit {
           mesh.geometry.computeBoundingBox();
           box.union(mesh.geometry.boundingBox!.clone().applyMatrix4(rootInv.clone().multiply(mesh.matrixWorld)));
         });
-        this.infos.push({ collection, variant: child.name.slice(collection.length + 1), key, tris: child.tris ?? 0, box });
+        const info: PartInfo = {
+          collection, variant: child.name.slice(collection.length + 1), key, tris: child.tris ?? 0, box,
+          openings: child.openings, recess: child.recess,
+        };
+        this.infos.push(info);
+        this.byKey.set(key, info);
       }
     }
   }
@@ -123,6 +150,11 @@ export class Kit {
     const k = this.keys.get(`${collection}.${variant}`);
     if (!k) throw new Error(`kit: no part ${collection}.${variant}`);
     return k;
+  }
+
+  /** a part's bounds and openings by its node name */
+  info(key: string): PartInfo | undefined {
+    return this.byKey.get(key);
   }
 
   /** every part of the kit, in manifest order */

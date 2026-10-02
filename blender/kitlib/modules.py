@@ -32,6 +32,14 @@ def corner_uv(D):
 
 # ---------------------------------------------------------------- ground floor (G)
 
+# opening sizes that only the ground modules use (the others are in kit_dims.json);
+# openings() below hands them to the web app with the outlines
+WINDOW_RECT_TOP = 3.2              # G_window_rect: top of the opening
+DOOR_RECT_TOP = 3.4                # G_door_rect
+GLAZED_HW, GLAZED_TOP = 0.8, 3.2   # G_door_glazed
+DOOR_REVEAL = 0.26                 # depth of the door and shop reveals
+
+
 def _ground_frame(mb, D, opening):
     """plinth, frieze and rusticated piers shared by every ground bay;
     `opening` = half width of the zone between the piers"""
@@ -96,7 +104,7 @@ def G_door_arched(D):
     mb.sweep(P.xz(P.opening_path(hw, zp, spring, 14)), [(0.12, 0), (0.12, 0.035), (0, 0.035), (0, 0)],
              "stone_trim", N=(0, -1, 0), caps=True)
     path = P.opening_path(hw, 0, spring, 14)
-    mb.sweep(P.xz(path), [(0, 0), (0, -0.26)], "stone_ground", N=(0, -1, 0), uv_fn=P.joint_free_uv)
+    mb.sweep(P.xz(path), [(0, 0), (0, -DOOR_REVEAL)], "stone_ground", N=(0, -1, 0), uv_fn=P.joint_free_uv)
     P.dormant_frame(mb, path, closed=False, mat="paint", y0=0.22, y1=0.32, w=0.07)
     # leaves with raised panels, transom, fanlight with an iron grille
     xi = hw - 0.07
@@ -132,7 +140,7 @@ def G_window_rect(D):
     g = D["ground"]
     hb = D["bay"] / 2
     hw, sill = g["window"]["width"] / 2, g["window"]["sill"]
-    top, pier = 3.2, hw + 0.2
+    top, pier = WINDOW_RECT_TOP, hw + 0.2
     mb.sweep([(-hb, 0, 0), (hb, 0, 0)], P.plinth(D), "stone_trim")
     _ground_frame(mb, D, pier)
     _ground_panel(mb, D, pier, [(-hw, sill), (-hw, top), (hw, top), (hw, sill)])
@@ -172,14 +180,14 @@ def G_door_rect(D):
     mb = MeshBuilder()
     g = D["ground"]
     hw, zf = g["door"]["width"] / 2, g["frieze"]
-    top = 3.4
+    top = DOOR_RECT_TOP
     _door_bays(mb, D, hw)
     _ground_frame(mb, D, hw)
     mb.wall(-hw, hw, top, zf, "stone_ground")
     hood = [(0, 0), (0.04, 0), (0.04, 0.10), (0.07, 0.13), (0.11, 0.17), (0.13, 0.17), (0.13, 0.24), (0, 0.24)]
     mb.sweep([(-hw - 0.12, 0, top + 0.18), (hw + 0.12, 0, top + 0.18)], hood, "stone_trim", caps=True)
     path = [(hw, 0), (hw, top), (-hw, top), (-hw, 0)]
-    mb.sweep(P.xz(path), [(0, 0), (0, -0.26)], "stone_ground", N=(0, -1, 0), uv_fn=P.joint_free_uv)
+    mb.sweep(P.xz(path), [(0, 0), (0, -DOOR_REVEAL)], "stone_ground", N=(0, -1, 0), uv_fn=P.joint_free_uv)
     P.dormant_frame(mb, path, closed=False, mat="paint", y0=0.22, y1=0.32, w=0.07)
     xi = hw - 0.07
     zt = 2.72
@@ -199,7 +207,7 @@ def G_door_glazed(D):
     """glazed entrance door: wooden lower panels, glass behind an iron grille"""
     mb = MeshBuilder()
     g = D["ground"]
-    hw, top = 0.8, 3.2
+    hw, top = GLAZED_HW, GLAZED_TOP
     pier = g["window"]["width"] / 2 + 0.2
     _door_bays(mb, D, hw)
     _ground_frame(mb, D, pier)
@@ -209,7 +217,7 @@ def G_door_glazed(D):
     head = [(0, 0.18), (0.03, 0.18), (0.03, 0.28), (0.07, 0.32), (0.10, 0.32), (0.10, 0.38), (0, 0.38)]
     mb.sweep([(-hw - 0.2, 0, top), (hw + 0.2, 0, top)], head, "stone_trim", caps=True)
     path = [(hw, 0), (hw, top), (-hw, top), (-hw, 0)]
-    mb.sweep(P.xz(path), [(0, 0), (0, -0.26)], "stone_ground", N=(0, -1, 0), uv_fn=P.joint_free_uv)
+    mb.sweep(P.xz(path), [(0, 0), (0, -DOOR_REVEAL)], "stone_ground", N=(0, -1, 0), uv_fn=P.joint_free_uv)
     P.dormant_frame(mb, path, closed=False, mat="paint", y0=0.22, y1=0.32, w=0.07)
     xi = hw - 0.07
     zt = 2.56
@@ -390,6 +398,34 @@ def mansard_plain(D):
     return mb
 
 
+DORMER_FRONT_Y = -0.03   # dormer front, just proud of the slope foot
+DORMER_REVEAL = 0.1      # depth of the window reveal in the front
+DORMER_FRAME = 0.06      # the window frame: this far behind the front, this deep
+DORMER_OVERHANG = 0.05   # roof overhang at the sides
+
+
+def _dormer_shape(D, kind):
+    """a dormer's roof line z_roof(x) (eave ze, ridge zr, half span ex) and the
+    window outline in its front (module x, z)"""
+    d = D["dormer"]
+    fw, hw = d["front"] / 2, d["width"] / 2
+    ze, zr = d["eave"], d["ridge"]
+    ex = fw + DORMER_OVERHANG
+    if kind == "oeil":
+        ze, zr = 1.2, 1.2 + ex     # semicircular hood
+    if kind in ("segment", "oeil"):
+        R = (ex * ex + (zr - ze) ** 2) / (2 * (zr - ze))
+        cz = zr - R
+
+        def z_roof(x):
+            return cz + math.sqrt(max(R * R - x * x, 0.0))
+    else:
+        def z_roof(x):            # gable
+            return zr - (zr - ze) * abs(x) / ex
+    loop = P.circle(0, 1.0, 0.3, 20) if kind == "oeil" else P.opening_loop(hw, d["sill"], d["head"])
+    return ze, zr, ex, z_roof, loop
+
+
 def _dormer(D, kind):
     """dormer on a mansard bay (KIT_SPEC.md §4.4). Every kind has a front with the
     window, cheeks and a roof meeting the slope, which is cut where the dormer
@@ -403,23 +439,10 @@ def _dormer(D, kind):
     hb = D["bay"] / 2
     d = D["dormer"]
     fw, hw = d["front"] / 2, d["width"] / 2
-    ze, zr = d["eave"], d["ridge"]
-    yf = -0.03                    # dormer front, just proud of the slope foot
-    ov = 0.05                     # roof overhang at the sides
-    ex = fw + ov
+    yf = DORMER_FRONT_Y
     yr = yf - 0.06                # roof front edge
     stone = kind in ("triangle", "segment")
-    if kind == "oeil":
-        ze, zr = 1.2, 1.2 + ex     # semicircular hood
-    if kind in ("segment", "oeil"):
-        R = (ex * ex + (zr - ze) ** 2) / (2 * (zr - ze))
-        cz = zr - R
-
-        def z_roof(x):
-            return cz + math.sqrt(max(R * R - x * x, 0.0))
-    else:
-        def z_roof(x):            # gable
-            return zr - (zr - ze) * abs(x) / ex
+    ze, zr, ex, z_roof, loop = _dormer_shape(D, kind)
 
     def samples(x0, x1, n=12):
         return [x0 + (x1 - x0) * i / n for i in range(n + 1)]
@@ -429,13 +452,9 @@ def _dormer(D, kind):
     _brisis(mb, D, [(-hb, 0), (-fw, 0)] + top[::-1] + [(fw, 0), (hb, 0), (hb, rise), (-hb, rise)])
     # front with the window opening
     front_mat = "stone_trim" if stone else "zinc"
-    if kind == "oeil":
-        loop = P.circle(0, 1.0, 0.3, 20)
-    else:
-        loop = P.opening_loop(hw, d["sill"], d["head"])
     front = [(-fw, 0), (fw, 0)] + [(x, z - 0.005) for x, z in top]
     mb.wall(0, 0, 0, 0, front_mat, y=yf, outer=front, holes=[loop])
-    mb.sweep([(x, yf, z) for x, z in loop], [(0, 0), (0, -0.1)], front_mat, N=(0, -1, 0), closed_path=True)
+    mb.sweep([(x, yf, z) for x, z in loop], [(0, 0), (0, -DORMER_REVEAL)], front_mat, N=(0, -1, 0), closed_path=True)
     # cheeks (x = +-fw), from the front back to the slope
     mb.planar([(yf, 0), (0, 0), (zc * k, zc), (yf, zc)], "zinc", origin=(fw, 0, 0), s_axis=(0, 1, 0))
     mb.planar([(-yf, 0), (0, 0), (-zc * k, zc), (-yf, zc)], "zinc", origin=(-fw, 0, 0), s_axis=(0, -1, 0))
@@ -458,8 +477,8 @@ def _dormer(D, kind):
         mb.sweep([(x, yr, z + 0.02) for x, z in edge[::-1]], RAKE, "stone_trim", N=(0, -1, 0), caps=True)
         mb.box((-fw - 0.04, yr, 0.0), (fw + 0.04, yf, 0.12), "stone_trim", skip=("-z", "+y"))
     # window
-    fy0 = yf + 0.06
-    P.dormant_frame(mb, loop, y0=fy0, y1=fy0 + 0.06, w=0.05)
+    fy0 = yf + DORMER_FRAME
+    P.dormant_frame(mb, loop, y0=fy0, y1=fy0 + DORMER_FRAME, w=0.05)
     if kind == "oeil":
         mb.planar(P.circle(0, 1.0, 0.25, 20), "glass", origin=(0, fy0 + 0.02, 0))
         mb.box((-0.25, fy0, 0.99), (0.25, fy0 + 0.03, 1.01), "frame", skip=("+y",))
@@ -775,7 +794,7 @@ def _shop_opening(mb, D):
     _ground_frame(mb, D, SHOP_HW)
     mb.wall(-SHOP_HW, SHOP_HW, SHOP_TOP, zf, "stone_ground")
     path = [(SHOP_HW, 0), (SHOP_HW, SHOP_TOP), (-SHOP_HW, SHOP_TOP), (-SHOP_HW, 0)]
-    mb.sweep(P.xz(path), [(0, 0), (0, -0.26)], "stone_ground", N=(0, -1, 0), uv_fn=P.joint_free_uv)
+    mb.sweep(P.xz(path), [(0, 0), (0, -DOOR_REVEAL)], "stone_ground", N=(0, -1, 0), uv_fn=P.joint_free_uv)
     return path
 
 
@@ -834,6 +853,51 @@ def awning(D, open_):
     for x in (-hw + 0.05, hw - 0.05):
         mb.bar((x, -0.3, z1 - 0.15), (x, y1 + 0.02, z1), 0.03, 0.03, "iron", N=(1, 0, 0))
     return mb
+
+
+# ---------------------------------------------------------------- openings
+
+def openings(D):
+    """Opening outlines of the modules that have them, for the web app's inner
+    wall faces (INTERIOR_SPEC.md §6.3), keyed "<collection>.<variant>":
+      openings  module-local (x, z) loops, each with `reveal`, the depth (y) where
+                the module's own reveal ends and the inner wall's begins
+      recess    dormers: the attic tunnel behind the window -- half width, floor
+                and ceiling (z) and the depth of its front, behind the window frame"""
+    def rect(hw, top):
+        return [(hw, 0.0), (hw, top), (-hw, top), (-hw, 0.0)]
+
+    def one(loop, reveal):
+        return {"openings": [{"loop": [[round(x, 4), round(z, 4)] for x, z in loop], "reveal": reveal}]}
+
+    g = D["ground"]
+    hw, sill = g["window"]["width"] / 2, g["window"]["sill"]
+    dw = g["door"]["width"] / 2
+    out = {
+        "G_bay.window_arched": one(P.opening_loop(hw, sill, None, g["window"]["spring"]), P.REVEAL),
+        "G_bay.window_rect": one(P.opening_loop(hw, sill, WINDOW_RECT_TOP), P.REVEAL),
+        "G_bay.door_arched": one(P.opening_path(dw, 0, g["door"]["spring"], 14), DOOR_REVEAL),
+        "G_bay.door_rect": one(rect(dw, DOOR_RECT_TOP), DOOR_REVEAL),
+        "G_bay.door_glazed": one(rect(GLAZED_HW, GLAZED_TOP), DOOR_REVEAL),
+        "G_bay.shop_stone": one(rect(SHOP_HW, SHOP_TOP), DOOR_REVEAL),
+        "G_bay.shop_cafe": one(rect(SHOP_HW, SHOP_TOP), DOOR_REVEAL),
+        # the wooden front stands proud of the wall: the bay is open between its pilasters
+        "G_bay.shop_wood": one(rect(D["bay"] / 2 - 0.2, SHOP_TOP), 0.0),
+    }
+    for cls in ("N", "S", "A"):
+        out[f"{cls}_bay.window"] = one(
+            P.opening_loop(D["window"]["width"] / 2, D["window"]["sill"], D["classes"][cls]["head"]), P.REVEAL)
+    fw = D["dormer"]["front"] / 2
+    for kind in ("zinc", "oeil", "segment", "triangle"):
+        _, _, _, z_roof, loop = _dormer_shape(D, kind)
+        tw = fw - 0.05                # inside the cheeks
+        entry = one(loop, DORMER_FRONT_Y + DORMER_REVEAL)
+        entry["recess"] = {
+            "halfWidth": round(tw, 4), "floor": round(D["dormer"]["sill"] - 0.05, 4),
+            "ceiling": round(z_roof(tw) - 0.05, 4), "front": round(DORMER_FRONT_Y + 2 * DORMER_FRAME, 4),
+        }
+        out[f"R_mansard.dormer_{kind}"] = entry
+    return out
 
 
 # ---------------------------------------------------------------- catalog

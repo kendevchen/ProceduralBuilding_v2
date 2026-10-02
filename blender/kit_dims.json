@@ -32,11 +32,12 @@
   "terrasson": { "pitchDeg": 18, "maxRun": 3.0, "minFlat": 1.0 },
   "room": { "width": 2.9, "maxDepth": 4.6 },
   "interior": {
-    "_doc": "Floor plans and interior volumes (INTERIOR_SPEC.md). floor: finished floor above an upper floor line; groundFloor: 1F floor above the street; ceiling: below the next floor line; atticCeiling: below the top of the steep slope. corridor and bands are between wall centre lines; bands.double / bands.core: interior depth from which a corridor / a central zone with a second corridor appear. doors: [width, height].",
+    "_doc": "Floor plans and interior volumes (INTERIOR_SPEC.md). floor: finished floor above an upper floor line; groundFloor: 1F floor above the street; ceiling: below the next floor line; atticCeiling: below the top of the steep slope; atticLining: how far (horizontally) the attic's sloping inner face sits inside the zinc. corridor and bands are between wall centre lines; bands.double / bands.core: interior depth from which a corridor / a central zone with a second corridor appear. doors: [width, height].",
     "floor": 0.2,
     "groundFloor": 0.15,
     "ceiling": 0.15,
     "atticCeiling": 0.1,
+    "atticLining": 0.25,
     "corridor": 1.25,
     "walls": { "spine": 0.25, "cage": 0.25, "partition": 0.1 },
     "doors": { "single": [0.9, 2.2], "double": [1.4, 2.6], "landing": [1.0, 2.3], "hall": [1.6, 2.8] },

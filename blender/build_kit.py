@@ -71,6 +71,9 @@ def label(text, x, y):
 
 slots = {}
 built = []
+# opening outlines ride along as a custom property; export_kit.py copies them
+# into the manifest for the web app's inner walls
+OPENINGS = modules.openings(D)
 print(f"KIT build -> {OUT}")
 for coll_name, variant, build, spec in modules.catalog(D):
     col = slots.get(coll_name)
@@ -78,6 +81,8 @@ for coll_name, variant, build, spec in modules.catalog(D):
         col = slots[coll_name] = bpy.data.collections.new(coll_name)
         kit.children.link(col)
     ob = blend.to_object(build(D), f"{coll_name}.{variant}", col, materials.get)
+    if ob.name in OPENINGS:
+        ob["kit_openings"] = json.dumps(OPENINGS[ob.name])
     lo, hi = blend.check(ob, spec)
     row = row_of(coll_name)
     # lift modules that hang below their floor line (balcony slabs) above the ground
