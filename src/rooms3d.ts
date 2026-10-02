@@ -81,6 +81,11 @@ export interface InteriorMaterials {
   /** the room finishes (finishes.ts): every room's walls, and its floor laid on the slab */
   finishWall: Material;
   finishFloor: Material;
+  /** the banquet furniture (furniture.ts): chair frames, upholstery, the tablecloth, its gold skirt */
+  furnWood: Material;
+  furnFabric: Material;
+  furnLinen: Material;
+  furnGold: Material;
 }
 
 const area = (p: V2[]) => p.reduce((s, q, i) => s + q[0] * p[(i + 1) % p.length][1] - p[(i + 1) % p.length][0] * q[1], 0) / 2;

@@ -20,7 +20,7 @@ export type Look = "real" | "diagram" | "white";
 export type Stamp = [number, number, number, number, number, number, number, number, number];
 
 const P = {
-  plain: 0, herringbone: 1, boards: 2, hexMixed: 3, hexSparse: 4, marble: 5,
+  plain: 0, herringbone: 1, boards: 2, hexMixed: 3, hexSparse: 4, marble: 5, carpet: 6,
   paint: 10, wallpaper: 11, boiserie: 12, tiles: 13,
 } as const;
 type Pattern = (typeof P)[keyof typeof P];
@@ -72,6 +72,11 @@ function stamp(pattern: Pattern, a: [number, number, number], b: [number, number
 }
 
 export const PLAIN: Stamp = stamp(P.plain, rgb(PLAIN_COLOR), rgb(PLAIN_COLOR));
+
+/** the stamp of a carpet: it carries its corner (world x, z) and its size instead of colours */
+export function carpetStamp(x: number, z: number, w: number, d: number, floorZ: number, ceilingZ: number): Stamp {
+  return [P.carpet, x, z, 0, w, d, 0, floorZ, ceilingZ];
+}
 
 /** the stamp for a room's walls or floor in a look; null: the white model draws it (no finish) */
 export function stampOf(look: Look, room: PlanRoom | null, surface: "wall" | "floor"): Stamp | null {
@@ -212,6 +217,45 @@ vec4 finMarble(vec2 uv, vec3 A, vec3 B) {
   return vec4(col * (1.0 - 0.3 * joint), 0.12);
 }
 
+// a wool carpet laid on the parquet: a red border with cream lines, a navy field with staggered orange rosettes.
+// uv: metres from its corner, size: its length and depth
+vec4 finCarpet(vec2 uv, vec2 size) {
+  vec3 navy = vec3(0.06, 0.09, 0.15), navy2 = vec3(0.04, 0.06, 0.11);
+  vec3 red = vec3(0.26, 0.04, 0.06), cream = vec3(0.70, 0.60, 0.42);
+  vec3 orange = vec3(0.66, 0.22, 0.09), ember = vec3(0.36, 0.08, 0.05);
+  float e = min(min(uv.x, size.x - uv.x), min(uv.y, size.y - uv.y));
+  float wool = 0.9 + 0.2 * finNoise(uv * 70.0);
+  vec3 col;
+  if (e < 0.30) {
+    // border: gold edge, red band with two cream lines
+    col = red;
+    col = mix(col, cream, finLine(abs(e - 0.012), 0.008));
+    col = mix(col, cream, finLine(abs(e - 0.11), 0.006));
+    col = mix(col, cream, finLine(abs(e - 0.19), 0.006));
+    col = mix(col, ember, finLine(abs(e - 0.15), 0.018) * 0.7);
+  } else if (e < 0.50) {
+    // inner navy band with a row of small cream diamonds
+    col = navy2;
+    float along = (uv.x < 0.30 || uv.x > size.x - 0.30) ? uv.y : uv.x;
+    vec2 d = vec2(fract(along / 0.16) - 0.5, (e - 0.40) / 0.16);
+    col = mix(col, cream, 1.0 - smoothstep(0.17, 0.22, abs(d.x) + abs(d.y)));
+    col = mix(col, cream, finLine(abs(e - 0.31), 0.006));
+  } else {
+    // field: rosettes in staggered rows
+    vec2 p = uv - vec2(0.50);
+    float row = floor(p.y / 0.7);
+    vec2 l = vec2(mod(p.x + mod(row, 2.0) * 0.4, 0.8) - 0.4, mod(p.y, 0.7) - 0.35);
+    float r = length(l), a = atan(l.y, l.x);
+    float petal = 0.21 * (0.78 + 0.22 * cos(8.0 * a));
+    col = navy;
+    col = mix(col, ember, 1.0 - smoothstep(petal + 0.015, petal + 0.045, r)); // outline
+    col = mix(col, orange, 1.0 - smoothstep(petal - 0.045, petal - 0.015, r));
+    col = mix(col, ember, finLine(abs(r - 0.08), 0.011));
+    col = mix(col, cream, 1.0 - smoothstep(0.035, 0.052, r));
+  }
+  return vec4(col * wool, 0.96);
+}
+
 // boiserie: panels of moulding below the dado rail and up to the cornice
 float finPanel(float u, float h, float z0, float z1) {
   float px = fract(u / 0.9) * 0.9;
@@ -236,6 +280,7 @@ float finRough = 0.85;
     else if (pat == 3) r = finHex(uv, A, B, 0.5);
     else if (pat == 4) r = finHex(uv, A, B, 0.1);
     else if (pat == 5) r = finMarble(uv, A, B);
+    else if (pat == 6) r = finCarpet(uv - A.xy, B.xy);
     col = r.rgb;
     finRough = r.w;
   } else {

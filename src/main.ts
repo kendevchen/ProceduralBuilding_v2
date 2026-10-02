@@ -23,6 +23,7 @@ import { partyWalls, roofCap, roofShape } from "./roof";
 import { type CutAxis, type CutMode, Cutaway } from "./cutaway";
 import { buildRooms3d } from "./rooms3d";
 import { RoomLabels } from "./roomLabels";
+import { buildFurniture } from "./furniture";
 import { buildStairs } from "./stairs";
 import { StreetLife } from "./streetlife";
 import { WindowEditor } from "./windowEditor";
@@ -169,6 +170,7 @@ function rebuild(frame = false): void {
   interior = buildRooms3d(plan, b, kit, cutaway.interior, interiorView.look);
   // the stairs' railing: the kit's first lace pattern (欄杆與圓環)
   interior.add(buildStairs(plan, cutaway.interior, cutaway.cut(materials.lace(0)), materials.laceDepth(0)));
+  interior.add(buildFurniture(plan, cutaway.interior, interiorView.look));
   g.add(interior);
   g.position.set(-b.width / 2, -b.length / 2, 0); // footprint centred on the origin
   street.rebuild(b, params.seed);

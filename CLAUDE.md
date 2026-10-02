@@ -33,6 +33,6 @@
 - `npm run kit`：建模 → 預覽圖 `blender/kit_preview.jpg` → 匯出 `public/assets/kit.glb`。零件全部由 `blender/kitlib/` 產生，不手改 `.blend`。
 - `npm run tex`：`blender/bake.py` 烘焙自製貼圖與鐵花圖樣到 `public/assets/tex/`；網頁端的材質著色器在 `src/materials.ts`。
 - `npm run rooms`：`blender/rooms.py` 產生室內圖集；`npm run ao`：`blender/bake_ao.py` 烘焙 AO（約 10 分鐘）。窗後室內與窗簾在 `src/interiors.ts`。
-- 剖開建築：平面配置 `src/plan.ts`、室內白模 `src/rooms3d.ts`、地板與牆面（寫實材質／圖解／白模）`src/finishes.ts`、樓梯 `src/stairs.ts`、切面與切開用的材質 `src/cutaway.ts`、房間名稱 `src/roomLabels.ts`、剖切面板與底部工具列 `src/toolbar.ts`。外牆內面的開口輪廓來自 `modules.openings()`，經 manifest 傳到網頁端。改平面規則後，在開發模式用 `window.__app.planCheckAll([1, 2, 3], ["auto"])` 跑一次全部組合（"two"、"one" 另外各跑一次）。
+- 剖開建築：平面配置 `src/plan.ts`、室內白模 `src/rooms3d.ts`、地板與牆面（寫實材質／圖解／白模）`src/finishes.ts`、樓梯 `src/stairs.ts`、宴會廳的桌椅與地毯 `src/furniture.ts`、切面與切開用的材質 `src/cutaway.ts`、房間名稱 `src/roomLabels.ts`、剖切面板與底部工具列 `src/toolbar.ts`。外牆內面的開口輪廓來自 `modules.openings()`，經 manifest 傳到網頁端。改平面規則後，在開發模式用 `window.__app.planCheckAll([1, 2, 3], ["auto"])` 跑一次全部組合（"two"、"one" 另外各跑一次）。
 - 人行道與行道樹（簡版，之後會隨街道邏輯重寫）：`src/streetlife.ts`，移植自 v1，尺寸在 `kit_dims.json` 的 `street`；只有街道立面（`kind: "street"`）有人行道，地面不剖開。
 - 素材全部自製：FrenchBuilding.blend 只參考拆件方式與搭配規則，不沿用幾何與貼圖；不用 Kenney 或下載模型。
