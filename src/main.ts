@@ -24,6 +24,7 @@ import { type CutAxis, type CutMode, Cutaway } from "./cutaway";
 import { buildRooms3d } from "./rooms3d";
 import { RoomLabels } from "./roomLabels";
 import { buildStairs } from "./stairs";
+import { StreetLife } from "./streetlife";
 import type { Look } from "./finishes";
 import { Toolbar } from "./toolbar";
 
@@ -64,6 +65,9 @@ root.rotation.x = -Math.PI / 2;
 scene.add(root);
 const params = defaultParams();
 const view = { gallery: false };
+/** sidewalk and street trees, in world space beside the building (streetlife.ts) */
+const street = new StreetLife();
+scene.add(street.group);
 /** floor plans (INTERIOR_SPEC.md): the plan view of one level, its labels, the plan check */
 const interiorView = { plan: false, level: 1, labels: true, area: false, check: "—", look: "real" as Look };
 let materials: KitMaterials | null = null;
@@ -120,6 +124,7 @@ function rebuild(frame = false): void {
   if (!kit || !materials) return;
   interior = roomBoxes = null;
   labels = null;
+  street.group.visible = false;
   cutShown = false; // every new group starts with the plain materials
   if (view.gallery) {
     const gal = buildGallery(kit, buildingStyle(params));
@@ -163,6 +168,8 @@ function rebuild(frame = false): void {
   interior.add(buildStairs(plan, cutaway.interior, cutaway.cut(materials.lace(0)), materials.laceDepth(0)));
   g.add(interior);
   g.position.set(-b.width / 2, -b.length / 2, 0); // footprint centred on the origin
+  street.rebuild(b, params.seed);
+  street.group.visible = true;
   show(g, new Vector3(0, cap.top / 2, 0), Math.hypot(b.width, b.length, cap.top) / 2);
   // the cut runs over everything that stands out too (balconies, cornices, chimneys)
   g.updateWorldMatrix(true, true);
@@ -273,6 +280,11 @@ fLook.addColor(params, "paint").name("大門漆色").onChange(update);
 fLook.addColor(params, "shutter").name("百葉漆色").onChange(update);
 fLook.addColor(params, "awning").name("遮雨棚顏色").onChange(update);
 fLook.add(params, "lace", Object.fromEntries(LACE_PATTERNS.map((n, i) => [n, i]))).name("欄杆鐵花").onChange(update);
+const fStreet = gui.addFolder("🌳 街道 (Street)");
+fStreet.add(street.params, "sidewalk").name("人行道").onChange(update);
+fStreet.add(street.params, "trees").name("路樹").onChange(update);
+fStreet.add(street.params, "width", 1.5, 6, 0.1).name("人行道寬度 m").onChange(update);
+fStreet.add(street.params, "spacing", 3, 12, 0.5).name("路樹間距 m").onChange(update);
 const fInterior = gui.addFolder("🏢 室內樓層 (Interior)");
 fInterior.add(interiorView, "plan").name("平面檢視（除錯）").onChange((on: boolean) => {
   if (on) {

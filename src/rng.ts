@@ -38,4 +38,7 @@ export const PURPOSE = {
   plan: 15,
   planService: 16,
   planFlats: 17,
+  tree: 18,
+  treeTurn: 19,
+  treeSize: 20,
 } as const;
