@@ -33,7 +33,7 @@ const CSS = /* css */ `
 .tb button:disabled { opacity: 0.35; cursor: default; }
 .tb .sep { flex: none; width: 1px; height: 28px; margin: 0 8px; background: rgba(255, 255, 255, 0.16); }
 .tb svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-.cut { position: fixed; right: 16px; bottom: 80px; z-index: 61; width: min(430px, calc(100vw - 32px));
+.cut { position: fixed; left: 16px; bottom: 80px; z-index: 61; width: min(430px, calc(100vw - 32px));
   padding: 16px 18px 14px; border-radius: 8px; background: rgba(22, 22, 22, 0.95); border: 1px solid rgba(255, 255, 255, 0.13);
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45); color: #ececec;
   font: 500 15px/1.3 system-ui, -apple-system, "PingFang TC", "Noto Sans TC", sans-serif; }
@@ -60,6 +60,7 @@ const CSS = /* css */ `
 .cut .btn.on { border-color: #d9824f; background: rgba(217, 130, 79, 0.22); }
 .cut .btn[hidden] { display: none; }
 .credit { bottom: 76px !important; }
+body:has(.cut:not([hidden])) .credit { display: none; }
 @media (max-width: 560px) {
   .tb { gap: 2px; padding: 0 8px; }
   .tb button { padding: 0 10px; }

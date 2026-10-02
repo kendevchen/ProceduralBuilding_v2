@@ -327,6 +327,7 @@ const toolbar = new Toolbar({
   },
   cut: on => {
     cut.on = on;
+    if (on) gui.close(); // out of the panel's way; the person can open it again
     applyCut();
   },
   home: () => frameHome(),
