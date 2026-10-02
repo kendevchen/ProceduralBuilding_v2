@@ -86,8 +86,8 @@ export function defaultParams(): BuildingParams {
     baysX: 5, baysY: 3, floors: 4, profile: "haussmann", dormerEvery: 1, dormerStyle: "mixed", cresting: true, chimneys: 0.5,
     seed: 1, doorStyle: "arched", groundWindow: "arched", otherBalcony: "gardecorps", consoles: true,
     ornament: 2, pediment: "alternate", detailPattern: "off", detailStyle: "pilasters",
-    shutterClosed: 0.15, shutterHalf: 0.15,
-    curtainNone: 0.3, curtainClosed: 0.3, curtainOpen: 0.5, windowOpen: 0.15, windowDir: "in", windowAngle: 75,
+    shutterClosed: 0.03, shutterHalf: 0.03,
+    curtainNone: 0.5, curtainClosed: 0, curtainOpen: 0.5, windowOpen: 1, windowDir: "in", windowAngle: 75,
     stone: "#ffffff", paint: "#22382f", shutter: "#c9c5ba", awning: "#8c2b2b", lace: 2,
     ballroom: true, ballroomFacade: "rows", apartments: "auto",
   };
