@@ -101,11 +101,13 @@ export class Cutaway {
   /**
    * Place the plane (world space): horizontal at height `at`, keeping what is
    * below; across the front at x = at, keeping the left; parallel to the front
-   * at z = at, keeping the back.
+   * at z = at, keeping the back. `flip` (vertical cuts) keeps the other side:
+   * the right, the front.
    */
-  place(mode: CutMode, axis: CutAxis, at: number): void {
+  place(mode: CutMode, axis: CutAxis, at: number, flip = false): void {
+    const side = flip ? -1 : 1;
     if (mode === "horizontal") this.plane.set(new Vector3(0, -1, 0), at);
-    else if (axis === "across") this.plane.set(new Vector3(-1, 0, 0), at);
-    else this.plane.set(new Vector3(0, 0, -1), at);
+    else if (axis === "across") this.plane.set(new Vector3(-side, 0, 0), side * at);
+    else this.plane.set(new Vector3(0, 0, -side), side * at);
   }
 }

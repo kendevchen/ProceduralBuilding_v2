@@ -77,7 +77,7 @@ let shown: Group | null = null;
 let lastPlan: BuildingPlan | null = null;
 
 /** cutting the building open (INTERIOR_SPEC.md §2): t is the plane's place, 0..1 within the bounds */
-const cut = { on: false, mode: "horizontal" as CutMode, axis: "across" as CutAxis, t: 0.6, sweep: false, dir: 1 };
+const cut = { on: false, mode: "horizontal" as CutMode, axis: "across" as CutAxis, flip: false, t: 0.6, sweep: false, dir: 1 };
 const cutaway = new Cutaway();
 /** world bounds of the building (all it is made of, a little beyond), for placing the plane and framing the camera */
 const bounds = { min: new Vector3(-8, 0, -6), max: new Vector3(8, 22, 6) };
@@ -191,8 +191,9 @@ function rebuild(frame = false): void {
 function cutPosition(): { at: number; whole: boolean } {
   const { min, max } = bounds;
   if (cut.mode === "horizontal") return { at: min.y + (max.y - min.y) * cut.t, whole: cut.t >= 0.999 };
-  if (cut.axis === "across") return { at: min.x + (max.x - min.x) * cut.t, whole: cut.t >= 0.999 };
-  return { at: max.z - (max.z - min.z) * cut.t, whole: cut.t <= 0.001 };
+  // the plane always sits at the same place; flipped, it keeps the other side, so the other end is the uncut one
+  if (cut.axis === "across") return { at: min.x + (max.x - min.x) * cut.t, whole: cut.flip ? cut.t <= 0.001 : cut.t >= 0.999 };
+  return { at: max.z - (max.z - min.z) * cut.t, whole: cut.flip ? cut.t >= 0.999 : cut.t <= 0.001 };
 }
 
 /**
@@ -209,12 +210,12 @@ function applyCut(force = false): void {
     if (roomBoxes) roomBoxes.visible = !on;
     cutShown = on;
   }
-  cutaway.place(cut.mode, cut.axis, at);
-  toolbar.show(cut.mode, cut.axis, cut.t);
+  cutaway.place(cut.mode, cut.axis, at, cut.flip);
+  toolbar.show(cut.mode, cut.axis, cut.t, cut.flip);
   toolbar.setLevel(on && cut.mode === "horizontal" ? levelAt(at) : "");
   // the plane in the building's own (Blender) coordinates, for the room names
   const own = cut.mode === "horizontal" ? at : cut.axis === "across" ? at + site.width / 2 : site.length / 2 - at;
-  labels?.update(on && interiorView.labels, cut.mode, cut.axis, own);
+  labels?.update(on && interiorView.labels, cut.mode, cut.axis, own, cut.flip);
 }
 
 /** name of the floor a height (m) is in, for the horizontal cut */
@@ -364,13 +365,17 @@ const toolbar = new Toolbar({
     cut.axis = a;
     applyCut();
   },
+  flip: on => {
+    cut.flip = on;
+    applyCut();
+  },
   slide: t => {
     cut.t = t;
     applyCut();
   },
   sweep: on => (cut.sweep = on),
 });
-toolbar.show(cut.mode, cut.axis, cut.t);
+toolbar.show(cut.mode, cut.axis, cut.t, cut.flip);
 
 /** download the frame just rendered as a PNG (called right after rendering, while the canvas still holds it) */
 function savePicture(): void {

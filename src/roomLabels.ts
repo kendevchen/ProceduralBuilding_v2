@@ -38,7 +38,7 @@ export class RoomLabels {
   }
 
   /** show the labels for a cut at `at` (Blender z, x or y by mode and axis), or none when not cut */
-  update(on: boolean, mode: CutMode, axis: CutAxis, at: number): void {
+  update(on: boolean, mode: CutMode, axis: CutAxis, at: number, flip = false): void {
     const levels = this.plan.levels;
     let level = -1;
     if (on && mode === "horizontal") {
@@ -55,14 +55,14 @@ export class RoomLabels {
         it.sprite.position.set(it.cx, it.cy, Math.min(at - 0.25, r.floorZ + 1.0));
         if (show && at - r.floorZ < 0.5) show = false;
       } else if (on && axis === "across") {
-        // the plane at x = at keeps x < at: label the rooms it runs through, in
-        // the part that is left, close to the cut
+        // the plane at x = at keeps x < at (flipped: x > at): label the rooms it
+        // runs through, in the part that is kept, close to the cut
         show = x0 < at && x1 > at;
-        it.sprite.position.set(Math.max((x0 + at) / 2, at - 1.5), it.cy, mid);
+        it.sprite.position.set(flip ? Math.min((x1 + at) / 2, at + 1.5) : Math.max((x0 + at) / 2, at - 1.5), it.cy, mid);
       } else if (on) {
-        // the plane at y = at keeps y > at
+        // the plane at y = at keeps y > at (flipped: y < at)
         show = y0 < at && y1 > at;
-        it.sprite.position.set(it.cx, Math.min((at + y1) / 2, at + 1.5), mid);
+        it.sprite.position.set(it.cx, flip ? Math.max((y0 + at) / 2, at - 1.5) : Math.min((at + y1) / 2, at + 1.5), mid);
       }
       it.sprite.visible = show;
     }

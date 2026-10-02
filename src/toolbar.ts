@@ -15,6 +15,8 @@ export interface ToolbarActions {
   save(): void;
   mode(m: CutMode): void;
   axis(a: CutAxis): void;
+  /** vertical cuts: keep the other side of the plane */
+  flip(on: boolean): void;
   slide(t: number): void;
   sweep(on: boolean): void;
 }
@@ -92,6 +94,7 @@ export class Toolbar {
   private buttons: Record<string, HTMLButtonElement> = {};
   private modeButtons: Record<CutMode, HTMLButtonElement>;
   private axisButton: HTMLButtonElement;
+  private flipButton: HTMLButtonElement;
   private sweepButton: HTMLButtonElement;
   private dragging = false;
   private open = false;
@@ -138,6 +141,7 @@ export class Toolbar {
       <div class="row">
         <span class="legend">橘色為實體切面<span class="level"></span></span>
         <button class="btn axis">換方向</button>
+        <button class="btn flip" title="保留切面的另一側">反向</button>
         <button class="btn sweep">自動掃描</button>
       </div>`;
     document.body.appendChild(this.panel);
@@ -148,6 +152,7 @@ export class Toolbar {
     this.levelLabel = q<HTMLSpanElement>(".level");
     this.modeButtons = { vertical: q<HTMLButtonElement>('[data-mode="vertical"]'), horizontal: q<HTMLButtonElement>('[data-mode="horizontal"]') };
     this.axisButton = q<HTMLButtonElement>(".axis");
+    this.flipButton = q<HTMLButtonElement>(".flip");
     this.sweepButton = q<HTMLButtonElement>(".sweep");
     for (const m of ["vertical", "horizontal"] as CutMode[]) this.modeButtons[m].onclick = () => actions.mode(m);
     q<HTMLButtonElement>(".close").onclick = () => this.setOpen(false, true);
@@ -161,6 +166,7 @@ export class Toolbar {
       }
       actions.slide(Number(this.slider.value) / 1000);
     };
+    this.flipButton.onclick = () => actions.flip(!this.flipButton.classList.contains("on"));
     this.axisButton.onclick = () => actions.axis(this.axisButton.dataset.axis === "across" ? "along" : "across");
     this.sweepButton.onclick = () => {
       const on = !this.sweepButton.classList.contains("on");
@@ -182,12 +188,13 @@ export class Toolbar {
   }
 
   /** show the cut's mode, axis and position */
-  show(mode: CutMode, axis: CutAxis, t: number): void {
+  show(mode: CutMode, axis: CutAxis, t: number, flip = false): void {
     for (const m of ["vertical", "horizontal"] as CutMode[]) this.modeButtons[m].classList.toggle("on", m === mode);
     const ends = ENDS[mode === "horizontal" ? "horizontal" : axis];
     this.lo.textContent = ends[0];
     this.hi.textContent = ends[1];
-    this.axisButton.hidden = mode !== "vertical";
+    this.axisButton.hidden = this.flipButton.hidden = mode !== "vertical";
+    this.flipButton.classList.toggle("on", flip);
     this.axisButton.dataset.axis = axis;
     this.axisButton.textContent = axis === "across" ? "換成前後剖" : "換成左右剖";
     if (!this.dragging) this.slider.value = String(Math.round(t * 1000));
