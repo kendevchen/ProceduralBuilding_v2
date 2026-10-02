@@ -295,6 +295,47 @@ def upper_leaf(D, cls):
     return mb
 
 
+TALL_PAIRS = (("N", "S"), ("N", "A"), ("S", "S"))
+
+
+def tall_head(D, c2, c3):
+    """head of the ballroom's tall window, from the lower floor's line"""
+    return D["classes"][c2]["height"] + D["classes"][c3]["head"]
+
+
+def tall_window(D, c2, c3):
+    """the ballroom's bay over two floors (INTERIOR_SPEC.md §8): one window from
+    the lower floor's sill to the upper floor's window head. Below, the lower
+    floor's casements (its `<c2>_leaf`, hung by the generator) under a transom;
+    above, fixed glass with glazing bars. The upper string course stops at the
+    opening."""
+    mb = MeshBuilder()
+    H2 = D["classes"][c2]["height"]
+    H = H2 + D["classes"][c3]["height"]
+    top = tall_head(D, c2, c3)
+    hb = D["bay"] / 2
+    hw, sill = D["window"]["width"] / 2, D["window"]["sill"]
+    mb.sweep([(-hb, 0, 0), (hb, 0, 0)], P.bandeau(D), "stone_trim")
+    for x0, x1 in ((-hb, -hw), (hw, hb)):
+        mb.sweep([(x0, 0, H2), (x1, 0, H2)], P.bandeau(D), "stone_trim", caps=True)
+    wall = [(-hb, sill), (-hw, sill), (-hw, top), (hw, top), (hw, sill), (hb, sill), (hb, H), (-hb, H)]
+    mb.wall(0, 0, 0, 0, "stone", outer=wall)
+    P.reveal(mb, P.opening_loop(hw, sill, top), "stone")
+    P.dormant_frame(mb, P.opening_loop(hw, sill, top))
+    xi, _, zl = P.leaf_span(2 * hw, sill, D["classes"][c2]["head"], TRANSOM[c2])
+    # transom over the casements, then the fixed lights
+    zt = zl + 0.035
+    mb.box((-xi, 0.165, zt - 0.035), (xi, 0.225, zt + 0.035), "frame", skip=("+y",))
+    g0, g1 = zt + 0.035, top - P.FW
+    P.glass_rect(mb, -xi, xi, g0, g1)
+    mb.box((-0.02, 0.18, g0), (0.02, 0.21, g1), "frame", skip=("+y",))
+    n = max(2, round((g1 - g0) / 0.8))
+    for k in range(1, n):
+        z = g0 + (g1 - g0) * k / n
+        mb.box((-xi, 0.185, z - 0.013), (xi, 0.205, z + 0.013), "frame", skip=("+y",))
+    return mb
+
+
 def upper_wall(D, cls):
     """upper bay without an opening (side facades, next to a neighbour)"""
     mb = MeshBuilder()
@@ -887,6 +928,9 @@ def openings(D):
     for cls in ("N", "S", "A"):
         out[f"{cls}_bay.window"] = one(
             P.opening_loop(D["window"]["width"] / 2, D["window"]["sill"], D["classes"][cls]["head"]), P.REVEAL)
+    for c2, c3 in TALL_PAIRS:
+        out[f"{c2}{c3}_tall.window"] = one(
+            P.opening_loop(D["window"]["width"] / 2, D["window"]["sill"], tall_head(D, c2, c3)), P.REVEAL)
     fw = D["dormer"]["front"] / 2
     for kind in ("zinc", "oeil", "segment", "triangle"):
         _, _, _, z_roof, loop = _dormer_shape(D, kind)
@@ -949,6 +993,18 @@ def catalog(D):
             (f"{cls}_detail", "refends", lambda D, cls=cls: O.detail_refends(D, cls), {"x": (-hb, hb), "within": ((-hb, hb), (-0.03, 0), (0, H))}),
             (f"{cls}_detail", "pilasters", lambda D, cls=cls: O.detail_pilasters(D, cls), {"x": (-hb, hb), "within": ((-hb, hb), (-0.1, 0), (0, H))}),
             (f"{cls}_detail", "panels", lambda D, cls=cls: O.detail_panels(D, cls), {"within": ((-1.45, 1.45), (-0.05, 0), (0.45, H - 0.6))}),
+        ]
+    # the ballroom's tall windows, per pair of height classes (INTERIOR_SPEC.md §8.2);
+    # the surround as rich as the lower floor's
+    for c2, c3 in TALL_PAIRS:
+        H = D["classes"][c2]["height"] + D["classes"][c3]["height"]
+        top = tall_head(D, c2, c3)
+        hw, sill = D["window"]["width"] / 2, D["window"]["sill"]
+        kind = "crossette" if c2 == "N" else "band"
+        out += [
+            (f"{c2}{c3}_tall", "window", lambda D, a=c2, b=c3: tall_window(D, a, b), {"x": (-hb, hb), "z": (0, H)}),
+            (f"{c2}{c3}_tall", "surround", lambda D, t=top, k=kind: O.surround_span(D["window"]["width"] / 2, D["window"]["sill"], t, k),
+             {"within": ((-hw - 0.26, hw + 0.26), (-0.06, 0), (sill, top + 0.19))}),
         ]
     slab = D["balcony"]["slab"]
     out += [

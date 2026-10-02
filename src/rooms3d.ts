@@ -135,6 +135,10 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
     const cls = levels[w.level].cls;
     if (cls === "G") return { key: kit.key("G_bay", bay.ground), z: 0 };
     if (cls === "R") return bay.dormer ? { key: kit.key("R_mansard", `dormer_${bay.dormer}`), z: b.roofBase } : null;
+    // the ballroom's tall windows reach over its two floors
+    if (w.side === 0 && w.level <= 2 && b.tall.includes(w.bay)) {
+      return { key: kit.key(`${b.rows[0].cls}${b.rows[1].cls}_tall`, "window"), z: b.rows[0].z };
+    }
     const row = b.rows[w.level - 1];
     return { key: kit.key(`${row.cls}_bay`, "window"), z: row.z };
   };
@@ -157,53 +161,58 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
     const dir: V2 = [(c[0] - a[0]) / len, (c[1] - a[1]) / len];
     return { a, len, dir, inward: new Vector3(-dir[1], dir[0], 0), along: new Vector3(dir[0], dir[1], 0) };
   });
+  /** a level's openings on edge i, clipped to s0..s1, z0..z1 of the edge's face */
+  const holesOn = (e: (typeof edges)[number], i: number, k: number, s0: number, s1: number, z0: number, z1: number) => {
+    const holes: { loop: V2[]; reveal: number }[] = [];
+    for (const w of plan.windows) {
+      if (w.level !== k || edgeAt(inner, w.at) !== i) continue;
+      const mod = moduleOf(w);
+      const info = mod && kit.info(mod.key);
+      if (!mod || !info?.openings) continue;
+      const sc = (w.at[0] - e.a[0]) * e.dir[0] + (w.at[1] - e.a[1]) * e.dir[1];
+      const sign = Math.sign(w.dir[0] * e.dir[0] + w.dir[1] * e.dir[1]) || 1;
+      for (const o of info.openings) {
+        const loop = clipBox(o.loop.map(([x, z]) => [sc + sign * x, mod.z + z] as V2), s0 + GAP, s1 - GAP, z0 + GAP, z1 - GAP);
+        if (Math.abs(area(loop)) > 1e-4) holes.push({ loop, reveal: o.reveal });
+      }
+    }
+    return holes;
+  };
+  /** a face of edge e from s0 to s1, z0 to z1, with its openings and the reveals behind them */
+  const lining = (e: (typeof edges)[number], i: number, k: number, s0: number, s1: number, z0: number, z1: number) => {
+    const at = (p: V2) => new Vector3(e.a[0] + e.dir[0] * p[0], e.a[1] + e.dir[1] * p[0], p[1]);
+    const holes = holesOn(e, i, k, s0, s1, z0, z1);
+    walls.polygon([[s0, z0], [s1, z0], [s1, z1], [s0, z1]], holes.map(h => h.loop), at, e.inward);
+    // reveals from where the module's end to this face, facing into the opening
+    const out = e.inward.clone().negate();
+    for (const h of holes) {
+      const ccw = area(h.loop) > 0;
+      h.loop.forEach((p, j) => {
+        const q = h.loop[(j + 1) % h.loop.length];
+        const flatZ = (z: number) => Math.abs(p[1] - z) < 1e-5 && Math.abs(q[1] - z) < 1e-5;
+        if (flatZ(z0 + GAP) || flatZ(z1 - GAP)) return;
+        const ds = q[0] - p[0], dz = q[1] - p[1];
+        const n = ccw ? [-dz, ds] : [dz, -ds];
+        const facing = e.along.clone().multiplyScalar(n[0]).addScaledVector(UP, n[1]);
+        const P = at(p), Q = at(q), d = T - h.reveal;
+        walls.quad(P, Q, Q.clone().addScaledVector(out, d), P.clone().addScaledVector(out, d), facing);
+      });
+    }
+  };
   for (const lv of levels) {
     if (lv.cls === "R") continue;
     const z0 = lv.floorZ, z1 = lv.ceilingZ, z2 = levels[lv.index + 1].floorZ;
     const open = plan.rooms.filter(r => r.level === lv.index && openAbove(r.id, lv.index));
     edges.forEach((e, i) => {
-      // on up through the slab beside the stair wells and the ballroom
+      // on up through the slab beside the stair wells and the ballroom (its tall windows cross it)
       const s = (p: V2) => (p[0] - e.a[0]) * e.dir[0] + (p[1] - e.a[1]) * e.dir[1];
       for (const r of open) {
         const on = r.polygon.filter(p => edgeAt(inner, p) === i).map(s);
         if (on.length < 2) continue;
         const pad = I.walls.cage / 2;
-        const s0 = Math.max(0, Math.min(...on) - pad), s1 = Math.min(e.len, Math.max(...on) + pad);
-        const at = (p: V2) => new Vector3(e.a[0] + e.dir[0] * p[0], e.a[1] + e.dir[1] * p[0], p[1]);
-        walls.quad(at([s0, z1]), at([s1, z1]), at([s1, z2]), at([s0, z2]), e.inward);
+        lining(e, i, lv.index, Math.max(0, Math.min(...on) - pad), Math.min(e.len, Math.max(...on) + pad), z1, z2);
       }
-    });
-    edges.forEach((e, i) => {
-      const at = (p: V2) => new Vector3(e.a[0] + e.dir[0] * p[0], e.a[1] + e.dir[1] * p[0], p[1]);
-      const holes: { loop: V2[]; reveal: number }[] = [];
-      for (const w of plan.windows) {
-        if (w.level !== lv.index || edgeAt(inner, w.at) !== i) continue;
-        const mod = moduleOf(w);
-        const info = mod && kit.info(mod.key);
-        if (!mod || !info?.openings) continue;
-        const sc = (w.at[0] - e.a[0]) * e.dir[0] + (w.at[1] - e.a[1]) * e.dir[1];
-        const sign = Math.sign(w.dir[0] * e.dir[0] + w.dir[1] * e.dir[1]) || 1;
-        for (const o of info.openings) {
-          const loop = clipBox(o.loop.map(([x, z]) => [sc + sign * x, mod.z + z] as V2), GAP, e.len - GAP, z0 + GAP, z1 - GAP);
-          if (Math.abs(area(loop)) > 1e-4) holes.push({ loop, reveal: o.reveal });
-        }
-      }
-      walls.polygon([[0, z0], [e.len, z0], [e.len, z1], [0, z1]], holes.map(h => h.loop), at, e.inward);
-      // reveals from where the module's end to this face, facing into the opening
-      const out = e.inward.clone().negate();
-      for (const h of holes) {
-        const ccw = area(h.loop) > 0;
-        h.loop.forEach((p, j) => {
-          const q = h.loop[(j + 1) % h.loop.length];
-          const flatZ = (z: number) => Math.abs(p[1] - z) < 1e-5 && Math.abs(q[1] - z) < 1e-5;
-          if (flatZ(z0 + GAP) || flatZ(z1 - GAP)) return;
-          const ds = q[0] - p[0], dz = q[1] - p[1];
-          const n = ccw ? [-dz, ds] : [dz, -ds];
-          const facing = e.along.clone().multiplyScalar(n[0]).addScaledVector(UP, n[1]);
-          const P = at(p), Q = at(q), d = T - h.reveal;
-          walls.quad(P, Q, Q.clone().addScaledVector(out, d), P.clone().addScaledVector(out, d), facing);
-        });
-      }
+      lining(e, i, lv.index, 0, e.len, z0, z1);
     });
   }
 

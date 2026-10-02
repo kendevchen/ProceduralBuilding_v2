@@ -501,6 +501,84 @@
     }
    ]
   },
+  "NA_tall": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "NA_tall.surround",
+     "tris": 74
+    },
+    {
+     "index": 1,
+     "kind": "OBJECT",
+     "name": "NA_tall.window",
+     "tris": 118,
+     "openings": [
+      {
+       "loop": [
+        [
+         0.65,
+         5.8
+        ],
+        [
+         -0.65,
+         5.8
+        ],
+        [
+         -0.65,
+         0.2
+        ],
+        [
+         0.65,
+         0.2
+        ]
+       ],
+       "reveal": 0.24
+      }
+     ]
+    }
+   ]
+  },
+  "NS_tall": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "NS_tall.surround",
+     "tris": 74
+    },
+    {
+     "index": 1,
+     "kind": "OBJECT",
+     "name": "NS_tall.window",
+     "tris": 128,
+     "openings": [
+      {
+       "loop": [
+        [
+         0.65,
+         6.0
+        ],
+        [
+         -0.65,
+         6.0
+        ],
+        [
+         -0.65,
+         0.2
+        ],
+        [
+         0.65,
+         0.2
+        ]
+       ],
+       "reveal": 0.24
+      }
+     ]
+    }
+   ]
+  },
   "N_bay": {
    "children": [
     {
@@ -965,6 +1043,45 @@
      "kind": "OBJECT",
      "name": "R_ridge.post",
      "tris": 46
+    }
+   ]
+  },
+  "SS_tall": {
+   "children": [
+    {
+     "index": 0,
+     "kind": "OBJECT",
+     "name": "SS_tall.surround",
+     "tris": 22
+    },
+    {
+     "index": 1,
+     "kind": "OBJECT",
+     "name": "SS_tall.window",
+     "tris": 128,
+     "openings": [
+      {
+       "loop": [
+        [
+         0.65,
+         5.6
+        ],
+        [
+         -0.65,
+         5.6
+        ],
+        [
+         -0.65,
+         0.2
+        ],
+        [
+         0.65,
+         0.2
+        ]
+       ],
+       "reveal": 0.24
+      }
+     ]
     }
    ]
   },

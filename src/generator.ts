@@ -84,6 +84,8 @@ export interface Building {
   door: number;
   /** front bays of the double-height ballroom on the first two upper floors, or null */
   ballroom: number[] | null;
+  /** those of its bays with one tall window over both floors */
+  tall: number[];
   /** chimney stacks on the roof's flat top */
   chimneys: ChimneyInfo[];
 }
@@ -166,13 +168,12 @@ function dormer(style: DormerStyle, si: number, i: number): string {
 /** front bays of the ballroom (INTERIOR_SPEC.md §5.6): centred on the front
  *  between the two corner rooms, 2 to 4 bays wide; it needs two upper floors
  *  and a plan deep enough for a corridor behind it */
-export function ballroomBays(p: BuildingParams, front: SideInfo, upperFloors: number, length: number): number[] | null {
+export function ballroomBays(p: BuildingParams, n: number, left: CornerKind, right: CornerKind, upperFloors: number, length: number): number[] | null {
   const B = dims.interior;
   if (!p.ballroom || upperFloors < 2 || length - 2 * dims.wall < B.bands.double) return null;
-  const n = front.bays.length;
   // the first and last bays share their column with a square corner or end pier
-  const first = front.left === "pc" ? 0 : 1;
-  const last = front.right === "pc" ? n - 1 : n - 2;
+  const first = left === "pc" ? 0 : 1;
+  const last = right === "pc" ? n - 1 : n - 2;
   const mid = last - first + 1;
   const w = mid <= B.ballroom.maxBays ? mid : mid % 2 === 1 ? B.ballroom.maxBays - 1 : B.ballroom.maxBays;
   if (w < B.ballroom.minBays) return null;
@@ -203,6 +204,10 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
   const allowance = (k: CornerKind) => (k === "pier" || k === "pc" ? corner : k === "none" ? 0 : endPier);
   const W = allowance(ck[0]) + bay * p.baysX + allowance(ck[1]);
   const L = p.type === "row" ? p.depth : allowance(ck[1]) + bay * p.baysY + allowance(ck[2]);
+  const frontBays = p.baysX - (ck[0] === "pc" ? 1 : 0) - (ck[1] === "pc" ? 1 : 0);
+  const ballroom = ballroomBays(p, frontBays, ck[0], ck[1], rows.length, L);
+  /** front bays whose two floors are one tall window (INTERIOR_SPEC.md §8) */
+  const tallBays = new Set(p.ballroomFacade === "tall" ? ballroom ?? [] : []);
 
   const placements: Placement[] = [];
   const MIRROR = new Matrix4().makeScale(-1, 1, 1);
@@ -217,7 +222,8 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
   };
   const rooms: RoomSlot[] = [];
   const groundRoom = (m: Matrix4, variant: string, geo: Geo, seedKey: number[]) => {
-    const base = { matrix: m, half: 1.45, depth: geo.depth, along: geo.along, length: geo.length, seed: seedKey };
+    const at = { side: seedKey[1], bay: seedKey[2], level: 0 };
+    const base = { matrix: m, half: 1.45, depth: geo.depth, along: geo.along, length: geo.length, seed: seedKey, at };
     if (variant.startsWith("window")) {
       rooms.push({ ...base, kind: "ground", y0: 0.25, floor: 0.45, height: 3.55, curtain: { half: 0.82, sill: 0.5, head: 2.6 } });
     } else if (variant.startsWith("shop")) {
@@ -251,13 +257,23 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
 
   /** the upper floors, cornice and mansard of one bay at x (bay-local frame) */
   const upperBay = (put: Put, kind: SideKind, si: number, i: number, n: number, x: number, dormerKind: string | null, geo: Geo) => {
+    // the ballroom's bays: one room box over both floors behind them, and on
+    // the tall facade one window over both floors
+    const hall = si === 0 && (ballroom?.includes(i) ?? false);
     rows.forEach((r, ri) => {
-      const wm = put(`${r.cls}_bay`, "window", x, r.z);
+      const tall = hall && tallBays.has(i) && ri < 2;
+      if (tall && ri === 1) return;
+      const pair = tall ? `${r.cls}${rows[1].cls}_tall` : null;
+      const wm = put(pair ?? `${r.cls}_bay`, "window", x, r.z);
       const H = dims.classes[r.cls].height;
+      const head = tall ? H + dims.classes[rows[1].cls].head : dims.classes[r.cls].head;
+      const both = rows[1] ? H + rows[1].height : H;
       const room: RoomSlot = {
-        matrix: wm, kind: "upper", y0: 0.25, floor: 0.2, height: H - 0.35, half: 1.45,
+        matrix: wm, kind: hall && ri === 0 ? "ballroom" : "upper", y0: 0.25, floor: 0.2,
+        height: hall && ri === 0 ? both - 0.35 : H - 0.35, half: 1.45, noBox: hall && ri === 1,
         depth: geo.depth, along: geo.along, length: geo.length,
-        curtain: { half: 0.6, sill: 0.26, head: dims.classes[r.cls].head - 0.07 }, seed: [seed, si, i, ri],
+        curtain: { half: 0.6, sill: 0.26, head: head - 0.07 }, seed: [seed, si, i, ri],
+        at: { side: si, bay: i, level: ri + 1 },
       };
       rooms.push(room);
       const b = balconyOf(kind, si, ri, i);
@@ -266,17 +282,18 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
       if (kind === "street") {
         // the Haussmann hierarchy: the étage noble richest, simpler going up;
         // under a slab (the floor above has a balcony here) only a keystone fits
-        if (p.ornament >= 1) put(`${r.cls}_surround`, r.cls === "N" ? "crossette" : "band", x, r.z);
+        if (p.ornament >= 1) put(pair ?? `${r.cls}_surround`, pair ? "surround" : r.cls === "N" ? "crossette" : "band", x, r.z);
         if (p.ornament >= 2) {
-          const above = ri + 1 < rows.length ? balconyOf(kind, si, ri + 1, i) : "gardecorps";
+          const up = tall ? ri + 2 : ri + 1;
+          const above = up < rows.length ? balconyOf(kind, si, up, i) : "gardecorps";
           let h: string | null = null;
           if (above !== "gardecorps") h = "keystone";
           else if (r.cls === "N") h = pediment(p.pediment, i, n);
           else if (r.cls === "S") h = p.ornament >= 3 && i % 2 === 0 ? "segment" : "cornice";
-          if (h) put("head", h, x, r.z + dims.classes[r.cls].head);
+          if (h) put("head", h, x, r.z + head);
         }
         const d = detailOf(ri);
-        if (d) put(`${r.cls}_detail`, d, x, r.z);
+        if (d && !tall) put(`${r.cls}_detail`, d, x, r.z);
       }
       // persiennes: open (folded into the reveals), one closed, or both closed
       const u = rand(seed, si, i, ri, PURPOSE.shutter);
@@ -303,6 +320,7 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
       rooms.push({
         matrix: mm, kind: "attic", y0: 1.1, floor: 0.1, height: 2.7, half: 1.45, tunnel: true,
         depth: Math.min(3.2, geo.depth - 1.0), along: geo.along, length: geo.length, seed: [seed, si, i, 77],
+        at: { side: si, bay: i, level: rows.length + 1 },
       });
     }
     if (p.cresting && kind === "street") put("R_ridge", "cresting", x, roofBase);
@@ -415,7 +433,6 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
       side.bays.push({ x, ground: variant, dormer: dormerKind });
     }
   });
-  const ballroom = ballroomBays(p, sides[0], rows.length, L);
 
   // ---- footprint (pan coupés chamfered) and its edge kinds, for the roof
   const corners: V2[] = [[0, 0], [W, 0], [W, L], [0, L]];
@@ -461,7 +478,7 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
   }
   return {
     placements, style, width: W, length: L, rows, wallTop, roofBase, footprint, edgeKinds, rooms,
-    sides, door: doorBay, ballroom, chimneys,
+    sides, door: doorBay, ballroom, tall: [...tallBays], chimneys,
   };
 }
 

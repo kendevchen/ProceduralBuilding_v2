@@ -28,8 +28,14 @@ CROSSETTE = [(0.18, 0), (0.18, 0.02), (0.15, 0.035), (0.11, 0.04), (0.07, 0.05),
 def surround(D, cls, kind):
     """chambranle round the jambs and head of a French window; the crossette
     kind is moulded and has 'ears' stepping out at the top corners"""
-    mb = MeshBuilder()
     hw, sill, head = _opening(D, cls)
+    return surround_span(hw, sill, head, kind)
+
+
+def surround_span(hw, sill, head, kind):
+    """a surround round an opening of half width hw from sill to head (the
+    ballroom's tall windows reach over two floors)"""
+    mb = MeshBuilder()
     path = P.xz([(hw, sill), (hw, head), (-hw, head), (-hw, sill)])
     prof = BAND if kind == "band" else CROSSETTE
     mb.sweep(path, prof, "stone_trim", N=(0, -1, 0), caps=True)

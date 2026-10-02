@@ -74,6 +74,8 @@ export interface BuildingParams {
   lace: number;
   /** a double-height ballroom on the étage noble and the floor above (INTERIOR_SPEC.md §5.6) */
   ballroom: boolean;
+  /** its windows: the two rows of the facade as they are, or tall windows over both floors (INTERIOR_SPEC.md §8) */
+  ballroomFacade: "rows" | "tall";
   /** flats per upper floor: auto (two from twoFlatsBays front bays), one, two */
   apartments: Apartments;
 }
@@ -87,6 +89,6 @@ export function defaultParams(): BuildingParams {
     shutterClosed: 0.15, shutterHalf: 0.15,
     curtainNone: 0.3, curtainClosed: 0.3, curtainOpen: 0.5, windowOpen: 0.15, windowDir: "in", windowAngle: 75,
     stone: "#ffffff", paint: "#22382f", shutter: "#c9c5ba", awning: "#8c2b2b", lace: 2,
-    ballroom: true, apartments: "auto",
+    ballroom: true, ballroomFacade: "rows", apartments: "auto",
   };
 }

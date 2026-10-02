@@ -250,7 +250,7 @@ uniform float uNight;
 `;
 
 // same pinhole as rooms.py: 16 m in front of the room's open front, framing
-// 4H x H there; cell k of the 2 x 8 atlas at column k % 2, row k / 2
+// 4H x H there; cell k of the 2 x 9 atlas at column k % 2, row k / 2
 const ROOM_FRAG = /* glsl */ `
 {
   float H = vRoomH;
@@ -261,7 +261,7 @@ const ROOM_FRAG = /* glsl */ `
   u = clamp(u, 0.003, 0.997);
   v = clamp(v, 0.01, 0.99);
   vec2 cell = vec2(mod(vRoomInfo.x, 2.0), floor(vRoomInfo.x / 2.0 + 0.01));
-  vec3 photo = texture2D(uAtlas, vec2((cell.x + u) * 0.5, (cell.y + v) / 8.0)).rgb;
+  vec3 photo = texture2D(uAtlas, vec2((cell.x + u) * 0.5, (cell.y + v) / 9.0)).rgb;
   float light = vRoomInfo.w;
   // day: rooms read darker than the street; night: lit rooms glow warm, the others go dark
   float lit = light > 0.75 ? 1.0 : 0.0;

@@ -16,7 +16,7 @@ import { Kit } from "./kit";
 import { type KitMaterials, LACE_PATTERNS, createMaterials } from "./materials";
 import { type BuildingParams, defaultParams } from "./params";
 import { PostFX } from "./postfx";
-import { buildInteriors } from "./interiors";
+import { buildInteriors, planRule } from "./interiors";
 import { type BuildingPlan, planBuilding } from "./plan";
 import { buildPlanView } from "./planView";
 import { partyWalls, roofCap, roofShape } from "./roof";
@@ -150,7 +150,7 @@ function rebuild(frame = false): void {
     wall.castShadow = wall.receiveShadow = true;
     g.add(wall);
   } else walls.geometry.dispose();
-  const inside = buildInteriors(b.rooms, params.curtainNone, params.curtainClosed, params.curtainOpen);
+  const inside = buildInteriors(b.rooms, params.curtainNone, params.curtainClosed, params.curtainOpen, planRule(plan));
   roomBoxes = new Mesh(inside.rooms, materials.interior);
   roomBoxes.userData.uncut = true;
   g.add(roomBoxes);
@@ -298,6 +298,7 @@ const levelCtrl = fInterior.add(interiorView, "level", 0, 7, 1).name("樓層（�
 fInterior.add(interiorView, "labels").name("房間名稱").onChange(update);
 fInterior.add(interiorView, "area").name("顯示面積").onChange(update);
 fInterior.add(params, "ballroom").name("宴會廳").onChange(update);
+fInterior.add(params, "ballroomFacade", { "兩排窗": "rows", "跨兩層高窗": "tall" }).name("宴會廳立面").onChange(update);
 fInterior.add(params, "apartments", { "自動": "auto", "一戶": "one", "兩戶": "two" }).name("每層戶數").onChange(update);
 fInterior.add(interiorView, "check").name("平面檢查").disable().listen();
 

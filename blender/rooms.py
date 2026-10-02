@@ -1,4 +1,4 @@
-"""Render the interior atlas (KIT_SPEC.md §7): 16 Parisian room sections modelled
+"""Render the interior atlas (KIT_SPEC.md §7): 17 Parisian room sections modelled
 here from simple parts, each rendered by a camera 16 m in front of its open
 front, so the interior shader (src/interiors.ts) can project the picture back
 into the room boxes behind the windows.
@@ -8,7 +8,7 @@ into the room boxes behind the windows.
 
 Room frame: x across (centred, width 4H), y depth from the open front (0..D),
 z up from the floor (0..H). Camera at (0, -16, H/2) looking +y; its frame
-covers 4H x H at y = 0. Atlas: 2048 x 2048, 2 columns x 8 rows of 1024 x 256
+covers 4H x H at y = 0. Atlas: 2048 x 2304, 2 columns x 9 rows of 1024 x 256
 cells; cell k at column k % 2, row k // 2 from the bottom (src/interiors.ts).
 """
 import math
@@ -572,6 +572,42 @@ def hall(r):
     daylight(r, 180)
 
 
+def grand_chandelier(r, x, y):
+    """the ballroom's crystal chandelier: two rings of lights under a crown"""
+    H = r.H
+    r.cyl("brass", x, y, H - 1.2, H, 0.02)
+    r.cyl("brass", x, y, H - 1.9, H - 1.2, 0.55, r1=0.12)
+    for ring, (rad, z, n) in enumerate(((0.6, H - 1.85, 10), (0.35, H - 1.45, 7))):
+        for k in range(n):
+            a = 2 * math.pi * (k + 0.5 * ring) / n
+            r.ball("bulb", x + rad * math.cos(a), y + rad * math.sin(a), z, 0.05)
+    r.ball("crystal", x, y, H - 2.05, 0.18)
+    r.light(x, y, H - 1.7, 380, size=1.0, kind="POINT")
+
+
+def ballroom(r):
+    """the étage noble's ballroom over two floors: mirrors between pilasters,
+    gilded cornice, parquet, chandeliers, chairs along the walls"""
+    W, D, H = r.W, r.D, r.H
+    shell(r, panels=False, doors=(-7.5, 7.5))
+    for x in (-10.5, -4.5, 0.0, 4.5, 10.5):
+        r.box("frame", x - 1.0, D - 0.06, 0.8, x + 1.0, D - 0.02, H - 1.6)
+        r.box("mirror", x - 0.9, D - 0.07, 0.9, x + 0.9, D - 0.06, H - 1.7)
+    for x in (-12.4, -9.0, -6.0, -2.25, 2.25, 6.0, 9.0, 12.4):
+        r.box("trim", x - 0.22, D - 0.22, 0, x + 0.22, D, H - 0.75)
+        r.box("frame", x - 0.3, D - 0.3, H - 0.95, x + 0.3, D, H - 0.75)
+    r.box("frame", -W / 2, D - 0.4, H - 0.75, W / 2, D, H - 0.55)
+    r.box("trim", -W / 2, D - 0.55, H - 0.55, W / 2, D, H - 0.35)
+    for x in (-11.5, -8.0, -3.4, 3.4, 8.0, 11.5):
+        r.box("sofa", x - 0.25, D - 0.75, 0.42, x + 0.25, D - 0.3, 0.48)
+        r.box("sofa", x - 0.25, D - 0.36, 0.48, x + 0.25, D - 0.3, 1.0)
+    r.box("wood_dark", -2.6, 2.4, 0.7, -0.6, 3.8, 1.0)
+    r.box("wood_dark", -2.5, 2.5, 0, -2.35, 2.65, 0.7)
+    for x in (-6.0, 0.0, 6.0):
+        grand_chandelier(r, x, 2.6)
+    daylight(r, 420)
+
+
 def bureau(r):
     shell(r, panels=False, partitions=(0.0,))
     for x in (-4.4, -2.0, 2.0, 4.4):
@@ -599,7 +635,10 @@ ROOMS = [  # (builder, height, palette)
     (boutique, 3.6, pal(wall=((0.95, 0.94, 0.92), 0.9), floor=((0.62, 0.5, 0.38), 0.35, 0, 0, 0.25))),
     (hall, 3.6, pal(wall=((0.85, 0.78, 0.62), 0.9), floor=((0.7, 0.68, 0.64), 0.25, 0, 0, 0.35))),
     (bureau, 3.6, pal(wall=((0.9, 0.9, 0.88), 0.9), floor=((0.45, 0.47, 0.5), 0.6, 0, 0, 0.2))),
+    (ballroom, 6.45, pal(wall=((0.9, 0.86, 0.76), 0.85), floor=((0.5, 0.32, 0.18), 0.3, 0, 0, 0.4),
+                          sofa=((0.6, 0.2, 0.18), 0.8), crystal=((0.95, 0.95, 1.0), 0.05, 0.0, 2.0))),
 ]
+ROWS = (len(ROOMS) + 1) // 2
 
 
 # --------------------------------------------------------------------------- render
@@ -661,12 +700,13 @@ def render_room(sc, k, builder, H, palette, tmp):
 
 
 sc = setup_scene()
-atlas = np.zeros((8 * CH, 2 * CW, 4), dtype=np.float32)
+atlas = np.zeros((ROWS * CH, 2 * CW, 4), dtype=np.float32)
 if ONLY and os.path.exists(OUT):  # re-render some cells into the existing atlas
     old = bpy.data.images.load(OUT)
     buf = np.empty(old.size[0] * old.size[1] * 4, dtype=np.float32)
     old.pixels.foreach_get(buf)
-    atlas = buf.reshape(old.size[1], old.size[0], 4).copy()
+    old_px = buf.reshape(old.size[1], old.size[0], 4)
+    atlas[:old_px.shape[0]] = old_px[:ROWS * CH]  # an atlas from before a cell was added is shorter
     bpy.data.images.remove(old)
 tmp = os.path.join(os.path.dirname(OUT), "_room_cell.png")
 for k, (builder, H, palette) in enumerate(ROOMS):
@@ -679,7 +719,7 @@ for k, (builder, H, palette) in enumerate(ROOMS):
 if os.path.exists(tmp):
     os.remove(tmp)
 atlas[..., 3] = 1.0
-out = bpy.data.images.new("interiors", 2 * CW, 8 * CH, alpha=False)
+out = bpy.data.images.new("interiors", 2 * CW, ROWS * CH, alpha=False)
 out.pixels.foreach_set(atlas.ravel())
 out.filepath_raw = OUT
 out.file_format = "JPEG"

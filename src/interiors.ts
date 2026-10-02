@@ -12,9 +12,10 @@
  * facades meeting at a corner never cross. Blender Z-up space, like the kit.
  */
 import { BufferGeometry, Float32BufferAttribute, type Matrix4, Vector3 } from "three";
+import type { BuildingPlan, PlanRoom, RoomType } from "./plan";
 import { rand } from "./rng";
 
-export type RoomKind = "upper" | "ground" | "shop_wood" | "shop_stone" | "shop_cafe" | "hall" | "attic";
+export type RoomKind = "upper" | "ground" | "shop_wood" | "shop_stone" | "shop_cafe" | "hall" | "attic" | "ballroom";
 
 export interface RoomSlot {
   /** frame of the bay module the window belongs to (Blender space) */
@@ -34,6 +35,10 @@ export interface RoomSlot {
   curtain?: { half: number; sill: number; head: number; y?: number };
   /** dormers: a short tunnel from the window back to the room front */
   tunnel?: boolean;
+  /** curtains only: the window looks into a room box made for another (the ballroom's upper row) */
+  noBox?: boolean;
+  /** the window on the floor plan: facade side, bay (-1 the pan coupé), level */
+  at?: { side: number; bay: number; level: number };
   /** stable random key */
   seed: number[];
 }
@@ -47,7 +52,37 @@ const CELLS: Record<RoomKind, number[]> = {
   shop_stone: [13, 15],
   shop_cafe: [12],
   hall: [14],
+  ballroom: [16],
 };
+
+/** what the floor plan says about the room behind a window: its atlas cells,
+ *  and whether its curtains are always drawn (INTERIOR_SPEC.md §8.3) */
+export type RoomRule = (slot: RoomSlot) => { cells: number[]; closed?: boolean } | null;
+
+/** atlas cells by the plan's room type; shops keep their front's cells */
+const VIEWS: Partial<Record<RoomType, number[]>> = {
+  salon: [0], dining: [1], bedroom: [2, 7], study: [3], kitchen: [4], vestibule: [14], stair: [14], corridor: [14],
+  concierge: [15], shopBack: [15, 6], maid: [8, 9], ballroom: [16],
+};
+
+/** the room behind each window from the floor plan (INTERIOR_SPEC.md §8.3) */
+export function planRule(plan: BuildingPlan): RoomRule {
+  const rooms = new Map(plan.rooms.map(r => [r.id, r]));
+  const behind = new Map<string, PlanRoom>();
+  for (const w of plan.windows) {
+    const r = w.room ? rooms.get(w.room) : undefined;
+    if (r) behind.set(`${w.level}|${w.side}|${w.bay}`, r);
+  }
+  const attic = plan.levels[plan.levels.length - 1].index;
+  return s => {
+    const r = s.at && behind.get(`${s.at.level}|${s.at.side}|${s.at.bay}`);
+    if (!r) return null;
+    if (r.type === "wc") return { cells: CELLS[s.kind], closed: true };
+    if (r.type === "storage") return { cells: r.level === attic ? [10] : [6] };
+    const cells = VIEWS[r.type];
+    return cells ? { cells } : null;
+  };
+}
 
 class Buffers {
   pos: number[] = [];
@@ -63,13 +98,14 @@ export interface Interiors {
 }
 
 /** curtainOpen: how far open curtains are drawn back, 0 almost meeting .. 1 bunched at the sides */
-export function buildInteriors(slots: RoomSlot[], noCurtain = 0.3, closedCurtain = 0.3, curtainOpen = 0.5): Interiors {
+export function buildInteriors(slots: RoomSlot[], noCurtain = 0.3, closedCurtain = 0.3, curtainOpen = 0.5, rule?: RoomRule): Interiors {
   const b = new Buffers();
   const cpos: number[] = [];
   const v = new Vector3();
   for (const s of slots) {
     const r = (k: number) => rand(...s.seed, 9000 + k);
-    const cells = CELLS[s.kind];
+    const plan = rule?.(s) ?? null;
+    const cells = plan?.cells ?? CELLS[s.kind];
     const cell = cells[Math.floor(r(1) * cells.length)];
     const h = s.height;
     const offset = (r(2) - 0.5) * Math.max(0, 4 * h - 2 * s.half);
@@ -91,26 +127,28 @@ export function buildInteriors(slots: RoomSlot[], noCurtain = 0.3, closedCurtain
       b.index.push(base, base + 1, base + 2, base, base + 2, base + 3);
     };
     const hw = s.half, dl = depthAt(-hw), dr = depthAt(hw);
-    quad([[-hw, dl, 0], [hw, dr, 0], [hw, dr, h], [-hw, dl, h]]); // back
-    quad([[-hw, 0, 0], [-hw, dl, 0], [-hw, dl, h], [-hw, 0, h]]); // left
-    quad([[hw, dr, 0], [hw, 0, 0], [hw, 0, h], [hw, dr, h]]); // right
-    quad([[-hw, 0, 0], [hw, 0, 0], [hw, dr, 0], [-hw, dl, 0]]); // floor
-    quad([[-hw, dl, h], [hw, dr, h], [hw, 0, h], [-hw, 0, h]]); // ceiling
-    if (s.tunnel) {
-      // dormer: walls from the window (y = 0.02) to the room front
-      const ty = 0.02 - s.y0, tx = 0.42, z0 = 0.52, z1 = 1.88;
-      quad([[-tx, ty, z0], [-tx, 0, z0], [-tx, 0, z1], [-tx, ty, z1]]);
-      quad([[tx, 0, z0], [tx, ty, z0], [tx, ty, z1], [tx, 0, z1]]);
-      quad([[-tx, ty, z0], [tx, ty, z0], [tx, 0, z0], [-tx, 0, z0]]);
-      quad([[-tx, 0, z1], [tx, 0, z1], [tx, ty, z1], [-tx, ty, z1]]);
+    if (!s.noBox) {
+      quad([[-hw, dl, 0], [hw, dr, 0], [hw, dr, h], [-hw, dl, h]]); // back
+      quad([[-hw, 0, 0], [-hw, dl, 0], [-hw, dl, h], [-hw, 0, h]]); // left
+      quad([[hw, dr, 0], [hw, 0, 0], [hw, 0, h], [hw, dr, h]]); // right
+      quad([[-hw, 0, 0], [hw, 0, 0], [hw, dr, 0], [-hw, dl, 0]]); // floor
+      quad([[-hw, dl, h], [hw, dr, h], [hw, 0, h], [-hw, 0, h]]); // ceiling
+      if (s.tunnel) {
+        // dormer: walls from the window (y = 0.02) to the room front
+        const ty = 0.02 - s.y0, tx = 0.42, z0 = 0.52, z1 = 1.88;
+        quad([[-tx, ty, z0], [-tx, 0, z0], [-tx, 0, z1], [-tx, ty, z1]]);
+        quad([[tx, 0, z0], [tx, ty, z0], [tx, ty, z1], [tx, 0, z1]]);
+        quad([[-tx, ty, z0], [tx, ty, z0], [tx, 0, z0], [-tx, 0, z0]]);
+        quad([[-tx, 0, z1], [tx, 0, z1], [tx, ty, z1], [-tx, ty, z1]]);
+      }
     }
 
     // voile curtains: none, drawn closed, or open in two panels
     if (s.curtain) {
-      const u = r(10);
+      const u = plan?.closed ? noCurtain : r(10);
       if (u < noCurtain) continue;
       const c = s.curtain;
-      const open = u >= noCurtain + closedCurtain;
+      const open = !plan?.closed && u >= noCurtain + closedCurtain;
       const panels: [number, number][] = open
         ? (() => {
           // each panel covers half the window less the drawn-back share, varied per side
