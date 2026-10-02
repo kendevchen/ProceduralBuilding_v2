@@ -112,6 +112,8 @@ export function defaultParams(): BuildingParams {
     shutterClosed: 0.03, shutterHalf: 0.03,
     curtainNone: 0.5, curtainClosed: 0, curtainOpen: 0.5, windowOpen: 1, windowDir: "in", windowAngle: 75,
     stone: "#ffffff", paint: "#22382f", shutter: "#c9c5ba", awning: "#8c2b2b", lace: 2,
-    ballroom: true, ballroomFacade: "rows", apartments: "auto", facade: {},
+    ballroom: true, ballroomFacade: "rows", apartments: "auto",
+    // the ground floor's left corner (the study): its curtains always there, drawn fully back
+    facade: { "0|0|g": { curtain: "open", curtainOpen: 1 } },
   };
 }

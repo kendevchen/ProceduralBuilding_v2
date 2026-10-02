@@ -11,7 +11,7 @@ import {
   type Object3D, type Plane, Ray, Raycaster, Vector2, Vector3,
 } from "three";
 import type { Building, WindowSlot } from "./generator";
-import type { BuildingParams, WindowOverride } from "./params";
+import { type BuildingParams, type WindowOverride, defaultParams } from "./params";
 
 const AUTO = "auto";
 const SIDES = ["正面", "右側", "背面", "左側"];
@@ -97,7 +97,7 @@ export class WindowEditor {
 
   /** forget every window's own settings */
   clearAll(): void {
-    this.host.params.facade = {};
+    this.host.params.facade = defaultParams().facade; // back to the defaults, not to nothing
     this.host.rebuild();
   }
 
