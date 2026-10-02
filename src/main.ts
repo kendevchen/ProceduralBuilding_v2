@@ -23,6 +23,7 @@ import { partyWalls, roofCap, roofShape } from "./roof";
 import { type CutAxis, type CutMode, Cutaway } from "./cutaway";
 import { buildRooms3d } from "./rooms3d";
 import { RoomLabels } from "./roomLabels";
+import { buildStairs } from "./stairs";
 import { Toolbar } from "./toolbar";
 
 const renderer = new WebGLRenderer({ antialias: true, powerPreference: "high-performance", logarithmicDepthBuffer: true });
@@ -157,6 +158,8 @@ function rebuild(frame = false): void {
   curtains.receiveShadow = true;
   g.add(curtains);
   interior = buildRooms3d(plan, b, kit, cutaway.interior);
+  // the stairs' railing: the kit's first lace pattern (欄杆與圓環)
+  interior.add(buildStairs(plan, cutaway.interior, cutaway.cut(materials.lace(0)), materials.laceDepth(0)));
   g.add(interior);
   g.position.set(-b.width / 2, -b.length / 2, 0); // footprint centred on the origin
   show(g, new Vector3(0, cap.top / 2, 0), Math.hypot(b.width, b.length, cap.top) / 2);
@@ -425,8 +428,9 @@ if (import.meta.env.DEV) {
   Object.assign(window, {
     __app: {
       camera, controls, params, view, interiorView, rebuild, scene, renderer, env, planCheckAll,
-      cut, cutaway, toolbar, applyCut, frameHome,
+      cut, cutaway, toolbar, applyCut, frameHome, bounds, site,
       get plan() { return lastPlan; },
+      get kit() { return kit; },
     },
   });
 }

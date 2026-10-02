@@ -27,7 +27,7 @@ const DOWN = new Vector3(0, 0, -1);
 const GAP = 0.002;
 
 /** triangles of one material, each turned to face a given way */
-class Tris {
+export class Tris {
   pos: number[] = [];
   private ab = new Vector3();
   private ac = new Vector3();
@@ -67,6 +67,11 @@ export interface InteriorMaterials {
   ceiling: Material;
   /** faces inside a floor slab, seen only through a cut: the section colour on both sides */
   section: Material;
+  /** the stairs (stairs.ts): steps, landings and stringer; the main stair's runner; railing bars; handrail */
+  stair: Material;
+  carpet: Material;
+  iron: Material;
+  wood: Material;
 }
 
 const area = (p: V2[]) => p.reduce((s, q, i) => s + q[0] * p[(i + 1) % p.length][1] - p[(i + 1) % p.length][0] * q[1], 0) / 2;

@@ -44,7 +44,13 @@
     "bands": { "front": 5.6, "back": 4.4, "minFront": 3.8, "minBack": 3.0, "minCore": 2.0, "maxCore": 6.5, "double": 9.0, "core": 14.4, "endCell": 2.0 },
     "flatWindows": 3,
     "wcSplit": { "area": 9.0, "width": 1.5 },
-    "stair": { "minDepth": 3.4, "maxDepth": 5.6 },
+    "stair": {
+      "_doc": "landing: where doors may open on a cage's side walls, from its front (wall centre line); the flights wind round a well whose far end is a half circle. depth: of a cage (wall centre lines), what the main stair takes / the least a service stair takes; main.minDepth: the main cage may be this short to leave a room beside it; maxDepth: beyond it a room is split off behind. riser / going: limits per step (going measured on the walking line, walkOffset from the well's edge); flight: width range, the narrower when the cage is short. soffit: thickness under the steps; rail: handrail height.",
+      "maxDepth": 5.6, "landing": 1.25,
+      "main": { "depth": 4.7, "minDepth": 4.4, "flight": [0.85, 1.1], "well": 0.8, "maxRiser": 0.18, "going": [0.26, 0.32], "goingTarget": 0.29 },
+      "service": { "depth": 3.4, "flight": [0.75, 0.85], "well": 0.8, "maxRiser": 0.19, "going": [0.22, 0.32], "goingTarget": 0.25 },
+      "walkOffset": 0.5, "soffit": 0.12, "rail": 0.9
+    },
     "ballroom": { "minBays": 2, "maxBays": 4 },
     "twoFlatsBays": 7,
     "serviceStair": { "bays": 6, "depth": 13.0 },

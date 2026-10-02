@@ -131,6 +131,42 @@ export interface PlanStair {
   /** first and last level served */
   from: number;
   to: number;
+  layout: StairLayout;
+}
+
+/**
+ * A stair winding round a well (INTERIOR_SPEC.md §7): every floor has its
+ * landing along the cage's front (its y0 side); a flight leaves the landing up
+ * the left side, turns round the well's half-round far end and climbs back
+ * along the right side to the landing above, half a turn per floor. Lengths
+ * along the walking line, which runs `walkOffset` from the well's edge.
+ */
+export interface StairLayout {
+  /** clear rectangle of the cage: x0, y0, x1, y1 */
+  rect: [number, number, number, number];
+  /** width of a flight; depth of the landings from y0; radius of the well's end */
+  flight: number;
+  landing: number;
+  wellRadius: number;
+  walkOffset: number;
+  /** the walking line's length per turn, and of each straight side */
+  walk: number;
+  straight: number;
+  flights: StairFlight[];
+}
+
+export interface StairFlight {
+  /** the level it rises from, its foot and head (Blender z) */
+  level: number;
+  z0: number;
+  z1: number;
+  risers: number;
+  riser: number;
+  /** tread depth on the walking line */
+  going: number;
+  /** where the steps begin and end on the walking line; before and after them the landings reach on */
+  start: number;
+  end: number;
 }
 
 export interface BuildingPlan {
@@ -251,6 +287,8 @@ interface Grid {
   /** cells of the main stair, of the service stair */
   cage: number[];
   service: number[] | null;
+  /** deep plans: the central-zone cells of the passage between the two corridors */
+  cross: number[];
   ballroom: number[];
   bays: FacadeBay[];
 }
@@ -348,40 +386,71 @@ function buildGrid(b: Building, p: BuildingParams): Grid {
   const column = (ci: number) => cells.filter(c => c.col === ci).sort((u, v) => u.y0 - v.y0);
   const depth = (cs: Cell[]) => cs.length ? cs[cs.length - 1].y1 - cs[0].y0 : 0;
 
-  // main stair: behind the entrance, from the corridor back (INTERIOR_SPEC.md §5.3)
+  // main stair: behind the entrance (INTERIOR_SPEC.md §5.3), deep enough for a
+  // turn of the stair from floor to floor
   const mainCol = b.door >= 0 ? colOf(s0.x0 + BAY * (b.door + 0.5)) : Math.floor(cols.length / 2);
   const middle = cols[mainCol].end === null;
   const mc = column(mainCol);
-  // (a column of a single cell: the stair takes it all)
-  const rest = mc.length > 1 ? mc.slice(1) : mc;
+  const { depth: need, minDepth } = I.stair.main;
+  /** the least a room split off beside the cage must keep */
+  const spare = I.minRoom.bedroom + I.walls.cage / 2;
   const cage: Cell[] = [];
-  const k0 = middle ? Math.max(0, rest.findIndex(c => c.zone === "corridor")) : 0;
-  for (const c of rest.slice(k0)) {
-    cage.push(c);
-    if (depth(cage) >= I.stair.minDepth - EPS) break;
-  }
-  // a cage much deeper than the stair needs leaves a room behind it
-  const last = cage[cage.length - 1];
-  if (middle && depth(cage) > I.stair.maxDepth + EPS) {
-    const y0 = cage[0].y0;
-    const ys = Math.min(y0 + I.stair.maxDepth, last.y1 - 2.4);
-    if (ys >= y0 + I.stair.minDepth - EPS && ys > last.y0 + 0.5) {
+  const k0 = mc.findIndex(c => c.zone === "corridor");
+  if (k0 >= 0) {
+    // from the corridor back; much deeper than the stair needs, it leaves a room behind it
+    for (const c of mc.slice(k0)) {
+      cage.push(c);
+      if (depth(cage) >= need - EPS) break;
+    }
+    const last = cage[cage.length - 1];
+    const ys = Math.min(cage[0].y0 + I.stair.maxDepth, last.y1 - spare);
+    if (middle && depth(cage) > I.stair.maxDepth + EPS && ys >= cage[0].y0 + minDepth - EPS && ys > last.y0 + 0.5) {
       cells.push({ ...last, id: cells.length, y0: ys });
       last.y1 = ys;
     }
+  } else if (!middle) {
+    // along a side facade the rows stay as they are: from the back as many as it needs
+    for (const c of [...mc].reverse()) {
+      cage.unshift(c);
+      if (depth(cage) >= need - EPS) break;
+    }
+  } else {
+    // no corridor: at the back, the rest of the column in front a room, where
+    // the landing still opens onto a room of each next column; else from the
+    // facade (the entrance opens into the stairs), a room behind if it fits
+    const bottom = mc[0].y0, top = mc[mc.length - 1].y1;
+    const sides = [mainCol - 1, mainCol + 1].filter(ci => ci >= 0 && ci < cols.length);
+    const opens = (y: number) => sides.every(ci => column(ci).some(c => c.y0 <= y + EPS && c.y1 >= y + I.stair.landing - EPS));
+    // depths that leave a room, nearest the stair's own first
+    const depths: number[] = [];
+    for (let d = minDepth; d <= top - bottom - spare + EPS; d += 0.025) depths.push(d);
+    depths.sort((p, q) => Math.abs(p - need) - Math.abs(q - need));
+    const back = depths.find(d => opens(top - d));
+    const [y0, y1] = back !== undefined ? [top - back, top] : depths.length ? [bottom, bottom + depths[0]] : [bottom, top];
+    for (const y of [y0, y1]) {
+      const c = column(mainCol).find(o => o.y0 < y - EPS && o.y1 > y + EPS);
+      if (!c) continue;
+      cells.push({ ...c, id: cells.length, y0: y });
+      c.y1 = y;
+    }
+    cage.push(...column(mainCol).filter(c => c.y0 >= y0 - EPS && c.y1 <= y1 + EPS));
   }
-  // a corridor right behind the cage ends at it too, like the one in front
-  if (middle) {
-    const col = column(mainCol);
-    const next = col[col.indexOf(cage[cage.length - 1]) + 1];
-    if (next && next.zone === "corridor") cage.push(next);
+  // deep plans: a passage beside the stairs through the central zone joins the
+  // two corridors (the stairs open on the front one only, at their landings);
+  // on both sides when the stairs cut the second corridor
+  let cross: number[] = [];
+  if (cells.some(c => c.zone === "core")) {
+    const sides = [mainCol - 1, mainCol + 1].filter(ci => ci >= 0 && ci < cols.length && cols[ci].end === null);
+    const cut = cage.filter(c => c.zone === "corridor").length > 1;
+    const pick = cut ? sides : sides.length ? [sides[Math.floor(rand(p.seed, PURPOSE.planService, 1) * sides.length)]] : [];
+    cross = pick.flatMap(ci => column(ci).filter(c => c.zone === "core").map(c => c.id));
   }
 
   // service stair: in big buildings, at the back far from the main one
   let service: number[] | null = null;
   if (p.baysX >= I.serviceStair.bays || L - 2 * T >= I.serviceStair.depth - EPS) {
     const cand = cells.filter(c => c.zone === "back" && cols[c.col].end === null && Math.abs(c.col - mainCol) >= 2 &&
-      !cage.includes(c) && c.y1 - c.y0 >= I.stair.minDepth - EPS);
+      !cage.includes(c) && c.y1 - c.y0 >= I.stair.service.depth - EPS);
     if (cand.length) {
       const far = Math.max(...cand.map(c => Math.abs(c.col - mainCol)));
       const pick = cand.filter(c => Math.abs(c.col - mainCol) === far);
@@ -400,7 +469,7 @@ function buildGrid(b: Building, p: BuildingParams): Grid {
     if (s.diag) bays.push({ side: si, bay: -1, frame: s.diag.frame, x: 0, info: s.diag });
   });
   const inner = insetEdges(b.footprint, b.footprint.map(() => T))!;
-  return { W, L, cols, cells, inner, mainCol, cage: cage.map(c => c.id), service, ballroom, bays };
+  return { W, L, cols, cells, inner, mainCol, cage: cage.map(c => c.id), service, cross, ballroom, bays };
 }
 
 // ------------------------------------------------------------------ levels
@@ -475,6 +544,18 @@ function shared(a: Rect, b: Rect): number {
 }
 const rectOf = (u: Unit): Rect => [u.x0, u.y0, u.x1, u.y1];
 const touching = (a: Unit, b: Unit) => shared(rectOf(a), rectOf(b)) > 0.5;
+
+/** how far from its front a stair may have doors on its side walls: a cage
+ *  deeper than its stair needs has room for them further back on its landing */
+const landingReach = (s: Unit, main: boolean) => I.stair.landing + Math.max(0, s.y1 - s.y0 - I.stair[main ? "main" : "service"].depth);
+
+/** the length of wall a unit shares with a stair where the stair may have a
+ *  door: its front wall, and its side walls beside the landing */
+function stairOpening(u: Unit, s: Unit, reach: number): number {
+  if (Math.abs(u.y1 - s.y0) < EPS) return Math.max(0, Math.min(u.x1, s.x1) - Math.max(u.x0, s.x0));
+  if (Math.abs(u.x1 - s.x0) < EPS || Math.abs(u.x0 - s.x1) < EPS) return Math.max(0, Math.min(u.y1, s.y0 + reach) - Math.max(u.y0, s.y0));
+  return 0;
+}
 
 interface Floor {
   units: Unit[];
@@ -589,7 +670,10 @@ function program(ctx: Ctx, groupCells: Set<number>, apt: number) {
       const other = cand.filter(u => Math.sign(cx(u) - mx) !== Math.sign(cx(k) - mx));
       if (other.length) cand = other;
     }
-    const wc = dry[0] ?? cand[0] ?? mine().find(u => !front(u));
+    // with only street rooms left, the smallest of them (when a bedroom remains)
+    const size = (u: Unit) => (u.x1 - u.x0) * (u.y1 - u.y0);
+    const rest = mine().sort((a, b) => size(a) - size(b));
+    const wc = dry[0] ?? cand[0] ?? mine().find(u => !front(u)) ?? (rest.length > 1 ? rest[0] : undefined);
     if (wc) {
       set(wc, "wc");
       // a whole windowless bay is far more than a WC needs: the rest is a storeroom
@@ -648,8 +732,10 @@ function layoutFloor(g: Grid, b: Building, p: BuildingParams, lv: PlanLevel, win
   const cageX = cx(cageUnit);
   /** -1 left of the main stair, 1 right of it, 0 in its column */
   const sideOf = (u: Unit) => (u.x1 <= cageUnit.x0 + EPS ? -1 : u.x0 >= cageUnit.x1 - EPS ? 1 : 0);
-  // corridors, one each side of the main stair
-  for (const u of ctx.units) if (u.type === null && u.cells[0].zone === "corridor") u.type = "corridor";
+  // corridors, one each side of the main stair, and the passage between them in deep plans
+  for (const u of ctx.units) {
+    if (u.type === null && (u.cells[0].zone === "corridor" || g.cross.includes(u.cells[0].id))) u.type = "corridor";
+  }
   mergeRuns(ctx, "corridor", (a, c) => sideOf(a) === sideOf(c));
 
   if (lv.cls === "G") {
@@ -674,15 +760,24 @@ function layoutFloor(g: Grid, b: Building, p: BuildingParams, lv: PlanLevel, win
       const c = nb.length ? nb : any;
       if (c.length) c[Math.floor(rand(p.seed, PURPOSE.plan, 7) * c.length)].type = "concierge";
     }
-    // rooms the shops cut off from the stairs and corridors go with the shops (or are storage)
-    const circ = ctx.units.filter(u => u.type === "corridor" || u.type === "stair" || u.type === "vestibule");
+    // what the stairs and the entrance hall lead to through corridors and rooms
+    // (a stair opens only at its landing); rooms the shops cut off go with the
+    // shops (or are storage)
+    const wide = I.doors.single[0] + 0.3;
+    const open = (u: Unit, v: Unit) => {
+      if (u.type === "stair" || v.type === "stair") {
+        const [s, o] = u.type === "stair" ? [u, v] : [v, u];
+        return stairOpening(o, s, landingReach(s, s === cageUnit)) >= wide;
+      }
+      return shared(rectOf(u), rectOf(v)) >= wide;
+    };
     const free = ctx.units.filter(u => u.type === null);
-    const open = (u: Unit, v: Unit) => shared(rectOf(u), rectOf(v)) >= I.doors.single[0] + 0.3;
-    const linked = new Set(free.filter(u => circ.some(c => open(u, c))));
+    const linked = new Set(ctx.units.filter(u => u.type === "stair" || u.type === "vestibule"));
     for (let grew = true; grew;) {
       grew = false;
-      for (const u of free) {
-        if (!linked.has(u) && [...linked].some(v => open(u, v))) {
+      for (const u of ctx.units) {
+        if (linked.has(u) || (u.type !== null && u.type !== "corridor")) continue;
+        if ([...linked].some(v => open(u, v))) {
           linked.add(u);
           grew = true;
         }
@@ -809,7 +904,8 @@ interface WallBuild {
   wall: PlanWall;
 }
 
-function connect(units: Unit[], voids: Rect[], lv: PlanLevel, cageX: number): WallBuild[] {
+/** `landing`: how far from its front a stair may have doors on its side walls */
+function connect(units: Unit[], voids: Rect[], lv: PlanLevel, cageX: number, landing: (stair: Unit) => number): WallBuild[] {
   const walls: WallBuild[] = edgesOf(units, voids).map(edge => {
     const kind = wallKind(edge);
     return {
@@ -823,6 +919,16 @@ function connect(units: Unit[], voids: Rect[], lv: PlanLevel, cageX: number): Wa
   const linked = new Set<string>();
   const key = (a: Unit, b: Unit) => [a.id, b.id].sort().join("|");
   type DoorKind = keyof typeof I.doors;
+  /** the stretch of a wall (from its start) a door may take: a stair opens only
+   *  at its landing, on the front wall or the side walls beside the landing */
+  const span = (w: WallBuild, a: Unit, b: Unit): [number, number] => {
+    const { a: p, b: q } = w.wall;
+    const len = Math.hypot(q[0] - p[0], q[1] - p[1]);
+    const s = a.type === "stair" ? a : b.type === "stair" ? b : null;
+    if (!s) return [0, len];
+    if (Math.abs(p[1] - q[1]) < EPS) return Math.abs(p[1] - s.y0) < EPS ? [0, len] : [0, 0];
+    return [Math.max(0, s.y0 - p[1]), Math.max(0, Math.min(len, s.y0 + landing(s) - p[1]))];
+  };
   /** a door on the wall between a and b; mode front: near the street facade
    *  (enfilade), near: close to the stairs, else in the middle */
   const door = (a: Unit, b: Unit, kind: DoorKind, mode: "front" | "near" | "middle"): boolean => {
@@ -832,21 +938,24 @@ function connect(units: Unit[], voids: Rect[], lv: PlanLevel, cageX: number): Wa
     // clear of the walls it meets; a landing door may fill a corridor's whole end
     const margin = kind === "landing" ? I.walls.spine / 2 : 0.15;
     let best: WallBuild | null = null;
-    let bestLen = 0;
+    let room: [number, number] = [0, 0];
     for (const w of cand) {
-      const len = Math.hypot(w.wall.b[0] - w.wall.a[0], w.wall.b[1] - w.wall.a[1]);
-      if (len >= width + 2 * margin - 1e-6 && len > bestLen) [best, bestLen] = [w, len];
+      const [s0, s1] = span(w, a, b);
+      if (s1 - s0 >= width + 2 * margin - 1e-6 && s1 - s0 > room[1] - room[0]) [best, room] = [w, [s0, s1]];
     }
     if (!best) return false;
     const { a: p, b: q } = best.wall;
-    const lo = width / 2 + margin, hi = bestLen - width / 2 - margin;
-    let at = bestLen / 2;
+    const bestLen = Math.hypot(q[0] - p[0], q[1] - p[1]);
+    const lo = room[0] + width / 2 + margin, hi = room[1] - width / 2 - margin;
+    let at = (room[0] + room[1]) / 2;
     if (mode === "front" && p[0] === q[0]) at = T + 0.9 + width / 2 - p[1];
     if (mode === "near") {
       // the end nearer the stairs (the end towards the street for walls across the plan)
       const along = p[1] === q[1] ? (Math.abs(p[0] - cageX) < Math.abs(q[0] - cageX) ? 0 : bestLen) : 0;
       at = along === 0 ? lo + 0.15 : hi - 0.15;
     }
+    // on a stair's side wall as near its front as it goes, so the landing stays short
+    if (p[0] === q[0] && (a.type === "stair" || b.type === "stair")) at = lo;
     at = Math.min(hi, Math.max(lo, at));
     best.wall.openings.push({ at, width, height });
     linked.add(key(a, b));
@@ -920,14 +1029,23 @@ function connect(units: Unit[], voids: Rect[], lv: PlanLevel, cageX: number): Wa
     const wide = RECEPTION.has(t) && RECEPTION.has(w);
     if (!(wide && door(best.u, best.v, "double", "near")) && !door(best.u, best.v, "single", "near")) failed.add(key(best.u, best.v));
   }
-  // a room still cut off on the ground floor goes to the shop next to it
-  const seen = reached();
-  for (const u of units) {
-    if (seen.has(u) || lv.cls !== "G") continue;
-    const shop = neighbours(u).find(v => v.type === "shop");
-    if (shop && door(u, shop, "single", "middle")) {
-      u.type = "shopBack";
-      u.apartment = null;
+  // rooms still cut off on the ground floor go to the shop next to them, or
+  // to its back rooms (one after another)
+  for (let grew = lv.cls === "G"; grew;) {
+    grew = false;
+    const seen = reached();
+    for (const u of units) {
+      if (seen.has(u)) continue;
+      const shop = neighbours(u).find(v => seen.has(v) && (v.type === "shop" || v.type === "shopBack") && !failed.has(key(u, v)));
+      if (!shop) continue;
+      if (door(u, shop, "single", "middle")) {
+        u.type = "shopBack";
+        u.apartment = null;
+        grew = true;
+        break;
+      }
+      failed.add(key(u, shop));
+      grew = true;
     }
   }
   return walls;
@@ -946,13 +1064,15 @@ export function planBuilding(b: Building, p: BuildingParams): BuildingPlan {
   let ballroomId: string | null = null;
   let ballroomPoly: V2[] = [];
   let mainPoly: V2[] = [], servicePoly: V2[] = [];
+  /** every floor's room of each stair, for the doors on their landings */
+  const stairRooms: Record<PlanStair["kind"], PlanRoom[]> = { main: [], service: [] };
 
   for (const lv of levels) {
     const floor = layoutFloor(g, b, p, lv, windows, ballroomLevel);
     const units = floor.units.sort((a, c) => a.y0 - c.y0 || a.x0 - c.x0);
     units.forEach((u, k) => (u.id = `${lv.name}-${String(k + 1).padStart(2, "0")}`));
     const cage = units.find(u => u.cells.some(c => c.id === g.cage[0]))!;
-    const built = connect(units, floor.voids, lv, cx(cage));
+    const built = connect(units, floor.voids, lv, cx(cage), s => landingReach(s, s === cage));
     const base = walls.length;
     walls.push(...built.map(w => w.wall));
     for (const u of units) {
@@ -983,8 +1103,11 @@ export function planBuilding(b: Building, p: BuildingParams): BuildingPlan {
         ballroomId = room.id;
         ballroomPoly = polygon;
       }
-      if (lv.index === 0 && u === cage) mainPoly = polygon;
-      if (lv.index === 0 && g.service && u.cells.some(c => c.id === g.service![0])) servicePoly = polygon;
+      if (type === "stair") {
+        const kind = u === cage ? "main" : "service";
+        stairRooms[kind].push(room);
+        if (lv.index === 0) [mainPoly, servicePoly] = kind === "main" ? [polygon, servicePoly] : [mainPoly, polygon];
+      }
     }
     if (floor.voids.length && ballroomId) {
       voids.push({ level: lv.index, polygon: ballroomPoly });
@@ -1000,11 +1123,71 @@ export function planBuilding(b: Building, p: BuildingParams): BuildingPlan {
     }
   }
   const top = levels[levels.length - 1].index;
-  const stairs: PlanStair[] = [{ kind: "main", polygon: mainPoly, from: 0, to: g.service ? top - 1 : top }];
-  if (g.service) stairs.push({ kind: "service", polygon: servicePoly, from: 0, to: top });
+  const stair = (kind: PlanStair["kind"], polygon: V2[], to: number): PlanStair => {
+    // the landing reaches past the doors on the cage's side walls
+    let doorEdge = -Infinity;
+    for (const r of stairRooms[kind]) {
+      for (const d of r.doors) {
+        const w = walls[d.wall];
+        if (Math.abs(w.a[0] - w.b[0]) > EPS) continue;
+        const dy = Math.sign(w.b[1] - w.a[1]);
+        doorEdge = Math.max(doorEdge, w.a[1] + dy * (d.at - d.width / 2), w.a[1] + dy * (d.at + d.width / 2));
+      }
+    }
+    return { kind, polygon, from: 0, to, layout: layoutStair(kind, polygon, doorEdge, levels, 0, to) };
+  };
+  const stairs: PlanStair[] = [stair("main", mainPoly, g.service ? top - 1 : top)];
+  if (g.service) stairs.push(stair("service", servicePoly, top));
   const plan: BuildingPlan = { width: g.W, length: g.L, inner: g.inner, levels, rooms, walls, windows, stairs, voids, issues: [] };
   plan.issues = checkPlan(plan);
   return plan;
+}
+
+/**
+ * Fit a stair into its cage (INTERIOR_SPEC.md §7.1): flights round a well of
+ * about the set width; the landing deep enough for a flight's width and for the
+ * doors on the side walls; then per floor the fewest risers within the limit,
+ * and treads of the target going as far as the walking line is long enough.
+ * What is left of the line lengthens the landings on both sides (the end of the
+ * flight below, the start of the one above). Narrower flights make the walking
+ * line longer: the widest that give every floor the target going, else the
+ * narrowest.
+ */
+function layoutStair(kind: PlanStair["kind"], poly: V2[], doorEdge: number, levels: PlanLevel[], from: number, to: number): StairLayout {
+  const S = I.stair, K = S[kind];
+  const xs = poly.map(p => p[0]), ys = poly.map(p => p[1]);
+  const rect: Rect = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  const W = rect[2] - rect[0], D = rect[3] - rect[1];
+  const fit = (flight: number): StairLayout => {
+    const wellRadius = Math.max(0.05, W / 2 - flight);
+    const landing = Math.max(flight + 0.05, doorEdge - rect[1] + 0.1);
+    const walkOffset = Math.min(S.walkOffset, flight / 2);
+    const straight = Math.max(0, D - landing - flight - wellRadius);
+    const walk = 2 * straight + Math.PI * (wellRadius + walkOffset);
+    const flights: StairFlight[] = [];
+    for (let k = from; k < to; k++) {
+      const z0 = levels[k].floorZ, z1 = levels[k + 1].floorZ;
+      const risers = Math.ceil((z1 - z0) / K.maxRiser - 1e-9);
+      const treads = risers - 1;
+      let going = Math.min(K.goingTarget, walk / treads);
+      let start = (walk - treads * going) / 2;
+      // the steps stay on the straight sides' far parts and round the end
+      if (start > straight) {
+        start = straight;
+        going = (walk - 2 * start) / treads;
+      }
+      flights.push({ level: k, z0, z1, risers, riser: (z1 - z0) / risers, going, start, end: start + treads * going });
+    }
+    return { rect, flight, landing, wellRadius, walkOffset, walk, straight, flights };
+  };
+  const shortest = (l: StairLayout) => Math.min(...l.flights.map(f => f.going));
+  let best: StairLayout | null = null;
+  for (let f = Math.min(K.flight[1], Math.max(K.flight[0], (W - K.well) / 2)); f >= K.flight[0] - 1e-9; f -= 0.025) {
+    const l = fit(f);
+    if (!best || shortest(l) > shortest(best) + 1e-9) best = l;
+    if (shortest(l) >= K.goingTarget - 1e-9) return l;
+  }
+  return best!;
 }
 
 // ------------------------------------------------------------------ checks
@@ -1060,6 +1243,17 @@ export function checkPlan(plan: BuildingPlan): string[] {
     if (small < min - 0.01) issues.push(`${name(r.level)}：${r.name} ${r.id} 太小（${small.toFixed(2)} m）`);
     if (r.type === "stair" && (small < M.stair[0] - 0.01 || big < M.stair[1] - 0.01)) {
       issues.push(`${name(r.level)}：樓梯間 ${r.id} 太小（${w.toFixed(2)} × ${h.toFixed(2)} m）`);
+    }
+  }
+  // the steps: risers and goings within the limits
+  for (const s of plan.stairs) {
+    const K = I.stair[s.kind];
+    const nm = s.kind === "main" ? "主樓梯" : "服務樓梯";
+    for (const f of s.layout.flights) {
+      if (f.riser > K.maxRiser + 1e-6) issues.push(`${name(f.level)}：${nm}踏步太高（${f.riser.toFixed(3)} m）`);
+      if (f.going < K.going[0] - 1e-6 || f.going > K.going[1] + 1e-6) {
+        issues.push(`${name(f.level)}：${nm}踏面 ${f.going.toFixed(3)} m 不在 ${K.going[0]}–${K.going[1]} m 之間`);
+      }
     }
   }
   // every flat has the essentials
