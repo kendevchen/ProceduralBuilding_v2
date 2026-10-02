@@ -75,9 +75,24 @@ export class WindowEditor {
     this.building = b;
     if (group) group.add(this.outline);
     const key = this.selected?.key;
-    this.selected = null;
     const slot = key ? b?.windows.find(w => w.key === key) ?? null : null;
+    if (slot && this.folder) {
+      // the same window: keep its folder, so a slider being dragged goes on working
+      this.selected = slot;
+      this.place(slot);
+      return;
+    }
+    this.selected = null;
     this.select(slot, false);
+  }
+
+  /** the outline round a window's opening */
+  private place(slot: WindowSlot): void {
+    const pad = 0.08;
+    const box = new Matrix4().makeTranslation(0, -0.03, (slot.z0 + slot.z1) / 2)
+      .multiply(new Matrix4().makeScale(2 * (slot.half + pad), 0.3, slot.z1 - slot.z0 + 2 * pad));
+    this.outline.matrix.copy(slot.matrix).multiply(box);
+    this.outline.matrixWorldNeedsUpdate = true;
   }
 
   /** forget every window's own settings */
@@ -132,11 +147,7 @@ export class WindowEditor {
     this.folder = null;
     this.outline.visible = !!slot;
     if (!slot) return;
-    const pad = 0.08;
-    const box = new Matrix4().makeTranslation(0, -0.03, (slot.z0 + slot.z1) / 2)
-      .multiply(new Matrix4().makeScale(2 * (slot.half + pad), 0.3, slot.z1 - slot.z0 + 2 * pad));
-    this.outline.matrix.copy(slot.matrix).multiply(box);
-    this.outline.matrixWorldNeedsUpdate = true;
+    this.place(slot);
     this.buildFolder(slot);
   }
 
@@ -177,7 +188,7 @@ export class WindowEditor {
       plain("window", "窗戶");
       plain("dir", "開窗方向");
       state.angle = own().angle ?? p.windowAngle;
-      f.add(state, "angle", 10, 110, 1).name("開窗角度 °").onFinishChange((v: number) => set({ angle: v }));
+      f.add(state, "angle", 10, 110, 1).name("開窗角度 °").onChange((v: number) => set({ angle: v }));
     } else if (slot.kind === "ground") {
       plain("ground", "一樓窗");
     } else if (slot.kind === "door") {
@@ -186,7 +197,7 @@ export class WindowEditor {
     if (slot.kind !== "door" && slot.kind !== "shop") {
       plain("curtain", "窗簾");
       state.curtainOpen = own().curtainOpen ?? p.curtainOpen;
-      f.add(state, "curtainOpen", 0, 1, 0.01).name("窗簾拉開程度").onFinishChange((v: number) => set({ curtainOpen: v }));
+      f.add(state, "curtainOpen", 0, 1, 0.01).name("窗簾拉開程度").onChange((v: number) => set({ curtainOpen: v }));
     }
     if (slot.kind === "shop") f.add({ note: "店面沒有個別設定" }, "note").name("說明").disable();
 
@@ -202,7 +213,12 @@ export class WindowEditor {
     const actions = {
       column: () => copyTo(k => k[0] === side && k[1] === bay),
       row: () => copyTo(k => k[0] === side && k[2] === row),
-      reset: () => set(Object.fromEntries(Object.keys(own()).map(k => [k, undefined]))),
+      reset: () => {
+        set(Object.fromEntries(Object.keys(own()).map(k => [k, undefined])));
+        // the controls show the global settings again
+        this.folder?.destroy();
+        this.buildFolder(this.selected ?? slot);
+      },
       close: () => this.select(null),
     };
     if (slot.kind === "upper") f.add(actions, "column").name("套用到整欄（所有樓層）");
