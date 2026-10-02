@@ -32,9 +32,9 @@
   "terrasson": { "pitchDeg": 18, "maxRun": 3.0, "minFlat": 1.0 },
   "room": { "width": 2.9, "maxDepth": 4.6 },
   "street": {
-    "_doc": "Sidewalk and street trees (src/streetlife.ts), in metres. width: sidewalk depth from the facade; top: height of the paving; curb / curbRise: width of the granite kerb at the edge and how far it stands above the paving; gutter: width of the cobbled gutter outside it; tree.offset: trunk distance from the facade as a share of the width; tree.spacing: between trunks; tree.scale: the trees are modelled 1.9 m tall and scaled by this; tree.clear: no trunk this close to the front door; tree.grate / tree.ring: radius of the iron tree grille and the width of the cobbles round it.",
+    "_doc": "Sidewalk and street trees (src/streetlife.ts), in metres. width: sidewalk depth from the facade; top: height of the paving; curb / curbRise: width of the granite kerb at the edge and how far it stands above the paving; gutter: width of the cobbled gutter outside it; tree.offset: trunk distance from the facade as a share of the width; tree.count: trees along each street facade by default; tree.scale: the trees are modelled 1.9 m tall and scaled by this; tree.clear: no trunk this close to the front door; tree.grate / tree.ring: radius of the iron tree grille and the width of the cobbles round it.",
     "width": 4.0, "top": 0.1, "curb": 0.25, "curbRise": 0.04, "gutter": 0.3,
-    "tree": { "offset": 0.66, "spacing": 6.0, "scale": 2.6, "clear": 1.8, "grate": 0.55, "ring": 0.3 }
+    "tree": { "offset": 0.66, "count": 2, "scale": 2.6, "clear": 1.8, "grate": 0.55, "ring": 0.3 }
   },
   "interior": {
     "_doc": "Floor plans and interior volumes (INTERIOR_SPEC.md). floor: finished floor above an upper floor line; groundFloor: 1F floor above the street; ceiling: below the next floor line; atticCeiling: below the top of the steep slope; atticLining: how far (horizontally) the attic's sloping inner face sits inside the zinc. corridor and bands are between wall centre lines; bands.double / bands.core: interior depth from which a corridor / a central zone with a second corridor appear. doors: [width, height].",

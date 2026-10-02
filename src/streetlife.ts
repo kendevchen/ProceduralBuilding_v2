@@ -21,21 +21,21 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import dims from "../blender/kit_dims.json";
 import type { Building } from "./generator";
 import { PURPOSE, rand } from "./rng";
+import { type V2, insetEdges } from "./roof";
 
 const D = dims.street;
 const BAY = dims.bay;
 
 export interface StreetParams {
   sidewalk: boolean;
-  trees: boolean;
   /** sidewalk depth from the facade, metres */
   width: number;
-  /** between tree trunks, metres */
-  spacing: number;
+  /** trees along each street facade (0: none) */
+  count: number;
 }
 
 export function defaultStreet(): StreetParams {
-  return { sidewalk: true, trees: true, width: D.width, spacing: D.tree.spacing };
+  return { sidewalk: true, width: D.width, count: D.tree.count };
 }
 
 // ---------------------------------------------------------------------------
@@ -142,37 +142,52 @@ function grilleTexture(): CanvasTexture {
 // geometry helpers
 // ---------------------------------------------------------------------------
 
-type Rect = { x0: number; x1: number; z0: number; z1: number };
-
-/** a rectangle path with a radius per corner (x0z0, x1z0, x1z1, x0z1) */
-function roundedRect(path: Shape | Path, r: Rect, rad: [number, number, number, number]): void {
-  const [a, b, c, d] = rad.map(v => Math.max(0.001, v));
-  path.moveTo(r.x0 + a, r.z0);
-  path.lineTo(r.x1 - b, r.z0);
-  path.quadraticCurveTo(r.x1, r.z0, r.x1, r.z0 + b);
-  path.lineTo(r.x1, r.z1 - c);
-  path.quadraticCurveTo(r.x1, r.z1, r.x1 - c, r.z1);
-  path.lineTo(r.x0 + d, r.z1);
-  path.quadraticCurveTo(r.x0, r.z1, r.x0, r.z1 - d);
-  path.lineTo(r.x0, r.z0 + a);
-  path.quadraticCurveTo(r.x0, r.z0, r.x0 + a, r.z0);
+/**
+ * The building's outline pushed out by dS on the street edges and dO on the
+ * others (negative: pulled in), the corners between two street edges rounded
+ * with radius rho. Blender xy, counterclockwise.
+ */
+function ring(F: V2[], street: boolean[], dS: number, dO: number, rho: number): V2[] {
+  const n = F.length;
+  const P = insetEdges(F, street.map(s => -(s ? dS : dO)));
+  if (!P) return F;
+  const out: V2[] = [];
+  for (let i = 0; i < n; i++) {
+    const prev = P[(i + n - 1) % n], V = P[i], next = P[(i + 1) % n];
+    const u0: V2 = [V[0] - prev[0], V[1] - prev[1]], u1: V2 = [next[0] - V[0], next[1] - V[1]];
+    const l0 = Math.hypot(...u0), l1 = Math.hypot(...u1);
+    const cross = (u0[0] * u1[1] - u0[1] * u1[0]) / (l0 * l1);
+    if (rho <= 0.002 || !street[(i + n - 1) % n] || !street[i] || cross < 1e-6) {
+      out.push(V);
+      continue;
+    }
+    // a fillet of radius rho: a quadratic curve between the two tangent points
+    const phi = Math.atan2(cross, (u0[0] * u1[0] + u0[1] * u1[1]) / (l0 * l1));
+    const t = Math.min(rho * Math.tan(phi / 2), l0 * 0.45, l1 * 0.45);
+    const a: V2 = [V[0] - (u0[0] / l0) * t, V[1] - (u0[1] / l0) * t];
+    const b: V2 = [V[0] + (u1[0] / l1) * t, V[1] + (u1[1] / l1) * t];
+    const steps = 6;
+    for (let k = 0; k <= steps; k++) {
+      const f = k / steps;
+      out.push([(1 - f) * (1 - f) * a[0] + 2 * f * (1 - f) * V[0] + f * f * b[0], (1 - f) * (1 - f) * a[1] + 2 * f * (1 - f) * V[1] + f * f * b[1]]);
+    }
+  }
+  return out;
 }
 
-/** a flat slab (or a ring, with a hole) on y in [y0, y0 + depth]; the cap UVs are metres */
-function slab(outer: Rect, rad: [number, number, number, number], y0: number, depth: number,
-  hole?: { r: Rect; rad: [number, number, number, number] }): BufferGeometry {
-  // rotateX(-90 deg) sends the shape's y to world -z: draw it mirrored (and the corners with it)
-  const flip = (r: Rect): Rect => ({ x0: r.x0, x1: r.x1, z0: -r.z1, z1: -r.z0 });
-  const turn = (v: [number, number, number, number]): [number, number, number, number] => [v[3], v[2], v[1], v[0]];
-  const shape = new Shape();
-  roundedRect(shape, flip(outer), turn(rad));
-  if (hole) {
-    const h = new Path();
-    roundedRect(h, flip(hole.r), turn(hole.rad));
-    shape.holes.push(h);
-  }
-  const g = new ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 6 });
-  g.rotateX(-Math.PI / 2); // shape XY -> world XZ, extrusion -> +Y
+/** a flat slab (or a ring, with a hole) on y in [y0, y0 + depth] from outlines in Blender xy, centred on the
+ *  building; the cap UVs are metres */
+function slab(outer: V2[], c: V2, y0: number, depth: number, hole?: V2[]): BufferGeometry {
+  // the extrusion's rotateX(-90 deg) sends the shape's y to world -z, which is Blender y (centred): use it as is
+  const path = <T extends Path>(h: T, pts: V2[]): T => {
+    pts.forEach((p, i) => (i ? h.lineTo(p[0] - c[0], p[1] - c[1]) : h.moveTo(p[0] - c[0], p[1] - c[1])));
+    h.closePath();
+    return h;
+  };
+  const shape = path(new Shape(), outer);
+  if (hole) shape.holes.push(path(new Path(), hole));
+  const g = new ExtrudeGeometry(shape, { depth, bevelEnabled: false });
+  g.rotateX(-Math.PI / 2);
   g.translate(0, y0, 0);
   return g;
 }
@@ -290,14 +305,15 @@ export class StreetLife {
   rebuild(b: Building, seed: number): void {
     this.clear();
     const s = this.params;
-    // street facades: front (+z), right (+x), back (-z), left (-x)
-    const street = b.sides.map(side => side.kind === "street");
+    // which footprint edges face a street: the street facades and the pan coupés between them
+    const edgeStreet: boolean[] = [];
+    b.sides.forEach((side, i) => {
+      if (side.left === "pc") edgeStreet.push(true);
+      edgeStreet.push(side.kind === "street");
+    });
     const w = s.width;
-    const sw = [street[0], street[1], street[2], street[3]];
-    if (!s.sidewalk && !s.trees) return;
-    const W = b.width, L = b.length;
-    if (s.sidewalk) this.buildSidewalk(W, L, sw, w);
-    if (s.trees) this.buildTrees(b, seed, w);
+    if (s.sidewalk) this.buildSidewalk(b, edgeStreet);
+    if (s.count > 0) this.buildTrees(b, edgeStreet, seed, w);
   }
 
   private clear(): void {
@@ -318,66 +334,43 @@ export class StreetLife {
     return m;
   }
 
-  private buildSidewalk(W: number, L: number, sw: boolean[], w: number): void {
-    // outer rectangle: out by the sidewalk width on the street sides, flush with the footprint elsewhere
-    const out: Rect = {
-      x0: -W / 2 - (sw[3] ? w : 0), x1: W / 2 + (sw[1] ? w : 0),
-      z0: -L / 2 - (sw[2] ? w : 0), z1: L / 2 + (sw[0] ? w : 0),
-    };
-    // a corner is rounded where two street sides meet: x0z0 back-left, x1z0 back-right, x1z1 front-right, x0z1 front-left
-    const r = Math.min(1.5, w * 0.4);
-    const rad: [number, number, number, number] = [
-      sw[2] && sw[3] ? r : 0.001, sw[2] && sw[1] ? r : 0.001, sw[0] && sw[1] ? r : 0.001, sw[0] && sw[3] ? r : 0.001,
-    ];
-    const curb = D.curb;
-    const inset = (rect: Rect, d: number): Rect => ({ x0: rect.x0 + d, x1: rect.x1 - d, z0: rect.z0 + d, z1: rect.z1 - d });
-    const inner = inset(out, curb);
-    const innerRad = rad.map(v => Math.max(0.001, v - curb)) as [number, number, number, number];
-    this.add(slab(inner, innerRad, 0, D.top), this.mats.paving, "sidewalk", false);
-    this.add(slab(out, rad, 0, D.top + D.curbRise, { r: inner, rad: innerRad }), this.mats.curb, "curb", false);
-
-    // the cobbled gutter outside the kerb on the street sides (on the other sides the band lies
-    // under the building)
-    const g = D.gutter;
-    const gOut: Rect = {
-      x0: out.x0 - (sw[3] ? g : 0), x1: out.x1 + (sw[1] ? g : 0), z0: out.z0 - (sw[2] ? g : 0), z1: out.z1 + (sw[0] ? g : 0),
-    };
-    const gIn: Rect = {
-      x0: out.x0 + (sw[3] ? 0 : g), x1: out.x1 - (sw[1] ? 0 : g), z0: out.z0 + (sw[2] ? 0 : g), z1: out.z1 - (sw[0] ? 0 : g),
-    };
-    const corner = [sw[2] && sw[3], sw[2] && sw[1], sw[0] && sw[1], sw[0] && sw[3]];
-    const gRad = rad.map((v, i) => (corner[i] ? v + g : 0.001)) as [number, number, number, number];
-    const gInRad = rad.map((v, i) => (corner[i] ? v : 0.001)) as [number, number, number, number];
-    this.add(slab(gOut, gRad, 0, 0.02, { r: gIn, rad: gInRad }), this.mats.cobbles, "gutter", false);
+  private buildSidewalk(b: Building, street: boolean[]): void {
+    const F = b.footprint, w = this.params.width, c: V2 = [b.width / 2, b.length / 2];
+    const curb = D.curb, g = D.gutter;
+    const r = Math.min(1.5, w * 0.4); // radius of the kerb's rounded corners
+    // paving inside the kerb; the kerb band; the cobbled gutter outside it. Where the building
+    // meets a neighbour or a court there is no street: those bands lie under the building.
+    const paving = ring(F, street, w - curb, -curb, r - curb);
+    this.add(slab(paving, c, 0, D.top), this.mats.paving, "sidewalk", false);
+    this.add(slab(ring(F, street, w, 0, r), c, 0, D.top + D.curbRise, paving), this.mats.curb, "curb", false);
+    this.add(slab(ring(F, street, w + g, 0, r + g), c, 0, 0.02, ring(F, street, w, -g, r)), this.mats.cobbles, "gutter", false);
   }
 
-  private buildTrees(b: Building, seed: number, w: number): void {
+  private buildTrees(b: Building, street: boolean[], seed: number, w: number): void {
     const T = D.tree;
     const off = w * T.offset;
-    // trunks along each street facade, symmetric about its middle and half a spacing from it, so
-    // they stand opposite the piers between bays rather than in front of a window or the door
-    const spots: { x: number; z: number }[] = [];
-    // world (x, z) of a point in a side's frame: Blender (x, y) -> world (x - W/2, L/2 - y)
-    const toWorld = (si: number, sx: number, sy: number) => {
-      const p = new Vector3(sx, sy, 0).applyMatrix4(b.sides[si].frame);
+    const n = this.params.count;
+    // world (x, z) of a point in a frame: Blender (x, y) -> world (x - W/2, L/2 - y)
+    const toWorld = (frame: Matrix4, sx: number, sy: number) => {
+      const p = new Vector3(sx, sy, 0).applyMatrix4(frame);
       return { x: p.x - b.width / 2, z: b.length / 2 - p.y };
     };
-    b.sides.forEach((side, si) => {
+    const spots: { x: number; z: number }[] = [];
+    b.sides.forEach(side => {
       if (side.kind !== "street") return;
-      const mid = side.length / 2;
-      const door = si === 0 && b.door >= 0 ? side.x0 + BAY * (b.door + 0.5) : null;
-      // clear of the corners (pier, pan coupé) and of the end of the street facade
+      const door = side === b.sides[0] && b.door >= 0 ? side.x0 + BAY * (b.door + 0.5) : null;
+      // n trunks spread over the facade, clear of the corners and the front door
       const lo = side.x0 + 1.0, hi = side.x0 + BAY * side.bays.length - 1.0;
-      for (let k = 0; ; k++) {
-        const done = mid - (k + 0.5) * this.params.spacing < lo;
-        for (const sign of [-1, 1]) {
-          const x = mid + sign * (k + 0.5) * this.params.spacing;
-          if (x < lo || x > hi) continue;
-          if (door !== null && Math.abs(x - door) < T.clear) continue;
-          spots.push(toWorld(si, x, -off));
-        }
-        if (done) break;
+      const xs: number[] = [];
+      for (let k = 0; k < n; k++) {
+        let x = lo + ((hi - lo) * (k + 0.5)) / n;
+        if (door !== null && Math.abs(x - door) < T.clear) x = door + (x >= door ? 1 : -1) * T.clear;
+        if (x < lo || x > hi || xs.some(o => Math.abs(o - x) < 2.4)) continue;
+        xs.push(x);
       }
+      for (const x of xs) spots.push(toWorld(side.frame, x, -off));
+      // the pan coupé's diagonal gets one
+      if (side.diag && n > 0) spots.push(toWorld(side.diag.frame, 0, -off));
     });
     if (!spots.length) return;
 

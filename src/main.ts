@@ -282,9 +282,8 @@ fLook.addColor(params, "awning").name("遮雨棚顏色").onChange(update);
 fLook.add(params, "lace", Object.fromEntries(LACE_PATTERNS.map((n, i) => [n, i]))).name("欄杆鐵花").onChange(update);
 const fStreet = gui.addFolder("🌳 街道 (Street)");
 fStreet.add(street.params, "sidewalk").name("人行道").onChange(update);
-fStreet.add(street.params, "trees").name("路樹").onChange(update);
 fStreet.add(street.params, "width", 1.5, 6, 0.1).name("人行道寬度 m").onChange(update);
-fStreet.add(street.params, "spacing", 3, 12, 0.5).name("路樹間距 m").onChange(update);
+fStreet.add(street.params, "count", 0, 8, 1).name("每面路樹數").onChange(update);
 const fInterior = gui.addFolder("🏢 室內樓層 (Interior)");
 fInterior.add(interiorView, "plan").name("平面檢視（除錯）").onChange((on: boolean) => {
   if (on) {
@@ -444,7 +443,7 @@ if (import.meta.env.DEV) {
   Object.assign(window, {
     __app: {
       camera, controls, params, view, interiorView, rebuild, scene, renderer, env, planCheckAll,
-      cut, cutaway, toolbar, applyCut, frameHome, bounds, site,
+      cut, cutaway, toolbar, applyCut, frameHome, bounds, site, street,
       get plan() { return lastPlan; },
       get kit() { return kit; },
     },
