@@ -22,7 +22,7 @@ export type CutMode = "horizontal" | "vertical";
 export type CutAxis = "across" | "along";
 
 /** solids: their back faces are the section */
-const SOLID = new Set(["stone", "stone_ground", "stone_trim", "plaster", "zinc", "room_wall", "room_floor", "room_ceiling", "room_stair", "room_finish_wall", "furn_wood", "furn_fabric", "furn_linen", "furn_gold"]);
+const SOLID = new Set(["stone", "stone_ground", "stone_trim", "plaster", "zinc", "room_wall", "room_floor", "room_ceiling", "room_stair", "room_finish_wall", "furn_wood", "furn_fabric", "furn_linen", "furn_gold", "furn_dark", "furn_brass", "furn_leather"]);
 /** seen only from the front even while cut */
 const ONE_SIDED = new Set(["glass"]);
 
@@ -58,6 +58,11 @@ export class Cutaway {
       furnFabric: this.cut(white("furn_fabric", "#9e9255", 0.9)),
       furnLinen: this.cut(white("furn_linen", "#f4f1ea", 0.95)),
       furnGold: this.cut(white("furn_gold", "#a8944a", 0.9)),
+      furnDark: this.cut(white("furn_dark", "#2e2823", 0.5)),
+      furnBrass: this.cut(white("furn_brass", "#b8913f", 0.35, 0.6)),
+      furnLeather: this.cut(white("furn_leather", "#5b2c1d", 0.6)),
+      // a lamp shade glows: warm, lit from inside (the lamp's own point light is lampLights.ts)
+      furnShade: this.cut(new MeshStandardMaterial({ name: "furn_shade", color: "#f4e8cf", emissive: "#ffcf8a", emissiveIntensity: 1.1, roughness: 0.9 })),
       finishWall: this.cut(finishMaterial("wall")),
       finishFloor: this.cut(finishMaterial("floor")),
     };

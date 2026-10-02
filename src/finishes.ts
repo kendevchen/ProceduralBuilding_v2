@@ -21,7 +21,7 @@ export type Stamp = [number, number, number, number, number, number, number, num
 
 const P = {
   plain: 0, herringbone: 1, boards: 2, hexMixed: 3, hexSparse: 4, marble: 5, carpet: 6,
-  paint: 10, wallpaper: 11, boiserie: 12, tiles: 13,
+  paint: 10, wallpaper: 11, boiserie: 12, tiles: 13, books: 14,
 } as const;
 type Pattern = (typeof P)[keyof typeof P];
 
@@ -76,6 +76,11 @@ export const PLAIN: Stamp = stamp(P.plain, rgb(PLAIN_COLOR), rgb(PLAIN_COLOR));
 /** the stamp of a carpet: it carries its corner (world x, z) and its size instead of colours */
 export function carpetStamp(x: number, z: number, w: number, d: number, floorZ: number, ceilingZ: number): Stamp {
   return [P.carpet, x, z, 0, w, d, 0, floorZ, ceilingZ];
+}
+
+/** the stamp of a bookcase's rows of books: h counts up from the underside of its lowest board (z) */
+export function booksStamp(boardZ: number): Stamp {
+  return [P.books, 0, 0, 0, 0, 0, 0, boardZ, boardZ + 3];
 }
 
 /** the stamp for a room's walls or floor in a look; null: the white model draws it (no finish) */
@@ -256,6 +261,45 @@ vec4 finCarpet(vec2 uv, vec2 size) {
   return vec4(col * wool, 0.96);
 }
 
+// rows of books on shelves 0.34 m apart: runs of spines of varying width, height and leather colour
+// (u along the shelf, h up from the lowest board's top)
+vec3 finBookColor(float k) {
+  k = fract(k) * 8.0;
+  if (k < 1.0) return vec3(0.46, 0.25, 0.17);
+  if (k < 2.0) return vec3(0.60, 0.38, 0.28);
+  if (k < 3.0) return vec3(0.34, 0.18, 0.12);
+  if (k < 4.0) return vec3(0.72, 0.55, 0.42);
+  if (k < 5.0) return vec3(0.50, 0.14, 0.12);
+  if (k < 6.0) return vec3(0.64, 0.44, 0.34);
+  if (k < 7.0) return vec3(0.26, 0.19, 0.15);
+  return vec3(0.78, 0.68, 0.52);
+}
+vec4 finBooks(float u, float h) {
+  float rowF = h / 0.34, row = floor(rowF);
+  float y = (rowF - row) * 0.34 - 0.025;          // above the board
+  vec3 back = vec3(0.14, 0.09, 0.06);
+  if (y < 0.0) return vec4(back, 0.6);
+  float g = floor(u / 0.2), t = fract(u / 0.2);
+  float w0 = 0.55 + finHash(vec2(g, row)), w1 = 0.55 + finHash(vec2(g + 7.0, row)),
+        w2 = 0.55 + finHash(vec2(g + 13.0, row)), w3 = 0.55 + finHash(vec2(g + 19.0, row)), w4 = 0.55 + finHash(vec2(g + 29.0, row));
+  float tot = w0 + w1 + w2 + w3 + w4, c = t * tot, lo = 0.0, hi = w0;
+  float id = 0.0;
+  if (c >= hi) { lo = hi; hi += w1; id = 1.0; }
+  if (c >= hi) { lo = hi; hi += w2; id = 2.0; }
+  if (c >= hi) { lo = hi; hi += w3; id = 3.0; }
+  if (c >= hi) { lo = hi; hi += w4; id = 4.0; }
+  float k = finHash(vec2(g * 5.0 + id, row + 3.0));
+  float height = 0.20 + 0.10 * finHash(vec2(g * 5.0 + id, row + 11.0));
+  if (finHash(vec2(g, row + 41.0)) < 0.07 && id > 2.5) height = 0.0;   // a gap in the row
+  if (y > height) return vec4(back, 0.6);
+  vec3 col = finBookColor(k) * 0.72 * (0.85 + 0.3 * finHash(vec2(u * 40.0, 1.0)));
+  float edge = min(c - lo, hi - c) * (0.2 / tot);
+  col *= 0.55 + 0.45 * smoothstep(0.0, 0.004, edge);
+  col = mix(col, vec3(0.72, 0.58, 0.28), finLine(abs(y - (height - 0.035)), 0.004) * 0.8);
+  col = mix(col, vec3(0.72, 0.58, 0.28), finLine(abs(y - 0.035), 0.004) * 0.8);
+  return vec4(col, 0.7);
+}
+
 // boiserie: panels of moulding below the dado rail and up to the cornice
 float finPanel(float u, float h, float z0, float z1) {
   float px = fract(u / 0.9) * 0.9;
@@ -303,6 +347,10 @@ float finRough = 0.85;
       if (h > 0.86 && h < 0.94) col = mix(A, B, 0.6);
       if (h > top - 0.22) col = mix(A, B, 0.35 + 0.4 * finLine(abs(h - top + 0.12), 0.012));
       finRough = 0.6;
+    } else if (pat == 14) {
+      vec4 bk = finBooks(u, h);
+      col = bk.rgb;
+      finRough = bk.w;
     } else if (pat == 13) {
       // white wall tiles to 1.5 m, paint above
       if (h < 1.5) {
@@ -315,7 +363,7 @@ float finRough = 0.85;
       } else col = B * (0.97 + 0.05 * finNoise(vec2(u, h) * 4.0));
     }
     // skirting board
-    if (h < 0.13 && pat != 13) col = pat == 12 ? mix(A, B, 0.5) : B * 0.95;
+    if (h < 0.13 && pat != 13 && pat != 14) col = pat == 12 ? mix(A, B, 0.5) : B * 0.95;
   }
   diffuseColor.rgb = col;
 }

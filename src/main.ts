@@ -23,7 +23,8 @@ import { partyWalls, roofCap, roofShape } from "./roof";
 import { type CutAxis, type CutMode, Cutaway } from "./cutaway";
 import { buildRooms3d } from "./rooms3d";
 import { RoomLabels } from "./roomLabels";
-import { buildFurniture } from "./furniture";
+import { type FurnitureInfo, buildFurniture } from "./furniture";
+import { LampLights } from "./lampLights";
 import { buildStairs } from "./stairs";
 import { StreetLife } from "./streetlife";
 import { WindowEditor } from "./windowEditor";
@@ -67,6 +68,8 @@ root.rotation.x = -Math.PI / 2;
 scene.add(root);
 const params = defaultParams();
 const view = { gallery: false };
+/** the study lamps' light (lampLights.ts) */
+const lampLights = new LampLights(scene);
 /** sidewalk and street trees, in world space beside the building (streetlife.ts) */
 const street = new StreetLife();
 scene.add(street.group);
@@ -170,7 +173,10 @@ function rebuild(frame = false): void {
   interior = buildRooms3d(plan, b, kit, cutaway.interior, interiorView.look);
   // the stairs' railing: the kit's first lace pattern (欄杆與圓環)
   interior.add(buildStairs(plan, cutaway.interior, cutaway.cut(materials.lace(0)), materials.laceDepth(0)));
-  interior.add(buildFurniture(plan, cutaway.interior, interiorView.look));
+  const furniture = buildFurniture(plan, cutaway.interior, interiorView.look);
+  interior.add(furniture);
+  // the lamps' places in world space: Blender (x, y, z) -> (x - W/2, z, L/2 - y)
+  lampLights.setLamps((furniture.userData.furniture as FurnitureInfo).lamps.map(p => new Vector3(p.x - b.width / 2, p.z, b.length / 2 - p.y)));
   g.add(interior);
   g.position.set(-b.width / 2, -b.length / 2, 0); // footprint centred on the origin
   street.rebuild(b, params.seed);
@@ -211,6 +217,7 @@ function applyCut(force = false): void {
     if (interior) interior.visible = on;
     if (roomBoxes) roomBoxes.visible = !on;
     cutShown = on;
+    lampLights.on = on;
   }
   cutaway.place(cut.mode, cut.axis, at, cut.flip);
   toolbar.show(cut.mode, cut.axis, cut.t, cut.flip);
@@ -511,6 +518,7 @@ renderer.setAnimationLoop(() => {
     applyCut();
   }
   controls.update();
+  lampLights.update(controls.target);
   env.tick(camera.position);
   post.render(dt);
   if (saveNext) {

@@ -86,6 +86,11 @@ export interface InteriorMaterials {
   furnFabric: Material;
   furnLinen: Material;
   furnGold: Material;
+  /** the study's: ebony chairs, brass, leather bindings, the lit lamp shade */
+  furnDark: Material;
+  furnBrass: Material;
+  furnLeather: Material;
+  furnShade: Material;
 }
 
 const area = (p: V2[]) => p.reduce((s, q, i) => s + q[0] * p[(i + 1) % p.length][1] - p[(i + 1) % p.length][0] * q[1], 0) / 2;
