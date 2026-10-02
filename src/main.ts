@@ -221,6 +221,7 @@ function applyCut(force = false): void {
   }
   cutaway.place(cut.mode, cut.axis, at, cut.flip);
   toolbar.show(cut.mode, cut.axis, cut.t, cut.flip);
+  toolbar.setInterior(on);
   toolbar.setLevel(on && cut.mode === "horizontal" ? levelAt(at) : "");
   // the plane in the building's own (Blender) coordinates, for the room names
   const own = cut.mode === "horizontal" ? at : cut.axis === "across" ? at + site.width / 2 : site.length / 2 - at;
@@ -358,10 +359,10 @@ const windows = new WindowEditor({
 // ---- the section panel and the bottom toolbar ----
 let saveNext = false;
 const toolbar = new Toolbar({
-  next: () => {
-    params.seed = (params.seed % 999) + 1;
-    gui.controllersRecursive().forEach(c => c.updateDisplay());
-    rebuild();
+  interior: on => {
+    cut.on = on;
+    if (on) gui.close();
+    applyCut();
   },
   rotate: on => {
     controls.autoRotate = on;

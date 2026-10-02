@@ -8,7 +8,8 @@
 import type { CutAxis, CutMode } from "./cutaway";
 
 export interface ToolbarActions {
-  next(): void;
+  /** show or hide the interior (the cut) at the slider's place, whether or not the panel is open */
+  interior(on: boolean): void;
   rotate(on: boolean): void;
   cut(on: boolean): void;
   home(): void;
@@ -32,6 +33,8 @@ const CSS = /* css */ `
 .tb button.on { background: rgba(255, 255, 255, 0.13); }
 .tb button.primary { background: #e7e7e7; color: #121212; font-weight: 600; padding: 0 22px; }
 .tb button.primary:hover { background: #ffffff; }
+.tb button.primary.lit { background: #d9824f; color: #121212; }
+.tb button.primary svg { stroke: currentColor; }
 .tb button:disabled { opacity: 0.35; cursor: default; }
 .tb .sep { flex: none; width: 1px; height: 28px; margin: 0 8px; background: rgba(255, 255, 255, 0.16); }
 .tb svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
@@ -72,6 +75,7 @@ body:has(.cut:not([hidden])) .credit { display: none; }
 `;
 
 const ICON = {
+  eye: `<svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>`,
   rotate: `<svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg>`,
   cut: `<svg viewBox="0 0 24 24"><path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 14l16-4"/></svg>`,
   home: `<svg viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><rect x="9.5" y="9.5" width="5" height="5"/></svg>`,
@@ -98,6 +102,7 @@ export class Toolbar {
   private sweepButton: HTMLButtonElement;
   private dragging = false;
   private open = false;
+  private interiorOn = false;
 
   constructor(private actions: ToolbarActions) {
     const style = document.createElement("style");
@@ -114,7 +119,12 @@ export class Toolbar {
       this.buttons[id] = b;
       return b;
     };
-    button("next", "下一座", "", "primary").onclick = () => actions.next();
+    button("interior", "顯示內部", ICON.eye, "primary").onclick = () => {
+      const on = !this.interiorOn;
+      // the panel comes with it when it was closed; closing the panel is the 剖切 button's (and the ✕'s) job
+      if (on && !this.open) this.setOpen(true, true);
+      else actions.interior(on);
+    };
     const sep = document.createElement("div");
     sep.className = "sep";
     bar.appendChild(sep);
@@ -200,6 +210,12 @@ export class Toolbar {
     if (!this.dragging) this.slider.value = String(Math.round(t * 1000));
   }
 
+  /** whether the interior is on show: the button lights up */
+  setInterior(on: boolean): void {
+    this.interiorOn = on;
+    this.buttons.interior.classList.toggle("lit", on);
+  }
+
   /** the floor a horizontal cut is in, e.g. "3F" (empty for vertical cuts) */
   setLevel(name: string): void {
     this.levelLabel.textContent = name ? `・切在 ${name}` : "";
@@ -213,6 +229,7 @@ export class Toolbar {
   /** the cut makes no sense in the kit overview */
   enableCut(on: boolean): void {
     this.buttons.cut.disabled = !on;
+    this.buttons.interior.disabled = !on;
     if (!on && this.open) this.setOpen(false, true);
   }
 }
