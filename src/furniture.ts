@@ -16,7 +16,8 @@
 import { Group, type Material, Matrix4, Mesh, Vector3 } from "three";
 import { type Look, booksStamp, carpetStamp } from "./finishes";
 import type { BuildingPlan, PlanRoom } from "./plan";
-import { type InteriorMaterials, Tris } from "./rooms3d";
+import type { Building } from "./generator";
+import { type InteriorMaterials, Tris, atticCeiling } from "./rooms3d";
 import type { V2 } from "./roof";
 
 /** the parquet that shows round the carpet, and the clearance round the table */
@@ -267,7 +268,7 @@ export interface FurnitureInfo {
 }
 
 /** the ballroom's table, chairs and carpet, and the studies; empty when the building has neither */
-export function buildFurniture(plan: BuildingPlan, mats: InteriorMaterials, look: Look): Group {
+export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMaterials, look: Look): Group {
   const group = new Group();
   const lamps: Vector3[] = [];
   const wood = new Tris(), fabric = new Tris(), linen = new Tris(), gold = new Tris(), rug = new Tris();
@@ -303,13 +304,29 @@ export function buildFurniture(plan: BuildingPlan, mats: InteriorMaterials, look
     banquetChair(wood, fabric, at(cx + end, cy, z, Math.PI / 2));
   }
 
+  const attic = plan.levels[plan.levels.length - 1];
+  const ceilingAt = atticCeiling(b, attic.ceilingZ);
   for (const r of plan.rooms.filter(r => r.type === "study")) {
     const xs = r.polygon.map(p => p[0]), ys = r.polygon.map(p => p[1]);
     const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-    const z = r.floorZ, top = Math.min(CASE.top, r.ceilingZ - z - 0.4);
-    // bookcases on the walls without windows; the books' pattern counts from the lowest board
+    const z = r.floorZ;
+    // the headroom at a point: the ceiling, or in the attic the slope
+    const up = r.level === attic.index ? (p: V2) => ceilingAt(p) - z : () => r.ceilingZ - z;
+    // bookcases on the walls without windows; the books' pattern counts from the lowest board.
+    // Under the slope they are cut into units of about a metre, each as high as its place allows.
     books.stamp = booksStamp(z + CASE.plinth);
-    for (const f of freeStretches(plan, r)) bookcase(wood, books, f, z, top);
+    for (const f of freeStretches(plan, r)) {
+      const units = r.level === attic.index ? Math.ceil((f.s1 - f.s0) / 1.05) : 1;
+      for (let k = 0; k < units; k++) {
+        const u = { ...f, s0: f.s0 + ((f.s1 - f.s0) * k) / units, s1: f.s0 + ((f.s1 - f.s0) * (k + 1)) / units };
+        let room = Infinity;
+        for (const s of [u.s0, u.s1]) for (const dpt of [0.05, CASE.depth]) {
+          room = Math.min(room, up([u.a[0] + u.d[0] * s + u.n[0] * dpt, u.a[1] + u.d[1] * s + u.n[1] * dpt]));
+        }
+        const top = Math.min(CASE.top, room - 0.4);
+        if (top >= CASE.plinth + CASE.pitch + 0.1) bookcase(wood, books, u, z, top);
+      }
+    }
     // the desk: centred in what the bookcases leave, its long side along the room's long side
     const roomW = x1 - x0 - 2 * CASE.depth, roomD = y1 - y0 - 2 * CASE.depth;
     const alongX = roomW >= roomD;
@@ -317,8 +334,37 @@ export function buildFurniture(plan: BuildingPlan, mats: InteriorMaterials, look
     const big = long >= 3.8 && short >= 2.6;
     const length = big ? Math.min(2.4, long - 1.4) : Math.min(1.4, long - 1.4), dep = big ? 0.85 : 0.7;
     if (length < 1.0 || short < dep + 1.1) continue;
-    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
     const turn = alongX ? 0 : Math.PI / 2;
+    // where it stands: the middle if it can, else the nearest place with the headroom for the chair and
+    // the lamp, and clear of the doors
+    const doors: V2[] = r.doors.map(dr => {
+      const w = plan.walls[dr.wall], wl = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
+      return [w.a[0] + ((w.b[0] - w.a[0]) / wl) * dr.at, w.a[1] + ((w.b[1] - w.a[1]) / wl) * dr.at];
+    });
+    const fits = (px: number, py: number) => {
+      const m = at(px, py, 0, turn);
+      const inv = m.clone().invert();
+      for (const sx of [-1, 0, 1]) for (const sy of [-1, 1]) {
+        const p = new Vector3(sx * length / 2, sy * (dep / 2 + 0.4), 0).applyMatrix4(m);
+        if (p.x < x0 + CASE.depth || p.x > x1 - CASE.depth || p.y < y0 + CASE.depth || p.y > y1 - CASE.depth) return false;
+        if (up([p.x, p.y]) < 1.5) return false;
+      }
+      return doors.every(dp => {
+        const l = new Vector3(dp[0], dp[1], 0).applyMatrix4(inv);
+        return Math.abs(l.x) > length / 2 + 0.7 || Math.abs(l.y) > dep / 2 + 0.85;
+      });
+    };
+    const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+    let spot: V2 | null = null;
+    for (let step = 0; step <= 12 && !spot; step++) {
+      const ring: V2[] = [];
+      for (let ix = -step; ix <= step; ix++) for (let iy = -step; iy <= step; iy++) {
+        if (Math.max(Math.abs(ix), Math.abs(iy)) === step) ring.push([mx + ix * 0.2, my + iy * 0.2]);
+      }
+      spot = ring.sort((p, q) => Math.hypot(p[0] - mx, p[1] - my) - Math.hypot(q[0] - mx, q[1] - my)).find(p => fits(p[0], p[1])) ?? null;
+    }
+    if (!spot) continue;
+    const [cx, cy] = spot;
     const dm = at(cx, cy, z, turn);
     desk(wood, dark, dm, length, dep);
     // chairs on the long sides (one, or one each side of a reading table), facing the desk

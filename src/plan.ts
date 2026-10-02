@@ -629,6 +629,12 @@ function program(ctx: Ctx, groupCells: Set<number>, apt: number) {
   const closest = (us: Unit[]) => us.reduce((a, u) => (Math.abs(cx(u) - centre) < Math.abs(cx(a) - centre) ? u : a));
   const large = (lv.cls === "N" || lv.cls === "S") && all.length >= 5;
 
+  // the study goes in the left corner of the front (INTERIOR_SPEC.md §5.4); nothing else takes it first
+  const wantsStudy = lv.cls !== "A" && all.length >= 6;
+  const studyCorner = wantsStudy
+    ? mine().filter(u => front(u) && corner(u)).sort((a, b) => a.x0 - b.x0)[0] ?? null
+    : null;
+
   // salon: two bays in the middle of the front on the larger floors
   let salon: Unit | null = null;
   const mid = mine().filter(u => front(u) && !corner(u)).sort((a, b) => a.x0 - b.x0);
@@ -640,8 +646,8 @@ function program(ctx: Ctx, groupCells: Set<number>, apt: number) {
     if (best.length) salon = fuse(ctx, pick(best, 0), null);
   }
   if (!salon) {
-    const fr = mine().filter(front);
-    salon = mid.length ? closest(mid) : fr.length ? closest(fr) : mine().find(u => u.win.length) ?? null;
+    const fr = mine().filter(u => front(u) && u !== studyCorner);
+    salon = mid.length ? closest(mid) : fr.length ? closest(fr) : mine().find(u => u.win.length && u !== studyCorner) ?? mine().find(u => u.win.length) ?? null;
   }
   if (salon) set(salon, "salon");
   // kitchen and WC at the back, either side of the stairs (the kitchen by the service stair)
@@ -701,10 +707,11 @@ function program(ctx: Ctx, groupCells: Set<number>, apt: number) {
     const nb = mine().filter(u => front(u) && xAdjacent(u, s));
     if (nb.length) set(pick(nb, 1), "dining");
   }
-  if (lv.cls !== "A" && all.length >= 6) {
+  if (wantsStudy) {
     const cs = mine().filter(u => front(u) && corner(u));
     const fr = mine().filter(front);
-    if (cs.length) set(pick(cs, 2), "study");
+    if (studyCorner && studyCorner.type === null) set(studyCorner, "study");
+    else if (cs.length) set(pick(cs, 2), "study");
     else if (large && fr.length) set(pick(fr, 2), "study");
   }
   for (const u of mine()) set(u, u.win.length ? "bedroom" : "storage");
@@ -795,6 +802,9 @@ function layoutFloor(g: Grid, b: Building, p: BuildingParams, lv: PlanLevel, win
   if (attic) {
     // maids' rooms behind the dormers, storage where there is none, one shared WC by the stairs
     for (const u of ctx.units) if (u.type === null) u.type = u.win.length ? "maid" : "storage";
+    // one of them is a study: the left-most room at the front
+    const study = ctx.units.filter(u => u.type === "maid").sort((a, c) => a.x0 - c.x0 || a.y0 - c.y0)[0];
+    if (study) study.type = "study";
     const nearStair = (u: Unit) => Math.abs(cx(u) - cageX) + Math.abs((u.y0 + u.y1) / 2 - (cageUnit.y0 + cageUnit.y1) / 2);
     const onCorridor = ctx.units.filter(u => (u.type === "maid" || u.type === "storage") &&
       ctx.units.some(c => c.type === "corridor" && touching(u, c)));

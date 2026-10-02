@@ -370,17 +370,8 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
   }
 
   // the attic's walls end under the slope
-  const slopes = F.map((a, i) => ({ a, i, n: [-(F[(i + 1) % F.length][1] - a[1]), F[(i + 1) % F.length][0] - a[0]] as V2 }))
-    .filter(e => kinds[e.i] !== "party")
-    .map(e => ({ a: e.a, n: [e.n[0] / Math.hypot(...e.n), e.n[1] / Math.hypot(...e.n)] as V2 }));
-  const under = (p: V2) => {
-    let h = zc;
-    for (const e of slopes) {
-      const d = (p[0] - e.a[0]) * e.n[0] + (p[1] - e.a[1]) * e.n[1];
-      h = Math.min(h, rb + ((d - I.atticLining) * rise) / run);
-    }
-    return h - 0.02;
-  };
+  const ceilingAt = atticCeiling(b, zc);
+  const under = (p: V2) => ceilingAt(p) - 0.02;
   for (const w of plan.walls) {
     if (w.level !== attic.index) continue;
     const len = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
@@ -427,6 +418,23 @@ function onEdge(poly: V2[], e: { a: V2; len: number; dir: V2 }, tol = 0.02): num
     if (d < tol && s > -tol && s < e.len + tol) out.push(s);
   }
   return out;
+}
+
+/** the height of the attic's ceiling at a point: the flat ceiling at zc, lower under the steep slopes */
+export function atticCeiling(b: Building, zc: number): (p: V2) => number {
+  const { rise, run } = dims.mansard;
+  const F = b.footprint;
+  const slopes = F.map((a, i) => ({ a, i, n: [-(F[(i + 1) % F.length][1] - a[1]), F[(i + 1) % F.length][0] - a[0]] as V2 }))
+    .filter(e => b.edgeKinds[e.i] !== "party")
+    .map(e => ({ a: e.a, n: [e.n[0] / Math.hypot(...e.n), e.n[1] / Math.hypot(...e.n)] as V2 }));
+  return (p: V2) => {
+    let h = zc;
+    for (const e of slopes) {
+      const d = (p[0] - e.a[0]) * e.n[0] + (p[1] - e.a[1]) * e.n[1];
+      h = Math.min(h, b.roofBase + ((d - I.atticLining) * rise) / run);
+    }
+    return h;
+  };
 }
 
 function centroid(poly: V2[]): V2 {
