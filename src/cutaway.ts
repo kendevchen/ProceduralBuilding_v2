@@ -14,6 +14,7 @@
  * too. Clipped parts cast no shadows.
  */
 import { Color, DoubleSide, type Material, type Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, Plane, Vector3 } from "three";
+import { finishMaterial } from "./finishes";
 import type { InteriorMaterials } from "./rooms3d";
 
 export type CutMode = "horizontal" | "vertical";
@@ -21,7 +22,7 @@ export type CutMode = "horizontal" | "vertical";
 export type CutAxis = "across" | "along";
 
 /** solids: their back faces are the section */
-const SOLID = new Set(["stone", "stone_ground", "stone_trim", "plaster", "zinc", "room_wall", "room_floor", "room_ceiling", "room_stair"]);
+const SOLID = new Set(["stone", "stone_ground", "stone_trim", "plaster", "zinc", "room_wall", "room_floor", "room_ceiling", "room_stair", "room_finish_wall"]);
 /** seen only from the front even while cut */
 const ONE_SIDED = new Set(["glass"]);
 
@@ -52,6 +53,8 @@ export class Cutaway {
       carpet: this.cut(white("stair_carpet", "#8a2b2b", 0.95)),
       iron: this.cut(white("stair_iron", "#2c2e31", 0.5, 0.4)),
       wood: this.cut(white("stair_wood", "#4a2e1d", 0.45)),
+      finishWall: this.cut(finishMaterial("wall")),
+      finishFloor: this.cut(finishMaterial("floor")),
     };
     this.variants.add(section);
   }

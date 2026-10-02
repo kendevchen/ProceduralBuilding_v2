@@ -16,7 +16,8 @@ import { BufferGeometry, Float32BufferAttribute, Group, type Material, Matrix4, 
 import dims from "../blender/kit_dims.json";
 import type { Building } from "./generator";
 import type { Kit } from "./kit";
-import { type BuildingPlan, type PlanWall, type PlanWindow, edgeAt } from "./plan";
+import { type Look, type Stamp, stampAttributes, stampOf } from "./finishes";
+import { type BuildingPlan, type PlanRoom, type PlanWall, type PlanWindow, edgeAt } from "./plan";
 import { type V2, insetEdges } from "./roof";
 
 const T = dims.wall;
@@ -26,9 +27,12 @@ const DOWN = new Vector3(0, 0, -1);
 /** keeps openings off the edges of the face they are cut from */
 const GAP = 0.002;
 
-/** triangles of one material, each turned to face a given way */
+/** triangles of one material, each turned to face a given way; with a
+ *  finish (finishes.ts) every vertex also carries the current `stamp` */
 export class Tris {
   pos: number[] = [];
+  stamp: Stamp | null = null;
+  private stamps: number[] = [];
   private ab = new Vector3();
   private ac = new Vector3();
 
@@ -37,6 +41,7 @@ export class Tris {
     this.ac.subVectors(c, a);
     const [p, q] = this.ab.cross(this.ac).dot(facing) < 0 ? [c, b] : [b, c];
     this.pos.push(a.x, a.y, a.z, p.x, p.y, p.z, q.x, q.y, q.z);
+    if (this.stamp) for (let k = 0; k < 3; k++) this.stamps.push(...this.stamp);
   }
 
   quad(a: Vector3, b: Vector3, c: Vector3, d: Vector3, facing: Vector3) {
@@ -56,6 +61,7 @@ export class Tris {
   geometry(): BufferGeometry {
     const g = new BufferGeometry();
     g.setAttribute("position", new Float32BufferAttribute(this.pos, 3));
+    if (this.stamps.length) stampAttributes(g, this.stamps);
     g.computeVertexNormals();
     return g;
   }
@@ -72,6 +78,9 @@ export interface InteriorMaterials {
   carpet: Material;
   iron: Material;
   wood: Material;
+  /** the room finishes (finishes.ts): every room's walls, and its floor laid on the slab */
+  finishWall: Material;
+  finishFloor: Material;
 }
 
 const area = (p: V2[]) => p.reduce((s, q, i) => s + q[0] * p[(i + 1) % p.length][1] - p[(i + 1) % p.length][0] * q[1], 0) / 2;
@@ -103,8 +112,14 @@ function shrink(poly: V2[]): V2[] {
   return insetEdges(area(poly) > 0 ? poly : [...poly].reverse(), poly.map(() => GAP)) ?? poly;
 }
 
-export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: InteriorMaterials): Group {
-  const walls = new Tris(), floors = new Tris(), ceilings = new Tris();
+export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: InteriorMaterials, look: Look = "white"): Group {
+  const walls = new Tris(), floors = new Tris(), ceilings = new Tris(), finishFloors = new Tris();
+  const finished = look !== "white";
+  /** the wall faces, wearing a room's finish (or plain paint; the white model: nothing) */
+  const paint = (room: PlanRoom | null) => {
+    walls.stamp = stampOf(look, room, "wall");
+    return walls;
+  };
   const levels = plan.levels;
   const attic = levels[levels.length - 1];
   const rooms = new Map(plan.rooms.map(r => [r.id, r]));
@@ -125,6 +140,14 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
       ...(ballroom && ballroom.level === k ? [ballroom.polygon] : []),
     ];
     ceilings.polygon(inner, above.map(shrink), p => v3(p, lv.ceilingZ), DOWN);
+  }
+  // each room's floor finish laid on the slab (the stairs only on the ground floor, where they stand on it)
+  if (finished) {
+    for (const r of plan.rooms) {
+      if (r.type === "stair" && r.level > 0) continue;
+      finishFloors.stamp = stampOf(look, r, "floor");
+      finishFloors.polygon(r.polygon, [], p => v3(p, r.floorZ + 0.003), UP);
+    }
   }
 
   // ---- the kit module behind each opening, and where its outline sits
@@ -178,13 +201,14 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
     }
     return holes;
   };
-  /** a face of edge e from s0 to s1, z0 to z1, with its openings and the reveals behind them */
-  const lining = (e: (typeof edges)[number], i: number, k: number, s0: number, s1: number, z0: number, z1: number) => {
+  /** a face of edge e from s0 to s1, z0 to z1 in a room's finish, with its openings and the reveals behind them */
+  const lining = (e: (typeof edges)[number], i: number, k: number, s0: number, s1: number, z0: number, z1: number, room: PlanRoom | null) => {
     const at = (p: V2) => new Vector3(e.a[0] + e.dir[0] * p[0], e.a[1] + e.dir[1] * p[0], p[1]);
     const holes = holesOn(e, i, k, s0, s1, z0, z1);
-    walls.polygon([[s0, z0], [s1, z0], [s1, z1], [s0, z1]], holes.map(h => h.loop), at, e.inward);
+    paint(room).polygon([[s0, z0], [s1, z0], [s1, z1], [s0, z1]], holes.map(h => h.loop), at, e.inward);
     // reveals from where the module's end to this face, facing into the opening
     const out = e.inward.clone().negate();
+    paint(null);
     for (const h of holes) {
       const ccw = area(h.loop) > 0;
       h.loop.forEach((p, j) => {
@@ -210,9 +234,19 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
         const on = r.polygon.filter(p => edgeAt(inner, p) === i).map(s);
         if (on.length < 2) continue;
         const pad = I.walls.cage / 2;
-        lining(e, i, lv.index, Math.max(0, Math.min(...on) - pad), Math.min(e.len, Math.max(...on) + pad), z1, z2);
+        lining(e, i, lv.index, Math.max(0, Math.min(...on) - pad), Math.min(e.len, Math.max(...on) + pad), z1, z2, r);
       }
-      lining(e, i, lv.index, 0, e.len, z0, z1);
+      if (!finished) {
+        lining(e, i, lv.index, 0, e.len, z0, z1, null);
+        return;
+      }
+      // finished: room by room along the edge (the walls between them hide the joins)
+      for (const r of plan.rooms) {
+        if (r.level !== lv.index && !(r.levels === 2 && r.level === lv.index - 1)) continue;
+        const on = r.polygon.filter(p => edgeAt(inner, p) === i).map(s);
+        if (on.length < 2) continue;
+        lining(e, i, lv.index, Math.max(0, Math.min(...on) - 0.06), Math.min(e.len, Math.max(...on) + 0.06), z0, z1, r);
+      }
     });
   }
 
@@ -238,15 +272,17 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
     const [l, r] = sidesOf(w);
     // on the ballroom's upper floor the ballroom's own walls stand instead
     const voidWall = w.rooms[1] === null;
-    if (!voidWall) wallSolid(walls, walls, walls, w, lv.floorZ, () => lv.ceilingZ, lv.floorZ, lv.ceilingZ - 0.02, true);
+    const L = () => paint(rooms.get(l ?? "") ?? null), R = () => paint(rooms.get(r ?? "") ?? null);
+    const rim = () => paint(null), slab = () => section;
+    if (!voidWall) wallSolid(L, R, rim, w, lv.floorZ, () => lv.ceilingZ, lv.floorZ, lv.ceilingZ - 0.02, true);
     const lo = openAbove(l, k), ro = openAbove(r, k);
     if (lo || ro) {
-      wallSolid(lo ? walls : section, ro ? walls : section, section, { ...w, openings: [] },
+      wallSolid(lo ? L : slab, ro ? R : slab, slab, { ...w, openings: [] },
         lv.ceilingZ, () => levels[k + 1].floorZ, lv.ceilingZ, 0, true);
     }
     if (!voidWall && w.rooms.some(id => rooms.get(id ?? "")?.type === "ballroom")) {
       const up = levels[k + 1];
-      wallSolid(walls, walls, walls, { ...w, openings: [] }, up.floorZ, () => up.ceilingZ, up.floorZ, 0, true);
+      wallSolid(L, R, rim, { ...w, openings: [] }, up.floorZ, () => up.ceilingZ, up.floorZ, 0, true);
     }
   }
 
@@ -261,6 +297,7 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
   const zc = attic.ceilingZ;
   const P0 = ring(zk), Pc = ring(zc);
   const dormers = plan.windows.filter(w => w.level === attic.index && w.kind === "dormer");
+  paint(null);
   F.forEach((a, i) => {
     const c = F[(i + 1) % F.length];
     const len = Math.hypot(c[0] - a[0], c[1] - a[1]);
@@ -339,8 +376,11 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
     if (w.level !== attic.index) continue;
     const len = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
     const top = (s: number) => under([w.a[0] + ((w.b[0] - w.a[0]) * s) / len, w.a[1] + ((w.b[1] - w.a[1]) * s) / len]);
-    wallSolid(walls, walls, walls, w, attic.floorZ, top, attic.floorZ, zc - 0.02, false);
+    const [l, r] = sidesOf(w);
+    wallSolid(() => paint(rooms.get(l ?? "") ?? null), () => paint(rooms.get(r ?? "") ?? null), () => paint(null),
+      w, attic.floorZ, top, attic.floorZ, zc - 0.02, false);
   }
+  paint(null);
 
   // chimney flues: the stacks run down to here; a plastered flue from the attic floor
   for (const ch of b.chimneys) {
@@ -358,7 +398,8 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
   }
 
   const group = new Group();
-  const parts: [Tris, Material][] = [[walls, mats.wall], [floors, mats.floor], [ceilings, mats.ceiling], [section, mats.section]];
+  const parts: [Tris, Material][] = [[walls, finished ? mats.finishWall : mats.wall], [floors, mats.floor], [ceilings, mats.ceiling],
+    [section, mats.section], [finishFloors, mats.finishFloor]];
   for (const [t, m] of parts) {
     if (!t.pos.length) continue;
     const mesh = new Mesh(t.geometry(), m);
@@ -393,7 +434,7 @@ function inConvex(poly: V2[], p: V2): boolean {
  * where they would fight with it). `left` takes the face on the left of a -> b,
  * `right` the other, `rims` the ends, door jambs and sloping tops.
  */
-function wallSolid(left: Tris, right: Tris, rims: Tris, w: PlanWall, z0: number, top: (s: number) => number,
+function wallSolid(left: () => Tris, right: () => Tris, rims: () => Tris, w: PlanWall, z0: number, top: (s: number) => number,
   floorZ: number, doorTop: number, flatTop: boolean) {
   const len = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
   const dir: V2 = [(w.b[0] - w.a[0]) / len, (w.b[1] - w.a[1]) / len];
@@ -418,8 +459,8 @@ function wallSolid(left: Tris, right: Tris, rims: Tris, w: PlanWall, z0: number,
   }
   const at = (off: number) => (p: V2) => new Vector3(w.a[0] + dir[0] * p[0] + n[0] * off, w.a[1] + dir[1] * p[0] + n[1] * off, p[1]);
   const N = new Vector3(n[0], n[1], 0);
-  left.polygon(prof, [], at(e), N);
-  right.polygon(prof, [], at(-e), N.clone().negate());
+  left().polygon(prof, [], at(e), N);
+  right().polygon(prof, [], at(-e), N.clone().negate());
   const along = new Vector3(dir[0], dir[1], 0);
   prof.forEach((p, k) => {
     const q = prof[(k + 1) % prof.length];
@@ -427,6 +468,6 @@ function wallSolid(left: Tris, right: Tris, rims: Tris, w: PlanWall, z0: number,
     if (flatTop && k >= topFrom && k < topFrom + steps) return;
     const ds = q[0] - p[0], dz = q[1] - p[1];
     const facing = along.clone().multiplyScalar(dz).addScaledVector(UP, -ds);
-    rims.quad(at(e)(p), at(e)(q), at(-e)(q), at(-e)(p), facing);
+    rims().quad(at(e)(p), at(e)(q), at(-e)(q), at(-e)(p), facing);
   });
 }

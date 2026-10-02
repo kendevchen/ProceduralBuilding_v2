@@ -24,6 +24,7 @@ import { type CutAxis, type CutMode, Cutaway } from "./cutaway";
 import { buildRooms3d } from "./rooms3d";
 import { RoomLabels } from "./roomLabels";
 import { buildStairs } from "./stairs";
+import type { Look } from "./finishes";
 import { Toolbar } from "./toolbar";
 
 const renderer = new WebGLRenderer({ antialias: true, powerPreference: "high-performance", logarithmicDepthBuffer: true });
@@ -64,7 +65,7 @@ scene.add(root);
 const params = defaultParams();
 const view = { gallery: false };
 /** floor plans (INTERIOR_SPEC.md): the plan view of one level, its labels, the plan check */
-const interiorView = { plan: false, level: 1, labels: true, area: false, check: "—" };
+const interiorView = { plan: false, level: 1, labels: true, area: false, check: "—", look: "real" as Look };
 let materials: KitMaterials | null = null;
 let kit: Kit | null = null;
 let shown: Group | null = null;
@@ -157,7 +158,7 @@ function rebuild(frame = false): void {
   const curtains = new Mesh(inside.curtains, materials.voile);
   curtains.receiveShadow = true;
   g.add(curtains);
-  interior = buildRooms3d(plan, b, kit, cutaway.interior);
+  interior = buildRooms3d(plan, b, kit, cutaway.interior, interiorView.look);
   // the stairs' railing: the kit's first lace pattern (欄杆與圓環)
   interior.add(buildStairs(plan, cutaway.interior, cutaway.cut(materials.lace(0)), materials.laceDepth(0)));
   g.add(interior);
@@ -295,6 +296,7 @@ const levelCtrl = fInterior.add(interiorView, "level", 0, 7, 1).name("樓層（�
   }
   rebuild();
 });
+fInterior.add(interiorView, "look", { "寫實材質": "real", "圖解（每種空間一個顏色）": "diagram", "白模": "white" }).name("室內呈現").onChange(update);
 fInterior.add(interiorView, "labels").name("房間名稱").onChange(update);
 fInterior.add(interiorView, "area").name("顯示面積").onChange(update);
 fInterior.add(params, "ballroom").name("宴會廳").onChange(update);
