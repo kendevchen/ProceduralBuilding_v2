@@ -7,4 +7,4 @@
 | [MODELING_GUIDE.md](MODELING_GUIDE.md) | 建模流程：照片與 3D 檔、三種建模路線、材質與 AO、尺寸檔如何變成零件、model 與 effort、新專案的 prompt 範本 |
 | [COLLABORATION_GUIDE.md](COLLABORATION_GUIDE.md) | 多個 AI 的分工：角色與交接物、小測試、交接 prompt、尺寸檔在分工中的角色 |
 
-`CLAUDE.md` 不連到這裡，開發時的 AI 不會自動讀它們。需要時請直接指定檔案。
+`CLAUDE.md` 和 `STATE.md` 不連到這裡，開發時的 AI 不會自動讀它們。需要時請直接指定檔案。

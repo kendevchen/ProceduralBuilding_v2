@@ -1,38 +1,29 @@
 # ProceduralBuilding_v2 — 歐式建築 kit
 
-目標：用 Blender Python 製作歐式建築零件庫（kit.glb），加上排列規則，在網頁上程序化生成。
+用 Blender Python 做歐式建築零件庫（`kit.glb`），加排列規則，在網頁上程序化生成，並能剖開看室內。
 
-## 與 v1 的關係
-- v1 位置：`../ProceduralBuilding_v1`（GitHub `kendevchen/ProceduralBuilding_v1`；標籤 `v1-hongkong` = 線上港式版，之後新增的文件如 `HK_MODEL_INVENTORY.md` 只在 main）。本專案可直接讀取（見 `.claude/settings.json`）。
-- v2 只放用得到的東西。需要下表的功能時，**先去 v1 讀對應檔案再移植，不要重寫**。
-- 從 v1 帶來、目前與 v1 相同的檔案：`src/environment.ts`、`src/moods.ts`、`src/sky.ts`、`src/postfx.ts`。
-- 從 v1 移植後改過的檔案：`src/kit.ts`（只留名稱還原、鏡像、實例化）、`blender/export_kit.py`（自動找 `KIT` 底下的集合、保留 UV、manifest 記三角形數）、`.github/workflows/deploy.yml`（同時部署 main 和 `interior-floors` 的 `/dev/` 預覽）。
+**先讀 [STATE.md](STATE.md)**（現況、規矩、任務該讀哪裡）。規格只讀相關章節，不整份讀：外牆零件 [blender/KIT_SPEC.md](blender/KIT_SPEC.md)，室內 [INTERIOR_SPEC.md](INTERIOR_SPEC.md)。`archive/` 與功能無關，不要讀，除非被指定。
 
-## v1 功能地圖（v2 尚未帶入）
-| 功能 | v1 位置 | 備註 |
-|---|---|---|
-| **道路與城市街廓系統**（路網、路緣、標線、量體、街道家具） | `road-system/`，設計紀錄 `road-system/PLAN.md` | 之後要加「向量錨點編輯道路」：做成新的 layout 產生器，核心沿用（PLAN.md 第 1、6 節） |
-| 道路系統整合進建築頁（單位換算、清出視線） | `src/city.ts` | |
-| 港式大樓：零件載入、排列演算法 | `src/kit.ts`、`src/generator.ts`、`src/params.ts`、`src/rng.ts` | kit 載入、鏡像幾何、1K/2K 貼圖切換可參考 |
-| 港式零件清單與 kit 規格參考 | `HK_MODEL_INVENTORY.md`、`ProceduralBuilding_Assets_Kit/` | 命名 `COL[集合][索引]`、`OBJ[物件]` |
-| 頂樓霓虹招牌、水塔 | `src/streetlife.ts` | 尚未帶入（人行道與行道樹已簡化移植，見下方「開發」） |
-| 滑鼠檢查模式、除錯材質 | `src/main.ts`（inspect / debug 段落） | |
-| 電影運鏡、景深、對焦平面 | `src/main.ts`（cinematic 段落） | |
-| 雪、雨、濕潤（使用者不需要） | `src/snow.ts`、`src/rain.ts`、`src/wet.ts` | |
-
-## 外部參考素材（不在 repo 內）
-- `../ProceduralBuilding_v1/Shared_Assets_Library/`：參考站原始碼（含法式 `FrenchBuilding.blend`，MIT）、Kenney 城市套件（CC0）。授權細項見該資料夾 README。
+## 規矩（精簡）
+- 尺寸只改 `blender/kit_dims.json`；零件由 `blender/kitlib/` 產生，不手改 `.blend`。
+- 素材全部自製，不用 Kenney 或下載模型；FrenchBuilding.blend 只參考拆件方式與搭配規則。
+- 不 commit `.claude/settings.json`；推送要等使用者說，推送到 `main` 要先問。
+- 文件繁體中文；新階段前先建議 model 與 effort。
 
 ## 開發
-- `npm run dev` → http://localhost:5176/
-- `npm run build`；推送到 main 會由 GitHub Actions 部署到 https://kendevchen.github.io/ProceduralBuilding_v2/
-- 新功能在分支 `interior-floors` 開發，推送後部署到 https://kendevchen.github.io/ProceduralBuilding_v2/dev/ ，正式網站不變（main 的標籤 `v2.0-exterior`）。
+- `npm run dev` → http://localhost:5176/（不要關使用者的；測試用 5177）
+- `npm run build`；推送到 `main` 由 GitHub Actions 部署正式站，推送到 `interior-floors` 部署 `/dev/` 預覽。
 - Blender 5.1.1：`/Applications/Blender.app/Contents/MacOS/Blender`
-- 零件規格與分階段計畫：`blender/KIT_SPEC.md`（含決策紀錄）。尺寸常數只改 `blender/kit_dims.json`。
-- 室內樓層（剖開建築：水平剖、縱剖，平面配置、樓梯、宴會廳）的規格與分階段計畫：`INTERIOR_SPEC.md`（階段 I1–I5）。
-- `npm run kit`：建模 → 預覽圖 `blender/kit_preview.jpg` → 匯出 `public/assets/kit.glb`。零件全部由 `blender/kitlib/` 產生，不手改 `.blend`。
-- `npm run tex`：`blender/bake.py` 烘焙自製貼圖與鐵花圖樣到 `public/assets/tex/`；網頁端的材質著色器在 `src/materials.ts`。
-- `npm run rooms`：`blender/rooms.py` 產生室內圖集；`npm run ao`：`blender/bake_ao.py` 烘焙 AO（約 10 分鐘）。窗後室內與窗簾在 `src/interiors.ts`。
-- 剖開建築：平面配置 `src/plan.ts`、室內白模 `src/rooms3d.ts`、地板與牆面（寫實材質／圖解／白模）`src/finishes.ts`、樓梯 `src/stairs.ts`、宴會廳與書房的家具 `src/furniture.ts`（檯燈的光 `src/lampLights.ts`）、切面與切開用的材質 `src/cutaway.ts`、房間名稱 `src/roomLabels.ts`、剖切面板與底部工具列 `src/toolbar.ts`。外牆內面的開口輪廓來自 `modules.openings()`，經 manifest 傳到網頁端。改平面規則後，在開發模式用 `window.__app.planCheckAll([1, 2, 3], ["auto"])` 跑一次全部組合（"two"、"one" 另外各跑一次）。
-- 人行道與行道樹（簡版，之後會隨街道邏輯重寫）：`src/streetlife.ts`，移植自 v1，尺寸在 `kit_dims.json` 的 `street`；只有街道立面（`kind: "street"`）有人行道，地面不剖開。
-- 素材全部自製：FrenchBuilding.blend 只參考拆件方式與搭配規則，不沿用幾何與貼圖；不用 Kenney 或下載模型。
+- `npm run kit` / `tex` / `rooms` / `ao`：見 STATE.md 第 4 節。
+
+## 與 v1 的關係
+- v1 在 `../ProceduralBuilding_v1`（標籤 `v1-hongkong` 是線上港式版），本專案可直接讀取（見 `.claude/settings.json`）。需要下表的功能時，**先去 v1 讀對應檔案再移植，不要重寫**。
+- 與 v1 相同的檔案：`src/environment.ts`、`src/moods.ts`、`src/sky.ts`、`src/postfx.ts`；移植後改過：`src/kit.ts`、`blender/export_kit.py`、`.github/workflows/deploy.yml`。
+
+| v1 功能（v2 尚未帶入） | v1 位置 |
+|---|---|
+| 道路與城市街廓系統（路網、路緣、標線、街道家具）；之後做「向量錨點編輯道路」 | `road-system/`、`road-system/PLAN.md` |
+| 道路整合進建築頁 | `src/city.ts` |
+| 頂樓霓虹招牌、水塔 | `src/streetlife.ts` |
+| 滑鼠檢查模式、除錯材質、電影運鏡、景深 | `src/main.ts`（inspect、cinematic 段落） |
+| 外部參考素材（不在 repo 內） | `../ProceduralBuilding_v1/Shared_Assets_Library/`（授權見該資料夾 README） |

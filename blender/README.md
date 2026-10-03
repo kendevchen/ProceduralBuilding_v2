@@ -1,6 +1,6 @@
 # blender/ — 歐式零件產線
 
-全部零件由 Python 程序化產生，不手改 `.blend`。規格在 [KIT_SPEC.md](KIT_SPEC.md)，參考站研究在 [REFERENCE_NOTES.md](REFERENCE_NOTES.md)。
+全部零件由 Python 程序化產生，不手改 `.blend`。規格在 [KIT_SPEC.md](KIT_SPEC.md)，參考站研究在 [REFERENCE_NOTES.md](../archive/REFERENCE_NOTES.md)。
 
 ```bash
 npm run kit   # 建模 → 預覽圖 → 匯出（需要 Blender 5.1+；換路徑用 BLENDER=... npm run kit）

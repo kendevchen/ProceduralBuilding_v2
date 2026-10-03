@@ -1,6 +1,6 @@
 # 建模流程指南（MODELING\_GUIDE）
 
-> 給未來的自己，也給其他建模專案的 AI。內容來自 ProceduralBuilding\_v2 的實作經驗（2026-10）。 專案細節看 [blender/KIT_SPEC.md](../blender/KIT_SPEC.md)（外牆零件）和 [INTERIOR_SPEC.md](../INTERIOR_SPEC.md)（室內）；這份只講「怎麼做 事」。 Token 數是相對估計，不是量測值；以「做一個零件」為 1。
+> 給未來的自己，也給其他建模專案的 AI。內容來自 ProceduralBuilding\_v2 的實作經驗（2026-10）。 專案細節看 [blender/KIT_SPEC.md](../../blender/KIT_SPEC.md)（外牆零件）和 [INTERIOR_SPEC.md](../../INTERIOR_SPEC.md)（室內）；這份只講「怎麼做 事」。 Token 數是相對估計，不是量測值；以「做一個零件」為 1。
 >
 > **換算**：1 單位 ≈ 5 次操作（讀一個檔、改一個檔、跑一個指令、看一張截圖，各算一次）。老虎窗第一輪實際約 25 次操作、約 4 張截圖、改 7 個檔案，約等於 5 單位。這個次數是事後回想的粗估，不是量測；要真實的 token，請在 Claude Code 用 `/cost` 比較每個階段前後。
 >

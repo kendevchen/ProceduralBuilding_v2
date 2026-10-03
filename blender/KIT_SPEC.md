@@ -1,7 +1,7 @@
 # 歐式建築 kit 規格（KIT_SPEC）
 
 > 狀態：**定稿**（2026-10-01，第 12 節的假設已確認）。之後的修改記在第 0 節。**階段 A–F 全部完成**。
-> 依據：[REFERENCE_NOTES.md](REFERENCE_NOTES.md)（參考站研究）。
+> 依據：[REFERENCE_NOTES.md](../archive/REFERENCE_NOTES.md)（參考站研究）。
 >
 > 這份文件是以下程式共同遵守的約定：Blender 端的 `build_kit.py`（建模）、`bake.py`（貼圖）、`export_kit.py`（匯出），以及網頁端的 `src/kit.ts`（載入）、`src/generator.ts`（排列）。
 
