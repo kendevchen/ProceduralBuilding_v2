@@ -36,4 +36,5 @@
 - 剖開建築：平面配置 `src/plan.ts`、室內白模 `src/rooms3d.ts`、地板與牆面（寫實材質／圖解／白模）`src/finishes.ts`、樓梯 `src/stairs.ts`、宴會廳與書房的家具 `src/furniture.ts`（檯燈的光 `src/lampLights.ts`）、切面與切開用的材質 `src/cutaway.ts`、房間名稱 `src/roomLabels.ts`、剖切面板與底部工具列 `src/toolbar.ts`。外牆內面的開口輪廓來自 `modules.openings()`，經 manifest 傳到網頁端。改平面規則後，在開發模式用 `window.__app.planCheckAll([1, 2, 3], ["auto"])` 跑一次全部組合（"two"、"one" 另外各跑一次）。
 - 人行道與行道樹（簡版，之後會隨街道邏輯重寫）：`src/streetlife.ts`，移植自 v1，尺寸在 `kit_dims.json` 的 `street`；只有街道立面（`kind: "street"`）有人行道，地面不剖開。
 - 建模流程、token 估計、新專案的 prompt 範本：`MODELING_GUIDE.md`。
+- 多個 AI 分工（規劃、建模、整合、測試、修改）：`COLLABORATION_GUIDE.md`。
 - 素材全部自製：FrenchBuilding.blend 只參考拆件方式與搭配規則，不沿用幾何與貼圖；不用 Kenney 或下載模型。
