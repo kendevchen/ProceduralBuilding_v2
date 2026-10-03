@@ -1,6 +1,6 @@
 # STATE：專案現況（新對話先讀這份，其他按需要讀）
 
-更新：2026-10-03。分支 `interior-floors`（預覽 `/dev/`）；正式站 `main` 是 `v2.0-exterior`，還沒有室內功能。標籤 `v2.1-interior` 標記這份現況。
+更新：2026-10-03。分支 `interior-floors`（預覽 `/dev/`）；正式站 `main` 是 `v2.0-exterior`，還沒有室內功能。
 
 ## 1. 已完成
 
