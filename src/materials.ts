@@ -281,7 +281,7 @@ const LACE_MAP = /* glsl */ `
   // film that the alpha test throws away. Widen the bars with the distance: how many texels one pixel
   // spans (1 up close) lifts the coverage, so the bars stay as thin lines (see the lace's flat 16% fill).
   float span = max(length(dFdx(cont)), length(dFdy(cont))) * 1024.0;      // texels per pixel
-  float lift = clamp(log2(max(span, 1.0)) * 0.2, 0.0, 0.5);                // 0 up close .. 0.5 far
+  float lift = clamp(log2(max(span, 1.0)) * 0.2, 0.0, 0.35);               // 0 up close .. 0.35 far
   lace.a = clamp(lace.a * (1.0 + 4.0 * lift) + lift * 0.35, 0.0, 1.0);
   diffuseColor *= lace;
 }
