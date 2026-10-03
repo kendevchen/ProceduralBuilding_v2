@@ -261,6 +261,22 @@ kit_dims.json → build_kit.py → kitlib/*.py → MeshBuilder → Blender 網�
 
 **Blender 不懂 JSON，也不做設計**：它只負責存放網格、指定材質、展開 UV、匯出。形狀的邏輯全在我們的 Python 裡。
 
+**每一步建議用什麼 model 與 effort**（以 Claude 為例，依本專案經驗；token 為相對值，一個零件約 5）
+
+| 步驟 | 工作 | 建議 | 相對 token | 說明 |
+|---|---|---|---|---|
+| 定尺寸 | 看圖、估比例、決定要新增哪些鍵、寫 `_doc` | Opus、high（簡單的改值：Sonnet、medium） | 0.2 到 1 | 尺寸影響零件、室內、AO，要想清楚連動 |
+| 寫零件 | `modules.py` 的函式，用 `D` 做形狀 | Sonnet、high | 1.5 | 有規格、有現成的 `MeshBuilder` 可用；複雜的零件（開口、連動室內）才升 Opus |
+| 寫 `MeshBuilder` 這類基礎工具 | 新專案才需要，一次性 | Opus、high | 2 到 3 | 之後每個零件都靠它，錯了全部連帶 |
+| 建置與匯出 | `npm run kit` | 不需要模型 | 0.1 | 在你的電腦跑，只讀結果 |
+| 尺寸檢查失敗時 | 找哪個零件跑出範圍 | Sonnet、medium | 0.2 | 讀錯誤訊息、改尺寸或形狀 |
+| 接網頁端 | manifest 開口、排列規則、室內開洞 | Opus、high | 1 | 連鎖改動，最容易漏 |
+| 驗證 | 截圖、零件總覽 | Sonnet、medium | 1 | 看圖找缺陷；找不出來的疑難才升級 |
+| 重烘焙 AO | `npm run ao` | 不需要模型 | 0（等待） | 只有完成後的建置與 commit 才算 |
+
+- **規律**：決定「尺寸與連動」的步驟用 Opus；照規格做形狀與驗證用 Sonnet。
+- **其他模型**：依第 11 節的假設（Astra ≈ Opus high、Qwen ≈ Sonnet 5.5）對應；未經第 6 節測試前，這只是推測。
+
 ### 13.3 一個零件的例子（老虎窗的玻璃窗洞）
 
 ```python
