@@ -21,7 +21,7 @@ export type Stamp = [number, number, number, number, number, number, number, num
 
 const P = {
   plain: 0, herringbone: 1, boards: 2, hexMixed: 3, hexSparse: 4, marble: 5, carpet: 6,
-  paint: 10, wallpaper: 11, boiserie: 12, tiles: 13, books: 14,
+  paint: 10, wallpaper: 11, boiserie: 12, tiles: 13, books: 14, bedroomPanels: 15,
 } as const;
 type Pattern = (typeof P)[keyof typeof P];
 
@@ -93,7 +93,9 @@ export function stampOf(look: Look, room: PlanRoom | null, surface: "wall" | "fl
     const v = c.toArray() as [number, number, number];
     return stamp(surface === "wall" ? P.paint : P.plain, v, v, room.floorZ, room.ceilingZ);
   }
-  const f = (surface === "wall" ? WALLS : FLOORS)[room.type];
+  const f = surface === "wall" && room.type === "bedroom" && room.level === 1
+    ? { pattern: P.bedroomPanels, a: "#a6b2a0", b: "#879781" }
+    : (surface === "wall" ? WALLS : FLOORS)[room.type];
   return stamp(f.pattern, rgb(f.a), rgb(f.b), room.floorZ, room.ceilingZ);
 }
 
@@ -340,12 +342,13 @@ float finRough = 0.85;
       float dm = abs(q.x) * 1.6 + abs(q.y);
       col = mix(col, B, (1.0 - smoothstep(0.1, 0.12, dm)) * 0.75);
       if (h > top - 0.3) col = A * 0.96;
-    } else if (pat == 12) {
+    } else if (pat == 12 || pat == 15) {
       // boiserie
       float d = max(finPanel(u, h, 0.18, 0.8), finPanel(u, h, 1.1, top - 0.45));
       if (d >= 0.0) col = mix(col, B, 0.75 * finLine(abs(d - 0.025), 0.006)) * (1.0 + 0.1 * finLine(abs(d - 0.04), 0.005));
       if (h > 0.86 && h < 0.94) col = mix(A, B, 0.6);
       if (h > top - 0.22) col = mix(A, B, 0.35 + 0.4 * finLine(abs(h - top + 0.12), 0.012));
+      if (pat == 15 && h > top - 0.22) col = vec3(0.86, 0.83, 0.73) * (0.97 + 0.06 * finLine(abs(h - top + 0.12), 0.012));
       finRough = 0.6;
     } else if (pat == 14) {
       vec4 bk = finBooks(u, h);
@@ -363,7 +366,7 @@ float finRough = 0.85;
       } else col = B * (0.97 + 0.05 * finNoise(vec2(u, h) * 4.0));
     }
     // skirting board
-    if (h < 0.13 && pat != 13 && pat != 14) col = pat == 12 ? mix(A, B, 0.5) : B * 0.95;
+    if (h < 0.13 && pat != 13 && pat != 14) col = (pat == 12 || pat == 15) ? mix(A, B, 0.5) : B * 0.95;
   }
   diffuseColor.rgb = col;
 }

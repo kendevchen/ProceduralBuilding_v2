@@ -10,6 +10,8 @@
  *     shader pattern on a card in each shelf), a desk or reading table with turned
  *     legs, ebony chairs with spindle backs, an open book and brass lamps whose
  *     shades glow (the lamps' lights are lampLights.ts).
+ *   - the second-floor bedrooms: sage panels (finishes.ts), white upholstered
+ *     double beds, brass-framed bedside tables and pleated glowing lamps.
  * Every solid is closed, so a cut through it shows the section colour. Blender
  * Z-up space, like rooms3d.ts.
  */
@@ -19,6 +21,9 @@ import type { BuildingPlan, PlanRoom } from "./plan";
 import type { Building } from "./generator";
 import { type InteriorMaterials, Tris, atticCeiling } from "./rooms3d";
 import type { V2 } from "./roof";
+import dims from "../blender/kit_dims.json";
+
+const BED = dims.interior.bedroomFurniture;
 
 /** the parquet that shows round the carpet, and the clearance round the table */
 const RUG_MARGIN = 0.55;
@@ -48,6 +53,27 @@ class Part {
     t.quad(c(x0, y1, z0), c(x1, y1, z0), c(x1, y1, z1), c(x0, y1, z1), this.n(0, 1, 0));
     t.quad(c(x0, y0, z0), c(x1, y0, z0), c(x1, y1, z0), c(x0, y1, z0), this.n(0, 0, -1));
     t.quad(c(x0, y0, z1), c(x1, y0, z1), c(x1, y1, z1), c(x0, y1, z1), this.n(0, 0, 1));
+  }
+
+  /** Rounded closed box, shared by cushions, mattress and upholstered headboard. */
+  softBox(cx: number, cy: number, cz: number, w: number, d: number, h: number, radius: number): void {
+    const half = [w / 2, d / 2, h / 2];
+    const r = Math.min(radius, ...half);
+    const point = (axis: number, sign: number, u: number, v: number) => {
+      const a = (axis + 1) % 3, b = (axis + 2) % 3;
+      const q = [0, 0, 0]; q[axis] = sign * half[axis]; q[a] = u * half[a]; q[b] = v * half[b];
+      const c = q.map((x, i) => Math.max(-half[i] + r, Math.min(half[i] - r, x)));
+      const n = new Vector3(q[0] - c[0], q[1] - c[1], q[2] - c[2]).normalize();
+      return { p: this.p(cx + c[0] + n.x * r, cy + c[1] + n.y * r, cz + c[2] + n.z * r), n: this.n(n.x, n.y, n.z) };
+    };
+    const steps = [-1, -0.85, -0.5, 0, 0.5, 0.85, 1];
+    for (let axis = 0; axis < 3; axis++) for (const sign of [-1, 1]) {
+      for (let i = 0; i < steps.length - 1; i++) for (let j = 0; j < steps.length - 1; j++) {
+        const q = [point(axis, sign, steps[i], steps[j]), point(axis, sign, steps[i + 1], steps[j]),
+          point(axis, sign, steps[i + 1], steps[j + 1]), point(axis, sign, steps[i], steps[j + 1])];
+        this.t.quad(q[0].p, q[1].p, q[2].p, q[3].p, q[0].n.clone().add(q[1].n).add(q[2].n).add(q[3].n).normalize());
+      }
+    }
   }
 
   /** a quad in the x-z plane at depth y, facing -y or +y */
@@ -260,6 +286,121 @@ function bookcase(wood: Tris, books: Tris, f: { a: V2; d: V2; n: V2; s0: number;
   }
 }
 
+// ------------------------------------------------------------------ bedrooms
+
+/** Head at y=0, foot towards +y, all dimensions shared with kit_dims.json. */
+function bedroomSet(linen: Tris, brass: Tris, shade: Tris, m: Matrix4, lamps: Vector3[]): void {
+  const B = BED, l = new Part(linen, m), metal = new Part(brass, m);
+  const w = B.bedWidth, length = B.bedLength, base = B.baseHeight, top = base + B.mattressHeight;
+  l.softBox(0, length / 2, base / 2, w, length, base, B.rounding);
+  l.softBox(0, length / 2, base + B.mattressHeight / 2, w, length, B.mattressHeight, B.rounding);
+  l.softBox(0, B.headDepth / 2, B.headHeight / 2, w + B.sideGap, B.headDepth, B.headHeight, B.rounding);
+  // White duvet hangs over both sides and the foot; a turned-down fold at the head.
+  l.softBox(0, length * 0.62, top + B.duvetHeight / 2, w + B.sideGap, length * 0.77, B.duvetHeight, B.rounding);
+  for (const side of [-1, 1]) {
+    l.softBox(side * w / 2, length * 0.64, top - B.mattressHeight * 0.28,
+      B.duvetHeight, length * 0.72, B.mattressHeight, B.rounding);
+    l.softBox(side * w * 0.24, length * 0.18, top + B.duvetHeight,
+      w * 0.43, length * 0.24, B.duvetHeight * 1.8, B.rounding);
+    l.softBox(side * w * 0.24, length * 0.12, top + B.duvetHeight * 2.1,
+      w * 0.4, length * 0.17, B.duvetHeight * 1.5, B.rounding);
+    const x = side * (w / 2 + B.sideGap + B.nightWidth / 2), y = B.nightDepth / 2;
+    const f = B.frameThickness, hw = B.nightWidth / 2, hd = B.nightDepth / 2;
+    l.softBox(x, y, B.nightHeight, B.nightWidth, B.nightDepth, f * 2, f);
+    for (const sx of [-1, 1]) for (const sy of [-1, 1])
+      metal.box(x + sx * (hw - f) - f / 2, y + sy * (hd - f) - f / 2, 0,
+        x + sx * (hw - f) + f / 2, y + sy * (hd - f) + f / 2, B.nightHeight);
+    for (const sy of [-1, 1]) metal.box(x - hw, y + sy * (hd - f) - f / 2, B.nightHeight - f * 3,
+      x + hw, y + sy * (hd - f) + f / 2, B.nightHeight - f * 2);
+    const lm = m.clone().multiply(new Matrix4().makeTranslation(x, y, B.nightHeight + f));
+    const stem = new Part(brass, lm), H = B.lampHeight;
+    stem.lathe(0, 0, [[0, 0], [B.shadeTop * 0.6, 0], [B.shadeTop * 0.6, H * 0.04],
+      [f, H * 0.09], [f * 0.6, H * 0.65], [0, H * 0.65]], 16);
+    // Alternating radii form real pleats; inner skin and annular rims close the shade.
+    const segments = 64, thickness = B.shadeThickness;
+    const ring = (k: number, upper: boolean, inner: boolean) => {
+      const a = k * Math.PI * 2 / segments;
+      const r = (upper ? B.shadeTop : B.shadeBottom) - (k % 2 ? thickness : 0) - (inner ? thickness : 0);
+      return new Vector3(r * Math.cos(a), r * Math.sin(a), upper ? H : H * 0.52).applyMatrix4(lm);
+    };
+    for (let k = 0; k < segments; k++) {
+      const n = new Vector3(Math.cos((k + 0.5) * Math.PI * 2 / segments), Math.sin((k + 0.5) * Math.PI * 2 / segments), 0).transformDirection(lm);
+      shade.quad(ring(k, false, false), ring(k + 1, false, false), ring(k + 1, true, false), ring(k, true, false), n);
+      shade.quad(ring(k, false, true), ring(k + 1, false, true), ring(k + 1, true, true), ring(k, true, true), n.clone().negate());
+      for (const upper of [false, true]) shade.quad(ring(k, upper, false), ring(k + 1, upper, false), ring(k + 1, upper, true), ring(k, upper, true), new Vector3(0, 0, upper ? 1 : -1).transformDirection(lm));
+    }
+    lamps.push(new Vector3(0, 0, H * 0.7).applyMatrix4(lm));
+  }
+  l.softBox(0, length, top - B.mattressHeight * 0.28, w, B.duvetHeight, B.mattressHeight, B.rounding);
+  l.softBox(0, length * 0.35, top + B.duvetHeight, w, length * 0.1, B.duvetHeight * 0.5, B.rounding);
+}
+
+/** Fit the complete bed and two tables to a windowless wall, preserving openings. */
+function bedroomPlacement(plan: BuildingPlan, room: PlanRoom): Matrix4 | null {
+  const B = BED, half = B.bedWidth / 2 + B.sideGap + B.nightWidth;
+  const depth = B.bedLength + B.duvetHeight / 2;
+  const inside = (p: V2) => room.polygon.every((a, i) => {
+    const b = room.polygon[(i + 1) % room.polygon.length];
+    return (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]) >= -1e-6;
+  });
+  for (const f of freeStretches(plan, room).sort((a, b) => (b.s1 - b.s0) - (a.s1 - a.s0))) {
+    const lo = f.s0 + half, hi = f.s1 - half;
+    const candidates = [(lo + hi) / 2];
+    for (let s = lo; s <= hi; s += B.searchStep) candidates.push(s);
+    if (hi < lo) continue;
+    for (const s of candidates) {
+      const m = new Matrix4().makeBasis(new Vector3(...f.d, 0), new Vector3(...f.n, 0), new Vector3(0, 0, 1))
+        .setPosition(f.a[0] + f.d[0] * s + f.n[0] * B.wallGap, f.a[1] + f.d[1] * s + f.n[1] * B.wallGap, room.floorZ);
+      const world = (x: number, y: number) => { const p = new Vector3(x, y, 0).applyMatrix4(m); return [p.x, p.y] as V2; };
+      if (![-half, half].every(x => [0, depth].every(y => inside(world(x, y))))) continue;
+      if (![-B.bedWidth / 2, B.bedWidth / 2].every(x => inside(world(x, depth + B.footClear)))) continue;
+      const inv = m.clone().invert();
+      const clear = (a: V2, b: V2, clearance: number) => {
+        // Reserve the opening's width and inward approach, rather than a circle around its jambs.
+        const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy);
+        if (len < 1e-6) return true;
+        let nx = -dy / len, ny = dx / len;
+        const centre: V2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+        const roomCentre = room.polygon.reduce((p, q) => [p[0] + q[0] / room.polygon.length, p[1] + q[1] / room.polygon.length] as V2, [0, 0] as V2);
+        if ((roomCentre[0] - centre[0]) * nx + (roomCentre[1] - centre[1]) * ny < 0) { nx = -nx; ny = -ny; }
+        const reserved = [a, b, [b[0] + nx * clearance, b[1] + ny * clearance], [a[0] + nx * clearance, a[1] + ny * clearance]]
+          .map(p => new Vector3(p[0], p[1], room.floorZ).applyMatrix4(inv));
+        const furniture = [
+          [-B.bedWidth / 2 - B.duvetHeight / 2, 0, B.bedWidth / 2 + B.duvetHeight / 2, depth],
+          [-half, 0, -B.bedWidth / 2 - B.sideGap, B.nightDepth],
+          [B.bedWidth / 2 + B.sideGap, 0, half, B.nightDepth],
+        ];
+        return furniture.every(([x0, y0, x1, y1]) => {
+          const rect = [new Vector3(x0, y0), new Vector3(x1, y0), new Vector3(x1, y1), new Vector3(x0, y1)];
+          // Separating axis test handles angled walls as well as rectangular bedrooms.
+          const axes = [new Vector3(1, 0), new Vector3(0, 1)];
+          for (let i = 0; i < reserved.length; i++) {
+            const q = reserved[(i + 1) % reserved.length].clone().sub(reserved[i]);
+            axes.push(new Vector3(-q.y, q.x));
+          }
+          return axes.some(axis => {
+            const p = reserved.map(v => v.dot(axis)), q = rect.map(v => v.dot(axis));
+            return Math.max(...p) <= Math.min(...q) + 1e-6 || Math.max(...q) <= Math.min(...p) + 1e-6;
+          });
+        });
+      };
+      const doorsClear = room.doors.every(dr => {
+        const w = plan.walls[dr.wall], length = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
+        const point = (s: number): V2 => [w.a[0] + (w.b[0] - w.a[0]) * s / length, w.a[1] + (w.b[1] - w.a[1]) * s / length];
+        return clear(point(dr.at - dr.width / 2), point(dr.at + dr.width / 2), B.doorClear);
+      });
+      const windowsClear = room.windows.every(wi => {
+        const w = plan.windows[wi], len = Math.hypot(...w.dir);
+        const d: V2 = [w.dir[0] / len, w.dir[1] / len];
+        return clear([w.at[0] - d[0] * w.width / 2, w.at[1] - d[1] * w.width / 2],
+          [w.at[0] + d[0] * w.width / 2, w.at[1] + d[1] * w.width / 2], B.windowClear);
+      });
+      if (doorsClear && windowsClear) return m;
+    }
+  }
+  return null;
+}
+
 // ------------------------------------------------------------------ building
 
 /** where the study's lamps stand (Blender xyz), for the lights (lampLights.ts) */
@@ -267,7 +408,7 @@ export interface FurnitureInfo {
   lamps: Vector3[];
 }
 
-/** the ballroom's table, chairs and carpet, and the studies; empty when the building has neither */
+/** Ballroom, studies and second-floor bedrooms, merged by material. */
 export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMaterials, look: Look): Group {
   const group = new Group();
   const lamps: Vector3[] = [];
@@ -385,6 +526,15 @@ export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMa
     lampAt(length / 2 - 0.22, dep / 2 - 0.18);
     if (big) lampAt(-length / 2 + 0.22, dep / 2 - 0.18);
   }
+
+  const bedrooms: string[] = [], unfurnishedBedrooms: string[] = [];
+  for (const r of plan.rooms.filter(r => r.level === 1 && r.type === "bedroom")) {
+    const m = bedroomPlacement(plan, r);
+    if (!m) { unfurnishedBedrooms.push(r.id); continue; }
+    bedroomSet(linen, brass, shade, m, lamps);
+    bedrooms.push(r.id);
+  }
+  group.userData.bedrooms = { furnished: bedrooms, unfurnished: unfurnishedBedrooms };
 
   const parts: [Tris, Material][] = [
     [wood, mats.furnWood], [fabric, mats.furnFabric], [linen, mats.furnLinen], [gold, mats.furnGold], [rug, mats.finishFloor],
