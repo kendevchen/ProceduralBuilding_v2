@@ -374,7 +374,9 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
       const glass = at !== null;
       rooms.push({
         matrix: mm, kind: "attic", y0: 1.1, floor: 0.1, height: 2.7, half: 1.45, tunnel: true,
-        tunnelSize: glass ? { x: at!.front / 2 - at!.pier, z0: at!.sill - 0.1, z1: at!.head - 0.1 } : undefined,
+        // the round-window dormer is low and narrow: its tunnel follows the window, or it pokes out of the hood
+        tunnelSize: glass ? { x: at!.front / 2 - at!.pier, z0: at!.sill - 0.1, z1: at!.head - 0.1 }
+          : dormerKind === "oeil" ? { x: 0.3, z0: 0.72, z1: 1.28 } : undefined,
         depth: Math.min(3.2, geo.depth - 1.0), along: geo.along, length: geo.length, seed: [seed, si, i, 77],
         at: { side: si, bay: i, level: rows.length + 1 },
       });

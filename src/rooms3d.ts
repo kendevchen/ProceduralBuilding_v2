@@ -480,7 +480,9 @@ function wallSolid(left: () => Tris, right: () => Tris, rims: () => Tris, w: Pla
   const doors = [...w.openings].sort((p, q) => p.at - q.at);
   for (const o of doors) {
     const d0 = Math.max(s0 + 0.01, o.at - o.width / 2), d1 = Math.min(s1 - 0.01, o.at + o.width / 2);
-    const h = Math.min(floorZ + o.height, doorTop, top(o.at) - 0.1);
+    // under a slope the wall is lower at one edge of the door than at its middle: the head follows the lowest
+    const lowest = Math.min(top(Math.max(0, Math.min(len, d0))), top(Math.max(0, Math.min(len, d1))), top(Math.max(0, Math.min(len, o.at))));
+    const h = Math.min(floorZ + o.height, doorTop, lowest - 0.1);
     if (h <= z0 + 0.5 || d1 <= d0) continue;
     prof.push([d0, z0], [d0, h], [d1, h], [d1, z0]);
   }
