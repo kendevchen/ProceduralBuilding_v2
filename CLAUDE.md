@@ -2,7 +2,7 @@
 
 用 Blender Python 做歐式建築零件庫（`kit.glb`），加排列規則，在網頁上程序化生成，並能剖開看室內。
 
-**先讀 [STATE.md](STATE.md)**（現況、規矩、任務該讀哪裡）。規格只讀相關章節，不整份讀：外牆零件 [blender/KIT_SPEC.md](blender/KIT_SPEC.md)，室內 [INTERIOR_SPEC.md](INTERIOR_SPEC.md)。`archive/` 與功能無關，不要讀，除非被指定。
+**先讀 [STATE.md](STATE.md)**（現況、規矩、任務該讀哪裡）。規格只讀相關章節，不整份讀：外牆零件 [blender/KIT_SPEC.md](blender/KIT_SPEC.md)，室內 [INTERIOR_SPEC.md](INTERIOR_SPEC.md)。`archive/` 與功能無關，不要讀，除非被指定。**如果文件裡有指向 `archive/` 的連結，而 `archive/` 不存在，不要去別的地方找，也不要猜內容；直接回覆「找不到 archive/」，等使用者放回來。**
 
 ## 規矩（精簡）
 - 尺寸只改 `blender/kit_dims.json`；零件由 `blender/kitlib/` 產生，不手改 `.blend`。
