@@ -240,3 +240,59 @@
 | 街道 | `src/streetlife.ts` |
 | 零件總覽 | `src/gallery.ts` |
 | 規格與決策 | `blender/KIT_SPEC.md`、`INTERIOR_SPEC.md` |
+## 13. 尺寸檔如何變成零件（kit_dims.json → Blender）
+
+### 13.1 是什麼
+
+`blender/kit_dims.json` 是整個專案的**尺寸總表**，單位公尺：開間、牆厚、樓高、窗寬、陽台、老虎窗、室內樓板與走廊、樓梯、街道。Blender 腳本與網頁 TypeScript 都從這裡讀，**程式裡不寫死數字**。它不是自動產生的，是人（或 AI）在每個階段需要新尺寸時手動加進去；數字來自照片估出的比例、現實的規範（踏步高度、走廊淨寬）、以及實作時調出來的值。
+
+### 13.2 流程
+
+```
+kit_dims.json → build_kit.py → kitlib/*.py → MeshBuilder → Blender 網格 → GLB 與 manifest
+   (尺寸)       (讀入、迴圈)   (每個零件一個函式)  (自寫的小工具)  (bpy)        (給網頁用)
+```
+
+1. `npm run kit` 啟動沒有介面的 Blender，執行 `build_kit.py`。
+2. 腳本用 `json.load` 把尺寸讀成 Python 字典 `D`。
+3. `kitlib/modules.py` 的每個函式接收 `D`，用裡面的數字決定形狀。
+4. `kitlib/blend.py` 把形狀交給 Blender（`bpy`）變成網格物件、指定材質名稱、展開 UV。
+5. `export_kit.py` 匯出 GLB（幾何與材質）與 `kit_manifest.json`（每個零件的資料：包圍盒、開口輪廓、凹槽、三角形數）。
+
+**Blender 不懂 JSON，也不做設計**：它只負責存放網格、指定材質、展開 UV、匯出。形狀的邏輯全在我們的 Python 裡。
+
+### 13.3 一個零件的例子（老虎窗的玻璃窗洞）
+
+```python
+a = D["dormer"]["studio"]                  # 取尺寸：front 2.7、pier 0.2、sill 0.12 ...
+gw = a["front"] / 2 - a["pier"]            # 窗洞半寬 = 1.35 - 0.2 = 1.15
+loop = P.opening_loop(gw, sill, head)      # 窗洞輪廓：一圈 (x, z) 座標
+mb.wall(0, 0, 0, 0, "stone_trim", y=yf, outer=[...], holes=[loop])   # 牆面挖掉這個洞
+mb.box((x0, yf - 0.04, 0.0), (x1, yf, zt), "stone_trim")             # 石柱：一個方塊
+```
+
+### 13.4 中間的一層：MeshBuilder
+
+- 我們自己寫的小工具（`blender/kitlib/geom.py`），提供 `box`（方塊）、`wall`（牆面加洞）、`sweep`（沿路徑掃出剖面）、`planar`（平面多邊形）、`prism`（擠出）等。
+- 先在 Python 裡記下頂點和面，**不碰 Blender**；建完才由 `blend.py` 一次轉成 Blender 網格。
+- 好處：形狀邏輯與 Blender 分開，容易檢查與重用。壞處：基本函式要自己寫（本專案階段 A 已寫好）。
+- **新專案要先寫這一層**，後面每個零件才便宜。
+
+### 13.5 為什麼用腳本與尺寸檔，不手動建模
+
+- 手動建的零件，改一個尺寸要全部重做；用腳本，改一個數字，所有零件一起重建，也不會互相對不上。
+- 零件、室內牆的開口、石縫、AO 都靠同一組數字，窗洞寬度只在一個地方。
+- 多人（或多個模型）分工時，大家讀同一份，不會各寫各的數字。
+
+### 13.6 尺寸檢查
+
+建置時，每個零件算出的包圍盒要和規格比對（`catalog()` 裡的 `check`），超出範圍就讓建置報錯中止。擋掉的是「改了 JSON，卻讓零件跑出自己的範圍」這類錯誤。
+
+### 13.7 修改尺寸的流程
+
+1. 改 `kit_dims.json` 的數字。
+2. `npm run kit`：腳本重讀、重算形狀、重新匯出。
+3. 網頁重新整理，看到新零件。
+4. 零件形狀變了，通常也要重烘焙 AO（第 4 節）。
+
+**規矩**：尺寸只改這裡；改了和零件有關的數字，要重建 kit；新尺寸要加 `_doc` 說明單位與意義。
