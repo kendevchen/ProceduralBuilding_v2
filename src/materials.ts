@@ -277,6 +277,12 @@ const LACE_MAP = /* glsl */ `
   // stay half a texel inside the tile: its edges wrap onto each other
   vec2 inner = vec2(fract(cont.x), cont.y) * (1.0 - 1.0 / 512.0) + 0.5 / 512.0;
   vec4 lace = textureGrad(map, (tile + inner) * 0.5, dFdx(cont) * 0.5, dFdy(cont) * 0.5);
+  // far away a texel is much smaller than a pixel: the mip levels average the thin iron into a faint
+  // film that the alpha test throws away. Widen the bars with the distance: how many texels one pixel
+  // spans (1 up close) lifts the coverage, so the bars stay as thin lines (see the lace's flat 16% fill).
+  float span = max(length(dFdx(cont)), length(dFdy(cont))) * 1024.0;      // texels per pixel
+  float lift = clamp(log2(max(span, 1.0)) * 0.2, 0.0, 0.7);                // 0 up close .. 0.7 far
+  lace.a = clamp(lace.a * (1.0 + 4.0 * lift) + lift * 0.35, 0.0, 1.0);
   diffuseColor *= lace;
 }
 `;
