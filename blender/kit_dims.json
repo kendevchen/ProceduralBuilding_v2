@@ -64,7 +64,8 @@
     "twoFlatsBays": 7,
     "serviceStair": { "bays": 6, "depth": 13.0 },
     "bedroomFurniture": {
-      "_doc": "2F bedrooms: self-made procedural furniture in metres; local x across the bed, +y from head to foot.",
+      "_doc": "Bedroom furniture in metres; local x across the bed, +y from head to foot. largeBedroomArea is clear floor area in square metres for the sage-green wall finish.",
+      "largeBedroomArea": 11.0,
       "bedWidth": 1.6,
       "bedLength": 2.0,
       "baseHeight": 0.28,

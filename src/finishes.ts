@@ -13,6 +13,7 @@
  */
 import { type BufferGeometry, Color, Float32BufferAttribute, MeshStandardMaterial } from "three";
 import { type PlanRoom, ROOM_INFO, type RoomType } from "./plan";
+import dims from "../blender/kit_dims.json";
 
 export type Look = "real" | "diagram" | "white";
 
@@ -93,7 +94,7 @@ export function stampOf(look: Look, room: PlanRoom | null, surface: "wall" | "fl
     const v = c.toArray() as [number, number, number];
     return stamp(surface === "wall" ? P.paint : P.plain, v, v, room.floorZ, room.ceilingZ);
   }
-  const f = surface === "wall" && room.type === "bedroom" && room.level === 1
+  const f = surface === "wall" && room.type === "bedroom" && room.area >= dims.interior.bedroomFurniture.largeBedroomArea
     ? { pattern: P.bedroomPanels, a: "#a6b2a0", b: "#879781" }
     : (surface === "wall" ? WALLS : FLOORS)[room.type];
   return stamp(f.pattern, rgb(f.a), rgb(f.b), room.floorZ, room.ceilingZ);

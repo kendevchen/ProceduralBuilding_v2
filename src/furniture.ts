@@ -10,7 +10,7 @@
  *     shader pattern on a card in each shelf), a desk or reading table with turned
  *     legs, ebony chairs with spindle backs, an open book and brass lamps whose
  *     shades glow (the lamps' lights are lampLights.ts).
- *   - the second-floor bedrooms: sage panels (finishes.ts), white upholstered
+ *   - the bedrooms: large rooms have sage panels (finishes.ts), white upholstered
  *     double beds, brass-framed bedside tables and pleated glowing lamps.
  * Every solid is closed, so a cut through it shows the section colour. Blender
  * Z-up space, like rooms3d.ts.
@@ -336,66 +336,73 @@ function bedroomSet(linen: Tris, brass: Tris, shade: Tris, m: Matrix4, lamps: Ve
 }
 
 /** Fit the complete bed and two tables to a windowless wall, preserving openings. */
-function bedroomPlacement(plan: BuildingPlan, room: PlanRoom): Matrix4 | null {
+function bedroomPlacement(plan: BuildingPlan, b: Building, room: PlanRoom): Matrix4 | null {
   const B = BED, half = B.bedWidth / 2 + B.sideGap + B.nightWidth;
   const depth = B.bedLength + B.duvetHeight / 2;
+  const attic = plan.levels[plan.levels.length - 1];
+  const ceilingAt = room.level === attic.index ? atticCeiling(b, attic.ceilingZ) : () => room.ceilingZ;
   const inside = (p: V2) => room.polygon.every((a, i) => {
     const b = room.polygon[(i + 1) % room.polygon.length];
     return (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]) >= -1e-6;
   });
-  for (const f of freeStretches(plan, room).sort((a, b) => (b.s1 - b.s0) - (a.s1 - a.s0))) {
-    const lo = f.s0 + half, hi = f.s1 - half;
-    const candidates = [(lo + hi) / 2];
-    for (let s = lo; s <= hi; s += B.searchStep) candidates.push(s);
-    if (hi < lo) continue;
-    for (const s of candidates) {
-      const m = new Matrix4().makeBasis(new Vector3(...f.d, 0), new Vector3(...f.n, 0), new Vector3(0, 0, 1))
-        .setPosition(f.a[0] + f.d[0] * s + f.n[0] * B.wallGap, f.a[1] + f.d[1] * s + f.n[1] * B.wallGap, room.floorZ);
-      const world = (x: number, y: number) => { const p = new Vector3(x, y, 0).applyMatrix4(m); return [p.x, p.y] as V2; };
-      if (![-half, half].every(x => [0, depth].every(y => inside(world(x, y))))) continue;
-      if (![-B.bedWidth / 2, B.bedWidth / 2].every(x => inside(world(x, depth + B.footClear)))) continue;
-      const inv = m.clone().invert();
-      const clear = (a: V2, b: V2, clearance: number) => {
-        // Reserve the opening's width and inward approach, rather than a circle around its jambs.
-        const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy);
-        if (len < 1e-6) return true;
-        let nx = -dy / len, ny = dx / len;
-        const centre: V2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-        const roomCentre = room.polygon.reduce((p, q) => [p[0] + q[0] / room.polygon.length, p[1] + q[1] / room.polygon.length] as V2, [0, 0] as V2);
-        if ((roomCentre[0] - centre[0]) * nx + (roomCentre[1] - centre[1]) * ny < 0) { nx = -nx; ny = -ny; }
-        const reserved = [a, b, [b[0] + nx * clearance, b[1] + ny * clearance], [a[0] + nx * clearance, a[1] + ny * clearance]]
-          .map(p => new Vector3(p[0], p[1], room.floorZ).applyMatrix4(inv));
-        const furniture = [
-          [-B.bedWidth / 2 - B.duvetHeight / 2, 0, B.bedWidth / 2 + B.duvetHeight / 2, depth],
-          [-half, 0, -B.bedWidth / 2 - B.sideGap, B.nightDepth],
-          [B.bedWidth / 2 + B.sideGap, 0, half, B.nightDepth],
-        ];
-        return furniture.every(([x0, y0, x1, y1]) => {
-          const rect = [new Vector3(x0, y0), new Vector3(x1, y0), new Vector3(x1, y1), new Vector3(x0, y1)];
-          // Separating axis test handles angled walls as well as rectangular bedrooms.
-          const axes = [new Vector3(1, 0), new Vector3(0, 1)];
-          for (let i = 0; i < reserved.length; i++) {
-            const q = reserved[(i + 1) % reserved.length].clone().sub(reserved[i]);
-            axes.push(new Vector3(-q.y, q.x));
-          }
-          return axes.some(axis => {
-            const p = reserved.map(v => v.dot(axis)), q = rect.map(v => v.dot(axis));
-            return Math.max(...p) <= Math.min(...q) + 1e-6 || Math.max(...q) <= Math.min(...p) + 1e-6;
+  for (const scale of [1, 0.9]) {
+    for (const f of freeStretches(plan, room).sort((a, b) => (b.s1 - b.s0) - (a.s1 - a.s0))) {
+      const lo = f.s0 + half * scale, hi = f.s1 - half * scale;
+      const candidates = [(lo + hi) / 2];
+      for (let s = lo; s <= hi; s += B.searchStep) candidates.push(s);
+      if (hi < lo) continue;
+      for (const s of candidates) {
+        const m = new Matrix4().makeBasis(new Vector3(...f.d, 0).multiplyScalar(scale), new Vector3(...f.n, 0).multiplyScalar(scale), new Vector3(0, 0, 1))
+          .setPosition(f.a[0] + f.d[0] * s + f.n[0] * B.wallGap, f.a[1] + f.d[1] * s + f.n[1] * B.wallGap, room.floorZ);
+        const world = (x: number, y: number) => { const p = new Vector3(x, y, 0).applyMatrix4(m); return [p.x, p.y] as V2; };
+        if (![-half, half].every(x => [0, depth].every(y => inside(world(x, y))))) continue;
+        if (![-B.bedWidth / 2, B.bedWidth / 2].every(x => inside(world(x, depth + B.footClear / scale)))) continue;
+        const lampTop = B.nightHeight + B.frameThickness + B.lampHeight;
+        if (![-half, half].every(x => [0, B.nightDepth].every(y => ceilingAt(world(x, y)) - room.floorZ > lampTop + B.rounding))) continue;
+        if (![-B.bedWidth / 2, B.bedWidth / 2].every(x => ceilingAt(world(x, B.headDepth)) - room.floorZ > B.headHeight + B.rounding)) continue;
+        const inv = m.clone().invert();
+        const clear = (a: V2, b: V2, clearance: number) => {
+          // Reserve the opening's width and inward approach, rather than a circle around its jambs.
+          const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy);
+          if (len < 1e-6) return true;
+          let nx = -dy / len, ny = dx / len;
+          const centre: V2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+          const roomCentre = room.polygon.reduce((p, q) => [p[0] + q[0] / room.polygon.length, p[1] + q[1] / room.polygon.length] as V2, [0, 0] as V2);
+          if ((roomCentre[0] - centre[0]) * nx + (roomCentre[1] - centre[1]) * ny < 0) { nx = -nx; ny = -ny; }
+          const reserved = [a, b, [b[0] + nx * clearance, b[1] + ny * clearance], [a[0] + nx * clearance, a[1] + ny * clearance]]
+            .map(p => new Vector3(p[0], p[1], room.floorZ).applyMatrix4(inv));
+          const furniture = [
+            [-B.bedWidth / 2 - B.duvetHeight / 2, 0, B.bedWidth / 2 + B.duvetHeight / 2, depth],
+            [-half, 0, -B.bedWidth / 2 - B.sideGap, B.nightDepth],
+            [B.bedWidth / 2 + B.sideGap, 0, half, B.nightDepth],
+          ];
+          return furniture.every(([x0, y0, x1, y1]) => {
+            const rect = [new Vector3(x0, y0), new Vector3(x1, y0), new Vector3(x1, y1), new Vector3(x0, y1)];
+            // Separating axis test handles angled walls as well as rectangular bedrooms.
+            const axes = [new Vector3(1, 0), new Vector3(0, 1)];
+            for (let i = 0; i < reserved.length; i++) {
+              const q = reserved[(i + 1) % reserved.length].clone().sub(reserved[i]);
+              axes.push(new Vector3(-q.y, q.x));
+            }
+            return axes.some(axis => {
+              const p = reserved.map(v => v.dot(axis)), q = rect.map(v => v.dot(axis));
+              return Math.max(...p) <= Math.min(...q) + 1e-6 || Math.max(...q) <= Math.min(...p) + 1e-6;
+            });
           });
+        };
+        const doorsClear = room.doors.every(dr => {
+          const w = plan.walls[dr.wall], length = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
+          const point = (s: number): V2 => [w.a[0] + (w.b[0] - w.a[0]) * s / length, w.a[1] + (w.b[1] - w.a[1]) * s / length];
+          return clear(point(dr.at - dr.width / 2), point(dr.at + dr.width / 2), B.doorClear / scale);
         });
-      };
-      const doorsClear = room.doors.every(dr => {
-        const w = plan.walls[dr.wall], length = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
-        const point = (s: number): V2 => [w.a[0] + (w.b[0] - w.a[0]) * s / length, w.a[1] + (w.b[1] - w.a[1]) * s / length];
-        return clear(point(dr.at - dr.width / 2), point(dr.at + dr.width / 2), B.doorClear);
-      });
-      const windowsClear = room.windows.every(wi => {
-        const w = plan.windows[wi], len = Math.hypot(...w.dir);
-        const d: V2 = [w.dir[0] / len, w.dir[1] / len];
-        return clear([w.at[0] - d[0] * w.width / 2, w.at[1] - d[1] * w.width / 2],
-          [w.at[0] + d[0] * w.width / 2, w.at[1] + d[1] * w.width / 2], B.windowClear);
-      });
-      if (doorsClear && windowsClear) return m;
+        const windowsClear = room.windows.every(wi => {
+          const w = plan.windows[wi], len = Math.hypot(...w.dir);
+          const d: V2 = [w.dir[0] / len, w.dir[1] / len];
+          return clear([w.at[0] - d[0] * w.width / 2, w.at[1] - d[1] * w.width / 2],
+            [w.at[0] + d[0] * w.width / 2, w.at[1] + d[1] * w.width / 2], B.windowClear / scale);
+        });
+        if (doorsClear && windowsClear) return m;
+      }
     }
   }
   return null;
@@ -408,7 +415,7 @@ export interface FurnitureInfo {
   lamps: Vector3[];
 }
 
-/** Ballroom, studies and second-floor bedrooms, merged by material. */
+/** Ballroom, studies and bedrooms, merged by material. */
 export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMaterials, look: Look): Group {
   const group = new Group();
   const lamps: Vector3[] = [];
@@ -528,8 +535,8 @@ export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMa
   }
 
   const bedrooms: string[] = [], unfurnishedBedrooms: string[] = [];
-  for (const r of plan.rooms.filter(r => r.level === 1 && r.type === "bedroom")) {
-    const m = bedroomPlacement(plan, r);
+  for (const r of plan.rooms.filter(r => r.type === "bedroom")) {
+    const m = bedroomPlacement(plan, b, r);
     if (!m) { unfurnishedBedrooms.push(r.id); continue; }
     bedroomSet(linen, brass, shade, m, lamps);
     bedrooms.push(r.id);
