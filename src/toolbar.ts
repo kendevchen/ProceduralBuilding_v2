@@ -119,12 +119,8 @@ export class Toolbar {
       this.buttons[id] = b;
       return b;
     };
-    button("interior", "顯示內部", ICON.eye, "primary").onclick = () => {
-      const on = !this.interiorOn;
-      // the panel comes with it when it was closed; closing the panel is the 剖切 button's (and the ✕'s) job
-      if (on && !this.open) this.setOpen(true, true);
-      else actions.interior(on);
-    };
+    // shows or hides the interior at the slider's place; the panel is the 剖切 button's alone
+    button("interior", "顯示內部", ICON.eye, "primary").onclick = () => actions.interior(!this.interiorOn);
     const sep = document.createElement("div");
     sep.className = "sep";
     bar.appendChild(sep);
@@ -185,7 +181,7 @@ export class Toolbar {
     };
   }
 
-  /** open or close the panel (and with it the cut) */
+  /** open or close the panel; opening it also shows the interior, closing it leaves the interior as it is */
   setOpen(open: boolean, notify = false): void {
     this.open = open;
     this.panel.hidden = !open;
@@ -193,7 +189,7 @@ export class Toolbar {
     if (!open) this.setSweep(false);
     if (notify) {
       if (!open) this.actions.sweep(false);
-      this.actions.cut(open);
+      else if (!this.interiorOn) this.actions.cut(true);
     }
   }
 
