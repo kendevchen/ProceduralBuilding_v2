@@ -120,7 +120,7 @@ export function stampOf(look: Look, room: PlanRoom | null, surface: "wall" | "fl
     return stamp(surface === "wall" ? P.paint : P.plain, v, v, room.floorZ, room.ceilingZ);
   }
   const f = room.type === "shop" && room.cafePrototype
-    ? surface === "floor" ? { pattern: P.cafeFloor, a: "#35594a", b: "#eee3ca" } : { pattern: P.cafePanels, a: "#e5d3aa", b: "#b18c42" }
+    ? surface === "floor" ? { pattern: P.cafeFloor, a: "#81917a", b: "#c0bea0" } : { pattern: P.cafePanels, a: "#e5d3aa", b: "#b18c42" }
     : surface === "floor" && room.type === "kitchen"
     ? { pattern: P.kitchenMarbleTiles, a: "#e3e2e8", b: "#242830" }
     : surface === "wall" && room.type === "dining"
@@ -391,13 +391,23 @@ float finRough = 0.85;
     else if (pat == 5) r = finMarble(uv, A, B);
     else if (pat == 6) r = finCarpet(uv - A.xy, B.xy);
     else if (pat == 19) {
-      vec2 tile = vec2(${dims.interior.cafeFurniture.marbleLength.toFixed(3)}, ${dims.interior.cafeFurniture.marbleWidth.toFixed(3)});
-      vec2 q = mod(uv, tile);
-      float edge = min(min(q.x, tile.x - q.x), min(q.y, tile.y - q.y));
-      float border = 1.0 - smoothstep(${dims.interior.cafeFurniture.marbleBorder.toFixed(3)}, ${(dims.interior.cafeFurniture.marbleBorder + 0.004).toFixed(3)}, edge);
-      vec3 green = finKitchenStone(uv, A, vec3(0.55, 0.65, 0.53), 0.25);
-      vec3 cream = finKitchenStone(uv * 2.0, B, B * 0.72, 0.12);
-      r = vec4(mix(green, cream, border), 0.30);
+      // Small, low-contrast scrolling leaves on a matte woven sage ground.
+      vec2 cellUv = uv / ${dims.interior.cafeFurniture.carpetRepeat.toFixed(3)};
+      vec2 cell = floor(cellUv), q = fract(cellUv) - 0.5;
+      q.x *= mod(cell.x + cell.y, 2.0) < 0.5 ? 1.0 : -1.0;
+      float stem = finLine(abs(q.x - 0.11 * sin(q.y * 8.0)), 0.017);
+      float leaves = 0.0;
+      for (int i = 0; i < 3; i++) {
+        float h = -0.28 + float(i) * 0.24;
+        float side = mod(float(i), 2.0) < 0.5 ? 1.0 : -1.0;
+        vec2 d = q - vec2(side * 0.13, h);
+        vec2 leaf = vec2(d.x * 0.8 + d.y * side * 0.6, -d.x * side * 0.6 + d.y * 0.8);
+        float oval = length(leaf / vec2(0.13, 0.055));
+        leaves = max(leaves, 1.0 - smoothstep(0.85, 1.05, oval));
+      }
+      float motif = max(stem * 0.6, leaves);
+      vec3 ground = A * (0.97 + 0.06 * finNoise(uv * 55.0));
+      r = vec4(mix(ground, B, motif * 0.48), 0.96);
     }
     else if (pat == 9) {
       vec2 tileSize = vec2(${dims.interior.kitchenFurniture.tileWidth.toFixed(3)}, ${dims.interior.kitchenFurniture.tileDepth.toFixed(3)});
