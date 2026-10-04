@@ -143,8 +143,9 @@ def reveal(mb, loop2d, mat, closed=True, depth=REVEAL):
 
 
 def dormant_frame(mb, loop2d, closed=True, mat="frame", y0=FY0, y1=FY1, w=FW):
-    """window frame set in the reveal: front face + inner face"""
-    mb.sweep(xz(loop2d), [(0, -y0), (-w, -y0), (-w, -y1)], mat, N=(0, -1, 0), closed_path=closed)
+    """solid window frame: front, inner, rear and outer faces"""
+    mb.sweep(xz(loop2d), [(0, -y0), (-w, -y0), (-w, -y1), (0, -y1)], mat,
+             N=(0, -1, 0), closed_path=closed, closed_profile=True, caps=True)
 
 
 def glass_rect(mb, x0, x1, z0, z1, y=GY):
@@ -154,7 +155,7 @@ def glass_rect(mb, x0, x1, z0, z1, y=GY):
 def leaf(mb, x0, x1, z0, z1, panes, mat="frame"):
     """casement leaf: stiles, rails, glazing bars, glass"""
     s, top, bot = 0.055, 0.055, 0.11
-    sk = ("+y",)
+    sk = ()
     mb.box((x0, LY0, z0), (x0 + s, LY1, z1), mat, skip=sk)
     mb.box((x1 - s, LY0, z0), (x1, LY1, z1), mat, skip=sk)
     mb.box((x0 + s, LY0, z0), (x1 - s, LY1, z0 + bot), mat, skip=sk)
@@ -185,9 +186,9 @@ def french_window(mb, w, z0, z1, transom, panes, leaves=True):
     top = z1 - FW
     if transom:
         zt = top - transom
-        mb.box((-xi, 0.165, zt - 0.035), (xi, 0.225, zt + 0.035), "frame", skip=("+y",))
+        mb.box((-xi, 0.165, zt - 0.035), (xi, 0.225, zt + 0.035), "frame")
         glass_rect(mb, -xi, xi, zt + 0.035, top)
-        mb.box((-0.011, 0.185, zt + 0.035), (0.011, 0.205, top), "frame", skip=("+y",))
+        mb.box((-0.011, 0.185, zt + 0.035), (0.011, 0.205, top), "frame")
         top = zt - 0.035
     if leaves:
         leaf(mb, -xi, 0, z0 + FW, top, panes)

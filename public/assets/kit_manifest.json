@@ -12,7 +12,7 @@
      "index": 1,
      "kind": "OBJECT",
      "name": "A_bay.window",
-     "tris": 38,
+     "tris": 54,
      "openings": [
       {
        "loop": [
@@ -87,7 +87,7 @@
      "index": 0,
      "kind": "OBJECT",
      "name": "A_leaf.left",
-     "tris": 62
+     "tris": 74
     }
    ]
   },
@@ -139,7 +139,7 @@
      "index": 0,
      "kind": "OBJECT",
      "name": "G_bay.door_arched",
-     "tris": 650,
+     "tris": 718,
      "openings": [
       {
        "loop": [
@@ -220,7 +220,7 @@
      "index": 1,
      "kind": "OBJECT",
      "name": "G_bay.door_glazed",
-     "tris": 478,
+     "tris": 494,
      "openings": [
       {
        "loop": [
@@ -249,7 +249,7 @@
      "index": 2,
      "kind": "OBJECT",
      "name": "G_bay.door_rect",
-     "tris": 410,
+     "tris": 426,
      "openings": [
       {
        "loop": [
@@ -278,7 +278,7 @@
      "index": 3,
      "kind": "OBJECT",
      "name": "G_bay.shop_cafe",
-     "tris": 310,
+     "tris": 326,
      "openings": [
       {
        "loop": [
@@ -307,7 +307,7 @@
      "index": 4,
      "kind": "OBJECT",
      "name": "G_bay.shop_stone",
-     "tris": 240,
+     "tris": 256,
      "openings": [
       {
        "loop": [
@@ -371,7 +371,7 @@
      "index": 7,
      "kind": "OBJECT",
      "name": "G_bay.window_arched",
-     "tris": 582,
+     "tris": 672,
      "openings": [
       {
        "loop": [
@@ -444,7 +444,7 @@
      "index": 8,
      "kind": "OBJECT",
      "name": "G_bay.window_rect",
-     "tris": 414,
+     "tris": 464,
      "openings": [
       {
        "loop": [
@@ -513,7 +513,7 @@
      "index": 1,
      "kind": "OBJECT",
      "name": "NA_tall.window",
-     "tris": 118,
+     "tris": 144,
      "openings": [
       {
        "loop": [
@@ -552,7 +552,7 @@
      "index": 1,
      "kind": "OBJECT",
      "name": "NS_tall.window",
-     "tris": 128,
+     "tris": 156,
      "openings": [
       {
        "loop": [
@@ -591,7 +591,7 @@
      "index": 1,
      "kind": "OBJECT",
      "name": "N_bay.window",
-     "tris": 60,
+     "tris": 80,
      "openings": [
       {
        "loop": [
@@ -666,7 +666,7 @@
      "index": 0,
      "kind": "OBJECT",
      "name": "N_leaf.left",
-     "tris": 72
+     "tris": 86
     }
    ]
   },
@@ -786,7 +786,7 @@
      "index": 0,
      "kind": "OBJECT",
      "name": "R_mansard.dormer_atelier",
-     "tris": 244,
+     "tris": 260,
      "openings": [
       {
        "loop": [
@@ -821,7 +821,7 @@
      "index": 1,
      "kind": "OBJECT",
      "name": "R_mansard.dormer_oeil",
-     "tris": 290,
+     "tris": 374,
      "openings": [
       {
        "loop": [
@@ -920,7 +920,7 @@
      "index": 2,
      "kind": "OBJECT",
      "name": "R_mansard.dormer_segment",
-     "tris": 336,
+     "tris": 364,
      "openings": [
       {
        "loop": [
@@ -955,7 +955,7 @@
      "index": 3,
      "kind": "OBJECT",
      "name": "R_mansard.dormer_studio",
-     "tris": 168,
+     "tris": 196,
      "openings": [
       {
        "loop": [
@@ -990,7 +990,7 @@
      "index": 4,
      "kind": "OBJECT",
      "name": "R_mansard.dormer_triangle",
-     "tris": 188,
+     "tris": 216,
      "openings": [
       {
        "loop": [
@@ -1025,7 +1025,7 @@
      "index": 5,
      "kind": "OBJECT",
      "name": "R_mansard.dormer_zinc",
-     "tris": 152,
+     "tris": 180,
      "openings": [
       {
        "loop": [
@@ -1128,7 +1128,7 @@
      "index": 1,
      "kind": "OBJECT",
      "name": "SS_tall.window",
-     "tris": 128,
+     "tris": 156,
      "openings": [
       {
        "loop": [
@@ -1167,7 +1167,7 @@
      "index": 1,
      "kind": "OBJECT",
      "name": "S_bay.window",
-     "tris": 60,
+     "tris": 80,
      "openings": [
       {
        "loop": [
@@ -1242,7 +1242,7 @@
      "index": 0,
      "kind": "OBJECT",
      "name": "S_leaf.left",
-     "tris": 62
+     "tris": 74
     }
    ]
   },

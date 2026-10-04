@@ -76,7 +76,7 @@ def G_window_arched(D):
     # joinery: frame, transom at the springing line, two leaves, fanlight
     P.dormant_frame(mb, loop)
     xi = hw - P.FW
-    mb.box((-xi, 0.165, spring - 0.04), (xi, 0.225, spring + 0.04), "frame", skip=("+y",))
+    mb.box((-xi, 0.165, spring - 0.04), (xi, 0.225, spring + 0.04), "frame")
     P.leaf(mb, -xi, 0, sill + P.FW, spring - 0.04, 4)
     P.leaf(mb, 0, xi, sill + P.FW, spring - 0.04, 4)
     rr = hw - P.FW
@@ -150,12 +150,12 @@ def G_window_rect(D):
     P.dormant_frame(mb, loop)
     xi = hw - P.FW
     zt = top - 0.62
-    mb.box((-xi, 0.165, zt - 0.04), (xi, 0.225, zt + 0.04), "frame", skip=("+y",))
+    mb.box((-xi, 0.165, zt - 0.04), (xi, 0.225, zt + 0.04), "frame")
     P.leaf(mb, -xi, 0, sill + P.FW, zt - 0.04, 4)
     P.leaf(mb, 0, xi, sill + P.FW, zt - 0.04, 4)
     P.glass_rect(mb, -xi, xi, zt + 0.04, top - P.FW)
     for x in (-xi / 3, xi / 3):
-        mb.box((x - 0.011, 0.185, zt + 0.04), (x + 0.011, 0.205, top - P.FW), "frame", skip=("+y",))
+        mb.box((x - 0.011, 0.185, zt + 0.04), (x + 0.011, 0.205, top - P.FW), "frame")
     _keystone(mb, top - 0.06, top + 0.42, 0.22, 0.28, 0.08)
     return mb
 
@@ -325,14 +325,14 @@ def tall_window(D, c2, c3):
     xi, _, zl = P.leaf_span(2 * hw, sill, D["classes"][c2]["head"], TRANSOM[c2])
     # transom over the casements, then the fixed lights
     zt = zl + 0.035
-    mb.box((-xi, 0.165, zt - 0.035), (xi, 0.225, zt + 0.035), "frame", skip=("+y",))
+    mb.box((-xi, 0.165, zt - 0.035), (xi, 0.225, zt + 0.035), "frame")
     g0, g1 = zt + 0.035, top - P.FW
     P.glass_rect(mb, -xi, xi, g0, g1)
-    mb.box((-0.02, 0.18, g0), (0.02, 0.21, g1), "frame", skip=("+y",))
+    mb.box((-0.02, 0.18, g0), (0.02, 0.21, g1), "frame")
     n = max(2, round((g1 - g0) / 0.8))
     for k in range(1, n):
         z = g0 + (g1 - g0) * k / n
-        mb.box((-xi, 0.185, z - 0.013), (xi, 0.205, z + 0.013), "frame", skip=("+y",))
+        mb.box((-xi, 0.185, z - 0.013), (xi, 0.205, z + 0.013), "frame")
     return mb
 
 
@@ -522,15 +522,15 @@ def _dormer(D, kind):
     P.dormant_frame(mb, loop, y0=fy0, y1=fy0 + DORMER_FRAME, w=0.05)
     if kind == "oeil":
         mb.planar(P.circle(0, 1.0, 0.25, 20), "glass", origin=(0, fy0 + 0.02, 0))
-        mb.box((-0.25, fy0, 0.99), (0.25, fy0 + 0.03, 1.01), "frame", skip=("+y",))
-        mb.box((-0.01, fy0, 0.75), (0.01, fy0 + 0.03, 1.25), "frame", skip=("+y",))
+        mb.box((-0.25, fy0, 0.99), (0.25, fy0 + 0.03, 1.01), "frame")
+        mb.box((-0.01, fy0, 0.75), (0.01, fy0 + 0.03, 1.25), "frame")
         return mb
     xi = hw - 0.05
     for x0, x1 in ((-xi, 0), (0, xi)):
-        mb.box((x0, fy0, d["sill"] + 0.05), (x0 + 0.045, fy0 + 0.04, d["head"] - 0.05), "frame", skip=("+y",))
-        mb.box((x1 - 0.045, fy0, d["sill"] + 0.05), (x1, fy0 + 0.04, d["head"] - 0.05), "frame", skip=("+y",))
+        mb.box((x0, fy0, d["sill"] + 0.05), (x0 + 0.045, fy0 + 0.04, d["head"] - 0.05), "frame")
+        mb.box((x1 - 0.045, fy0, d["sill"] + 0.05), (x1, fy0 + 0.04, d["head"] - 0.05), "frame")
         mid = (d["sill"] + d["head"]) / 2
-        mb.box((x0 + 0.045, fy0 + 0.01, mid - 0.01), (x1 - 0.045, fy0 + 0.03, mid + 0.01), "frame", skip=("+y",))
+        mb.box((x0 + 0.045, fy0 + 0.01, mid - 0.01), (x1 - 0.045, fy0 + 0.03, mid + 0.01), "frame")
     P.glass_rect(mb, -xi, xi, d["sill"] + 0.05, d["head"] - 0.05, y=fy0 + 0.02)
     return mb
 
@@ -675,9 +675,9 @@ def dormer_studio(D):
     n = 6
     for i in range(1, n):
         x = -gw + 2 * gw * i / n
-        mb.box((x - 0.012, fy0, sill + 0.04), (x + 0.012, fy0 + 0.03, head - 0.04), "frame", skip=("+y",))
+        mb.box((x - 0.012, fy0, sill + 0.04), (x + 0.012, fy0 + 0.03, head - 0.04), "frame")
     zt_bar = sill + (head - sill) * 0.82
-    mb.box((-gw + 0.04, fy0, zt_bar - 0.014), (gw - 0.04, fy0 + 0.03, zt_bar + 0.014), "frame", skip=("+y",))
+    mb.box((-gw + 0.04, fy0, zt_bar - 0.014), (gw - 0.04, fy0 + 0.03, zt_bar + 0.014), "frame")
     return mb
 
 
