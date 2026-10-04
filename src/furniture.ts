@@ -741,50 +741,55 @@ function diningChair(linen: Tris, brass: Tris, decor: Tris, m: Matrix4): void {
 
 function flowerPot(decor: Tris, m: Matrix4): void {
   const D = DINING, p = new Part(decor, m);
+  // Closed, low-poly oval solids preserve volume when viewed or cut from any side.
+  const oval = (frame: Matrix4, x: number, y: number, z: number, w: number, d: number, h: number) => {
+    const local = frame.clone().multiply(at(x, y, z)).multiply(new Matrix4().makeScale(w / 2, d / 2, h / 2));
+    new Part(decor, local).lathe(0, 0, [[0, -1], [0.85, -0.5], [0.85, 0.5], [0, 1]], 8);
+  };
   colour(decor, "#77906a");
-  p.lathe(0, 0, [[0, 0], [D.potRadius * 0.65, 0], [D.potRadius, D.potHeight * 0.85], [D.potRadius * 1.04, D.potHeight], [0, D.potHeight]], 20);
+  p.lathe(0, 0, [[0, 0], [D.potRadius * 0.65, 0], [D.potRadius, D.potHeight * 0.85], [D.potRadius * 1.04, D.potHeight], [0, D.potHeight]], 12);
   for (let i = 0; i < 9; i++) {
     const a = i * 2.39996, x = Math.cos(a) * D.potRadius * 0.8, y = Math.sin(a) * D.potRadius * 0.8;
     const z = D.flowerHeight - (i % 3) * 0.035;
-    colour(decor, "#526c41"); p.lathe(x, y, [[0, D.potHeight], [0.004, D.potHeight], [0.004, z], [0, z]], 6);
+    colour(decor, "#526c41"); p.lathe(x, y, [[0, D.potHeight], [0.004, D.potHeight], [0.004, z], [0, z]], 4);
     for (const side of [-1, 1]) {
       const leaf = m.clone().multiply(at(x + side * 0.018, y, z - 0.06, a)).multiply(new Matrix4().makeRotationY(side * 0.6));
-      new Part(decor, leaf).softBox(0, 0, 0, 0.075, 0.025, 0.018, 0.008);
+      oval(leaf, 0, 0, 0, 0.075, 0.025, 0.018);
     }
     colour(decor, i % 2 ? "#f2d6d8" : "#f5eee3");
     for (let k = 0; k < 5; k++) {
       const a = k * Math.PI * 2 / 5;
-      p.softBox(x + Math.cos(a) * 0.022, y + Math.sin(a) * 0.022, z, 0.036, 0.032, 0.024, 0.012);
+      oval(m, x + Math.cos(a) * 0.022, y + Math.sin(a) * 0.022, z, 0.036, 0.032, 0.024);
     }
-    colour(decor, "#c7a450"); p.softBox(x, y, z + 0.01, 0.02, 0.02, 0.02, 0.009);
+    colour(decor, "#c7a450"); oval(m, x, y, z + 0.01, 0.02, 0.02, 0.02);
   }
 }
 
-/** Plates on stands, stacked bowls and handled cups, in the salon's cabinet frame. */
+/** Three curated shelves, with empty shelves between the plate, bowls and cup. */
 function crockeryCabinet(linen: Tris, brass: Tris, decor: Tris, m: Matrix4, x0: number, width = SALON.caseWidth): void {
   let row = 0;
   displayCabinet(linen, brass, m, x0, (left, right, z) => {
-    const p = new Part(linen, m), cx = left + (right - left) * 0.28, other = left + (right - left) * 0.73;
-    if (row % 2 === 0) {
+    const shelf = row++;
+    if (shelf % 2 !== 0) return;
+    const p = new Part(linen, m), cx = (left + right) / 2;
+    if (shelf === 0) {
       const plateM = m.clone().multiply(at(cx, SALON.caseDepth * 0.65, z + 0.115)).multiply(new Matrix4().makeRotationX(-Math.PI / 2));
-      new Part(linen, plateM).lathe(0, 0, [[0, 0], [0.07, 0], [0.11, 0.013], [0.11, 0.02], [0.075, 0.008], [0, 0.008]], 28);
+      new Part(linen, plateM).lathe(0, 0, [[0, 0], [0.07, 0], [0.11, 0.013], [0.11, 0.02], [0.075, 0.008], [0, 0.008]], 12);
       colour(decor, "#536a8a");
-      new Part(decor, plateM).lathe(0, 0, [[0.093, 0.012], [0.10, 0.015], [0.10, 0.018], [0.093, 0.015], [0.093, 0.012]], 28);
+      new Part(decor, plateM).lathe(0, 0, [[0.093, 0.012], [0.10, 0.015], [0.10, 0.018], [0.093, 0.015], [0.093, 0.012]], 12);
       p.box(cx - 0.05, 0.16, z, cx + 0.05, 0.29, z + 0.018);
-      for (let k = 0; k < 3; k++) p.lathe(other, 0.19,
+    } else if (shelf === 2) {
+      for (let k = 0; k < 2; k++) p.lathe(cx, 0.19,
         [[0, z + k * 0.022], [0.05, z + k * 0.022], [0.095, z + 0.07 + k * 0.022],
-          [0.087, z + 0.07 + k * 0.022], [0.045, z + 0.018 + k * 0.022], [0, z + 0.018 + k * 0.022]], 20);
-    } else {
-      for (const x of [cx, other]) {
-        p.lathe(x, 0.19, [[0, z], [0.07, z], [0.07, z + 0.009], [0, z + 0.009]], 20);
-        p.lathe(x, 0.19, [[0, z + 0.01], [0.039, z + 0.01], [0.05, z + 0.105],
-          [0.043, z + 0.105], [0.032, z + 0.024], [0, z + 0.024]], 20);
-        const handleM = m.clone().multiply(at(x + 0.052, 0.19, z + 0.061)).multiply(new Matrix4().makeRotationY(Math.PI / 2));
-        new Part(linen, handleM).lathe(0, 0, [[0.02, -0.006], [0.03, -0.006], [0.03, 0.006], [0.02, 0.006], [0.02, -0.006]], 16);
-        new Part(brass, m).lathe(x, 0.19, [[0.043, z + 0.101], [0.05, z + 0.101], [0.05, z + 0.105], [0.043, z + 0.105], [0.043, z + 0.101]], 20);
-      }
+          [0.087, z + 0.07 + k * 0.022], [0.045, z + 0.018 + k * 0.022], [0, z + 0.018 + k * 0.022]], 12);
+    } else if (shelf === 4) {
+      p.lathe(cx, 0.19, [[0, z], [0.07, z], [0.07, z + 0.009], [0, z + 0.009]], 12);
+      p.lathe(cx, 0.19, [[0, z + 0.01], [0.039, z + 0.01], [0.05, z + 0.105],
+        [0.043, z + 0.105], [0.032, z + 0.024], [0, z + 0.024]], 12);
+      const handleM = m.clone().multiply(at(cx + 0.052, 0.19, z + 0.061)).multiply(new Matrix4().makeRotationY(Math.PI / 2));
+      new Part(linen, handleM).lathe(0, 0, [[0.02, -0.006], [0.03, -0.006], [0.03, 0.006], [0.02, 0.006], [0.02, -0.006]], 8);
+      new Part(brass, m).lathe(cx, 0.19, [[0.043, z + 0.101], [0.05, z + 0.101], [0.05, z + 0.105], [0.043, z + 0.105], [0.043, z + 0.101]], 12);
     }
-    row++;
   }, width);
 }
 
