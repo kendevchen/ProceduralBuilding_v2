@@ -537,8 +537,8 @@ function salonSofa(linen: Tris, wood: Tris, m: Matrix4, width: number): void {
 }
 
 /** Shared cream cabinet: the salon uses books, the dining room uses real crockery. */
-function displayCabinet(linen: Tris, brass: Tris, m: Matrix4, x0: number, shelf: (x0: number, x1: number, z: number) => void): void {
-  const S = SALON, x1 = x0 + S.caseWidth, stone = new Part(linen, m);
+function displayCabinet(linen: Tris, brass: Tris, m: Matrix4, x0: number, shelf: (x0: number, x1: number, z: number) => void, width = SALON.caseWidth): void {
+  const S = SALON, x1 = x0 + width, stone = new Part(linen, m);
   stone.box(x0, 0, 0, x1, S.caseDepth, 0.63);
   stone.box(x0 + 0.03, S.caseDepth, 0.10, x1 - 0.03, S.caseDepth + 0.018, 0.57);
   new Part(brass, m).lathe((x0 + x1) / 2, S.caseDepth + 0.026, [[0, 0.42], [0.013, 0.42], [0.013, 0.45], [0, 0.45]], 8);
@@ -761,7 +761,7 @@ function flowerPot(decor: Tris, m: Matrix4): void {
 }
 
 /** Plates on stands, stacked bowls and handled cups, in the salon's cabinet frame. */
-function crockeryCabinet(linen: Tris, brass: Tris, decor: Tris, m: Matrix4, x0: number): void {
+function crockeryCabinet(linen: Tris, brass: Tris, decor: Tris, m: Matrix4, x0: number, width = SALON.caseWidth): void {
   let row = 0;
   displayCabinet(linen, brass, m, x0, (left, right, z) => {
     const p = new Part(linen, m), cx = left + (right - left) * 0.28, other = left + (right - left) * 0.73;
@@ -785,7 +785,7 @@ function crockeryCabinet(linen: Tris, brass: Tris, decor: Tris, m: Matrix4, x0: 
       }
     }
     row++;
-  });
+  }, width);
 }
 
 function diningTable(linen: Tris, wood: Tris, table: Matrix4, length: number): void {
@@ -843,7 +843,15 @@ export interface SalonInfo {
   unfurnished: string[];
 }
 
-export interface KitchenInfo { furnished: string[]; unfurnished: string[] }
+export interface KitchenInfo {
+  furnished: string[];
+  unfurnished: string[];
+  rooms: Record<string, { aisle: number; wallLength: number; displayCabinets: number }>;
+}
+interface KitchenPlacement {
+  m: Matrix4; left: number; right: number; aisle: number;
+  displays: { m: Matrix4; width: number; polygon: V2[] }[];
+}
 
 function kitchenStone(t: Tris): void {
   const a = new Color("#e7e2d7").toArray(), b = new Color("#bcb7ab").toArray();
@@ -865,19 +873,19 @@ function kitchenPanel(linen: Tris, decor: Tris, m: Matrix4, x0: number, x1: numb
   for (const z of [z0 + 0.015, z1 - K.frame - 0.015]) p.box(x0 + 0.015, y + K.doorThickness, z, x1 - 0.015, y + K.doorThickness + 0.009, z + K.frame);
 }
 
-function kitchenBase(linen: Tris, brass: Tris, decor: Tris, m: Matrix4): void {
-  const K = KITCHEN, w = K.moduleWidth / 2, p = new Part(linen, m);
+function kitchenBase(linen: Tris, brass: Tris, decor: Tris, m: Matrix4, width = KITCHEN.moduleWidth): void {
+  const K = KITCHEN, w = width / 2, p = new Part(linen, m);
   p.box(-w + 0.025, 0.035, 0, w - 0.025, K.depth - 0.04, 0.12);
   p.box(-w, 0, 0.12, w, K.depth, K.height - K.topThickness);
   for (const [z0, z1] of [[0.15, 0.63], [0.65, K.height - K.topThickness - 0.015]]) {
     kitchenPanel(linen, decor, m, -w + 0.015, w - 0.015, K.depth, z0, z1);
     kitchenHandle(brass, m, 0, K.depth + 0.06, z1 - 0.07);
   }
-  kitchenStone(decor); new Part(decor, m).softBox(0, K.depth / 2, K.height - K.topThickness / 2, K.moduleWidth + 0.02, K.depth + 0.05, K.topThickness, 0.015);
+  kitchenStone(decor); new Part(decor, m).softBox(0, K.depth / 2, K.height - K.topThickness / 2, width + 0.02, K.depth + 0.05, K.topThickness, 0.015);
 }
 
-function kitchenUpper(linen: Tris, brass: Tris, decor: Tris, m: Matrix4): void {
-  const K = KITCHEN, width = K.moduleWidth - 0.26, p = new Part(linen, m);
+function kitchenUpper(linen: Tris, brass: Tris, decor: Tris, m: Matrix4, width = KITCHEN.moduleWidth - 0.26): void {
+  const K = KITCHEN, p = new Part(linen, m);
   p.box(-width / 2, 0, 0, width / 2, K.upperDepth, K.upperHeight);
   kitchenPanel(linen, decor, m, -width / 2 + 0.015, width / 2 - 0.015, K.upperDepth, 0.025, K.upperHeight - 0.025);
   kitchenHandle(brass, m, 0, K.upperDepth + 0.06, 0.13);
@@ -950,13 +958,8 @@ function kitchenIsland(linen: Tris, brass: Tris, dark: Tris, decor: Tris, m: Mat
 }
 
 /** The island clearance is measured in metres; the set is never uniformly shrunk. */
-function kitchenPlacement(plan: BuildingPlan, r: PlanRoom): Matrix4 | null {
+function kitchenPlacement(plan: BuildingPlan, r: PlanRoom): KitchenPlacement | null {
   const K = KITCHEN, length = K.rangeWidth + K.moduleWidth * 2;
-  const islandY = K.depth + K.frontProjection + K.aisle + K.islandDepth / 2 + K.frontProjection;
-  const blocks: SalonRect[] = [
-    [-length / 2 - 0.025, 0, length / 2 + 0.025, K.depth + K.frontProjection],
-    [-K.islandLength / 2 - 0.025, islandY - K.islandDepth / 2 - K.frontProjection, K.islandLength / 2 + 0.025, islandY + K.islandDepth / 2 + K.frontProjection],
-  ];
   const openings: V2[][] = [];
   const reserve = (c: V2, d: V2, width: number, clear: number) => {
     const len = Math.hypot(...d); if (!len) return;
@@ -971,24 +974,60 @@ function kitchenPlacement(plan: BuildingPlan, r: PlanRoom): Matrix4 | null {
   }
   for (const wi of r.windows) { const w = plan.windows[wi]; reserve(w.at, w.dir, w.width, K.windowClear); }
   if (r.ceilingZ - r.floorZ < K.hoodBottom + K.hoodHeight + 0.05) return null;
-  for (const f of freeStretches(plan, r).sort((a, b) => b.s1 - b.s0 - (a.s1 - a.s0))) {
-    const lo = f.s0 + length / 2 + 0.03, hi = f.s1 - length / 2 - 0.03;
-    if (hi < lo) continue;
+  type Edge = ReturnType<typeof freeStretches>[number];
+  const frame = (f: Edge, s: number) => new Matrix4().makeBasis(new Vector3(...f.d, 0), new Vector3(...f.n, 0), new Vector3(0, 0, 1))
+    .setPosition(f.a[0] + f.d[0] * s + f.n[0] * K.wallGap, f.a[1] + f.d[1] * s + f.n[1] * K.wallGap, r.floorZ);
+  const poly = (m: Matrix4, [x0, y0, x1, y1]: SalonRect): V2[] => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => {
+    const p = new Vector3(x, y, 0).applyMatrix4(m); return [p.x, p.y];
+  });
+  const spans = (f: Edge, depth: number, obstacles: V2[][]): [number, number][] => {
+    let runs: [number, number][] = [[f.s0 + K.endClear, f.s1 - K.endClear]];
+    const strip = poly(frame(f, 0), [f.s0, 0, f.s1, depth]);
+    for (const obstacle of obstacles) {
+      if (!overlaps(strip, obstacle)) continue;
+      const along = obstacle.map(p => (p[0] - f.a[0]) * f.d[0] + (p[1] - f.a[1]) * f.d[1]);
+      const lo = Math.min(...along) - K.displayClear, hi = Math.max(...along) + K.displayClear;
+      runs = runs.flatMap(([a, b]) => hi <= a || lo >= b ? [[a, b] as [number, number]]
+        : [[a, Math.min(b, lo)], [Math.max(a, hi), b]].filter(([x, y]) => y > x) as [number, number][]);
+    }
+    return runs;
+  };
+  let best: KitchenPlacement | null = null, bestScore = -Infinity;
+  const edges = freeStretches(plan, r, true);
+  for (const f of freeStretches(plan, r)) for (const [start, end] of spans(f, K.depth + K.frontProjection, openings)) {
+    if (end - start < length) continue;
+    const lo = start + K.hoodWidth / 2 + 0.35, hi = end - K.hoodWidth / 2 - 0.35;
     const candidates = [(lo + hi) / 2]; for (let s = lo; s <= hi; s += K.searchStep) candidates.push(s);
-    for (const s of candidates) {
-      const m = new Matrix4().makeBasis(new Vector3(...f.d, 0), new Vector3(...f.n, 0), new Vector3(0, 0, 1))
-        .setPosition(f.a[0] + f.d[0] * s + f.n[0] * K.wallGap, f.a[1] + f.d[1] * s + f.n[1] * K.wallGap, r.floorZ);
-      const poly = ([x0, y0, x1, y1]: SalonRect): V2[] => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => {
-        const p = new Vector3(x, y, 0).applyMatrix4(m); return [p.x, p.y];
-      });
-      if (blocks.some(rect => !roomContains(r.polygon, poly(rect)) || openings.some(o => overlaps(poly(rect), o)))) continue;
-      const envelope: SalonRect = [-K.islandLength / 2 - K.outerClear, K.depth + K.frontProjection,
-        K.islandLength / 2 + K.outerClear, islandY + K.islandDepth / 2 + K.frontProjection + K.outerClear];
-      if (!roomContains(r.polygon, poly(envelope))) continue;
-      return m;
+    for (const aisle of [K.aisle, (K.aisle + K.narrowAisle) / 2, K.narrowAisle]) for (const s of candidates) {
+      const m = frame(f, s), left = start - s, right = end - s;
+      const islandY = K.depth + K.frontProjection + aisle + K.islandDepth / 2 + K.frontProjection;
+      const counter = poly(m, [left - 0.01, 0, right + 0.01, K.depth + K.frontProjection]);
+      const island = poly(m, [-K.islandLength / 2 - 0.025, islandY - K.islandDepth / 2 - K.frontProjection,
+        K.islandLength / 2 + 0.025, islandY + K.islandDepth / 2 + K.frontProjection]);
+      if ([counter, island].some(p => !roomContains(r.polygon, p) || openings.some(o => overlaps(p, o)))) continue;
+      const islandEnvelope = poly(m, [-K.islandLength / 2 - K.outerClear, islandY - K.islandDepth / 2 - K.frontProjection,
+        K.islandLength / 2 + K.outerClear, islandY + K.islandDepth / 2 + K.frontProjection + K.outerClear]);
+      if (!roomContains(r.polygon, islandEnvelope)) continue;
+      const displays: KitchenPlacement['displays'] = [];
+      if (r.ceilingZ - r.floorZ + 1e-6 >= SALON.caseHeight + 0.05) for (const other of edges) {
+        if (other.n[0] * f.n[0] + other.n[1] * f.n[1] > -0.9) continue;
+        for (const [a, b] of spans(other, SALON.caseDepth + 0.04, [...openings, counter, islandEnvelope])) {
+          if (b - a < 0.60) continue;
+          const count = Math.min(Math.ceil((b - a) / SALON.caseWidth), Math.floor((b - a) / 0.60)), unit = (b - a) / count;
+          for (let i = 0; i < count; i++) {
+            const displayM = frame(other, a + i * unit + K.displayClear), width = unit - 2 * K.displayClear;
+            const footprint = poly(displayM, [-K.displayClear, 0, width + K.displayClear, SALON.caseDepth + 0.04]);
+            if (!roomContains(r.polygon, footprint) || [...openings, counter, islandEnvelope, ...displays.map(d => d.polygon)].some(o => overlaps(footprint, o))) continue;
+            displays.push({ m: displayM, width, polygon: footprint });
+          }
+        }
+      }
+      const displayLength = displays.reduce((sum, d) => sum + d.width, 0);
+      const score = displayLength * 1000 + (right - left) * 100 + aisle;
+      if (score > bestScore) { best = { m, left, right, aisle, displays }; bestScore = score; }
     }
   }
-  return null;
+  return best;
 }
 
 export interface FurnitureInfo {
@@ -1232,22 +1271,29 @@ export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMa
   }
   group.userData.dining = diningInfo;
 
-  const kitchenInfo: KitchenInfo = { furnished: [], unfurnished: [] };
+  const kitchenInfo: KitchenInfo = { furnished: [], unfurnished: [], rooms: {} };
   for (const r of plan.rooms.filter(r => r.type === "kitchen" && r.level === 1)) {
-    const m = kitchenPlacement(plan, r);
-    if (!m) { kitchenInfo.unfurnished.push(r.id); continue; }
-    const K = KITCHEN, centre = K.rangeWidth / 2 + K.moduleWidth / 2;
+    const placement = kitchenPlacement(plan, r);
+    if (!placement) { kitchenInfo.unfurnished.push(r.id); continue; }
+    const { m, left, right, aisle, displays } = placement, K = KITCHEN;
     kitchenRange(linen, brass, dark, diningDecor, m);
     kitchenHood(linen, dark, m.clone().multiply(at(0, 0, K.hoodBottom)));
-    for (const x of [-centre, centre]) {
-      kitchenBase(linen, brass, diningDecor, m.clone().multiply(at(x, 0, 0)));
-      kitchenUpper(linen, brass, diningDecor, m.clone().multiply(at(x, 0, K.upperBottom)));
+    for (const [a, b] of [[left, -K.rangeWidth / 2], [K.rangeWidth / 2, right]]) {
+      const count = Math.max(1, Math.ceil((b - a) / K.moduleWidth)), width = (b - a) / count;
+      for (let i = 0; i < count; i++) kitchenBase(linen, brass, diningDecor, m.clone().multiply(at(a + width * (i + 0.5), 0, 0)), width);
+    }
+    for (const [a, b] of [[left + 0.015, -K.hoodWidth / 2 - 0.05], [K.hoodWidth / 2 + 0.05, right - 0.015]]) {
+      const count = Math.max(1, Math.ceil((b - a) / K.moduleWidth)), width = (b - a) / count;
+      if (width < 0.25) continue;
+      for (let i = 0; i < count; i++) kitchenUpper(linen, brass, diningDecor, m.clone().multiply(at(a + width * (i + 0.5), 0, K.upperBottom)), width);
     }
     colour(diningDecor, "#ddd7c9");
-    new Part(diningDecor, m).box(-centre - K.moduleWidth / 2, 0, K.height, centre + K.moduleWidth / 2, 0.012, K.hoodBottom);
-    const islandY = K.depth + K.frontProjection + K.aisle + K.islandDepth / 2 + K.frontProjection;
+    new Part(diningDecor, m).box(left, 0, K.height, right, 0.012, K.hoodBottom);
+    const islandY = K.depth + K.frontProjection + aisle + K.islandDepth / 2 + K.frontProjection;
     kitchenIsland(linen, brass, dark, diningDecor, m.clone().multiply(at(0, islandY, 0)));
+    for (const display of displays) crockeryCabinet(linen, brass, diningDecor, display.m, 0, display.width);
     kitchenInfo.furnished.push(r.id);
+    kitchenInfo.rooms[r.id] = { aisle, wallLength: right - left, displayCabinets: displays.length };
   }
   group.userData.kitchens = kitchenInfo;
 

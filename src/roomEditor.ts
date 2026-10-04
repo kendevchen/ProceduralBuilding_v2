@@ -142,9 +142,12 @@ export class RoomEditor {
           info(furniture ? `餐廳：長桌、${furniture.chairs} 張餐椅、地毯、餐邊櫃、掛畫與兩盆花${furniture.displayCabinets ? `，搭配 ${furniture.displayCabinets} 座餐具高櫃` : ""}。`
             : "此餐廳的輪廓、門窗或淨高無法安全容納家具及拉椅空間。");
         }
-        else if (room.type === "kitchen") info(room.level !== 1 ? "目前廚房家具先製作二樓，其餘樓層待下一階段套用。"
-          : this.kitchen?.furnished.includes(room.id) ? "二樓廚房：系統下櫃、吊櫃、瓦斯爐與烤箱、抽油煙機、水槽中島及石磚地板。"
-            : "目前空間無法容納完整廚具與獨立中島的通道；可調整房間或另行規劃半島。");
+        else if (room.type === "kitchen") {
+          const furniture = this.kitchen?.rooms[room.id];
+          info(room.level !== 1 ? "目前廚房家具先製作二樓，其餘樓層待下一階段套用。"
+            : furniture ? `二樓廚房：沿牆廚具 ${furniture.wallLength.toFixed(2)} m、瓦斯爐烤箱、排煙罩、水槽中島及石磚地板；工作通道 ${Math.round(furniture.aisle * 100)} cm${furniture.displayCabinets ? `，對面 ${furniture.displayCabinets} 座餐具展示櫃` : ""}。`
+              : "目前空間無法容納完整廚具與獨立中島的通道；可調整房間或另行規劃半島。");
+        }
         else info(room.type === "bedroom" || room.type === "study" ? "更換後同步更新家具、牆面與地板。" : "此房型尚無家具，會套用對應牆面與地板。");
       } else info("此空間連動樓梯、入口或建築結構，保留原始用途。");
     } else if (rooms.length === 2 && result) {
