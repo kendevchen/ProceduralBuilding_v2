@@ -1045,7 +1045,7 @@ export interface FurnitureInfo {
   lamps: Vector3[];
 }
 
-export interface FurnitureItem { name: string; zh: string; category: string; group: Group }
+export interface FurnitureItem { name: string; zh: string; category: string; triangles: number; group: Group }
 
 /** Catalogue recipes call the same component builders as furnished rooms. */
 export function buildFurnitureItems(mats: InteriorMaterials): FurnitureItem[] {
@@ -1056,16 +1056,19 @@ export function buildFurnitureItems(mats: InteriorMaterials): FurnitureItem[] {
     const p: Parts = { wood: new Tris(), linen: new Tris(), fabric: new Tris(), gold: new Tris(), dark: new Tris(),
       brass: new Tris(), leather: new Tris(), shade: new Tris(), books: new Tris(), art: new Tris(), rug: new Tris() };
     build(p);
-    const group = new Group(); group.name = name; group.userData.furnitureItem = { name, zh, category };
+    const group = new Group(); group.name = name;
+    let triangles = 0;
     const entries: [Tris, Material][] = [[p.wood, mats.furnWood], [p.linen, mats.furnLinen], [p.fabric, mats.furnFabric],
       [p.gold, mats.furnGold], [p.dark, mats.furnDark], [p.brass, mats.furnBrass], [p.leather, mats.furnLeather],
       [p.shade, mats.furnShade], [p.books, mats.finishWall], [p.art, mats.finishWall], [p.rug, mats.finishFloor]];
     for (const [tris, material] of entries) if (tris.pos.length) {
       const mesh = new Mesh(tris.geometry(), material);
+      triangles += (mesh.geometry.index?.count ?? mesh.geometry.getAttribute("position").count) / 3;
       mesh.castShadow = tris !== p.rug && tris !== p.books && tris !== p.art && tris !== p.shade;
       mesh.receiveShadow = true; group.add(mesh);
     }
-    items.push({ category, name, zh, group });
+    group.userData.furnitureItem = { name, zh, category, triangles };
+    items.push({ category, name, zh, triangles, group });
   };
   const rug = (p: Parts, kind: "ballroom" | "salon" | "dining", width: number, depth: number) => {
     p.rug.stamp = kind === "ballroom" ? carpetStamp(-width / 2, depth / 2, width, depth, 0, 3)

@@ -41,7 +41,7 @@ export function buildFurnitureGallery(mats: InteriorMaterials): Gallery {
         z.setXY(i, z.getX(i) + dz, z.getY(i) + dz);
       }
     });
-    const label = textSprite(`${item.name}\n${item.zh}`, LABEL_WIDTH, false);
+    const label = textSprite(`${item.name}\n${item.zh}\n三角面：${item.triangles.toLocaleString("zh-TW")}`, LABEL_WIDTH, false);
     label.position.set(dx + (box.min.x + box.max.x) / 2, dy + box.min.y - 0.85, 0.25);
     item.group.add(label); group.add(item.group);
   }
@@ -50,6 +50,6 @@ export function buildFurnitureGallery(mats: InteriorMaterials): Gallery {
     label.position.set(-width / 2 - 2.2, heading.row * ROW_STEP - depth / 2 + 3, 0.7);
     group.add(label);
   }
-  group.userData.furnitureCatalogue = items.map(({ name, zh, category }) => ({ name, zh, category }));
+  group.userData.furnitureCatalogue = items.map(({ name, zh, category, triangles }) => ({ name, zh, category, triangles }));
   return { group, width: width + 7, depth, height };
 }
