@@ -197,7 +197,7 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
   });
   /** a level's openings on edge i, clipped to s0..s1, z0..z1 of the edge's face */
   const holesOn = (e: (typeof edges)[number], i: number, k: number, s0: number, s1: number, z0: number, z1: number) => {
-    const holes: { loop: V2[]; reveal: number }[] = [];
+    const holes: { loop: V2[]; reveal: number; atFloor: boolean }[] = [];
     for (const w of plan.windows) {
       if (w.level !== k || edgeAt(inner, w.at) !== i) continue;
       const mod = moduleOf(w);
@@ -207,7 +207,8 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
       const sign = Math.sign(w.dir[0] * e.dir[0] + w.dir[1] * e.dir[1]) || 1;
       for (const o of info.openings) {
         const loop = clipBox(o.loop.map(([x, z]) => [sc + sign * x, mod.z + z] as V2), s0 + GAP, s1 - GAP, z0 + GAP, z1 - GAP);
-        if (Math.abs(area(loop)) > 1e-4) holes.push({ loop, reveal: o.reveal });
+        if (Math.abs(area(loop)) > 1e-4) holes.push({ loop, reveal: o.reveal,
+          atFloor: Math.abs(mod.z + Math.min(...o.loop.map(p => p[1])) - z0) < GAP });
       }
     }
     return holes;
@@ -225,7 +226,23 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
       h.loop.forEach((p, j) => {
         const q = h.loop[(j + 1) % h.loop.length];
         const flatZ = (z: number) => Math.abs(p[1] - z) < 1e-5 && Math.abs(q[1] - z) < 1e-5;
-        if (flatZ(z0 + GAP) || flatZ(z1 - GAP)) return;
+        if (flatZ(z0 + GAP)) {
+          // A tall ballroom opening clipped across a slab is not a sill.
+          if (!h.atFloor) return;
+          // A French window starts at slab height. Its clipped lower edge
+          // still needs a threshold from the room floor to the kit reveal;
+          // otherwise the facade band's back face shows through the gap.
+          const P = at([p[0], z0]), Q = at([q[0], z0]), depth = T - h.reveal;
+          floors.quad(P, Q, Q.clone().addScaledVector(out, depth), P.clone().addScaledVector(out, depth), UP);
+          if (finished) {
+            finishFloors.stamp = stampOf(look, room, "floor");
+            const lift = UP.clone().multiplyScalar(0.003);
+            finishFloors.quad(P.clone().add(lift), Q.clone().add(lift),
+              Q.clone().addScaledVector(out, depth).add(lift), P.clone().addScaledVector(out, depth).add(lift), UP);
+          }
+          return;
+        }
+        if (flatZ(z1 - GAP)) return;
         const ds = q[0] - p[0], dz = q[1] - p[1];
         const n = ccw ? [-dz, ds] : [dz, -ds];
         const facing = e.along.clone().multiplyScalar(n[0]).addScaledVector(UP, n[1]);
