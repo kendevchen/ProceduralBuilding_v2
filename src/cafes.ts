@@ -6,11 +6,18 @@ export const CAFE_THEME_NAMES = ["淡綠地毯／白色桌椅", "紅色棋盤／
 
 /** Stable random per storefront: regeneration and floor changes retain the pairing. */
 export function markCafeShops(plan: BuildingPlan, seed: number): void {
+  const shops = plan.rooms.filter(r => r.level === 0 && r.type === "shop");
   for (const room of plan.rooms) {
     delete room.cafeTheme;
     if (room.level !== 0 || room.type !== "shop") continue;
-    const window = room.windows.map(i => plan.windows[i]).find(w => w.kind === "shop");
+    const windows = room.windows.map(i => plan.windows[i]);
+    const window = windows.find(w => w.kind === "shop") ?? windows[0];
     const key = window ? [window.side, window.bay] : [Math.round(room.rect[0] * 100), Math.round(room.rect[1] * 100)];
     room.cafeTheme = Math.floor(rand(seed, ...key, PURPOSE.cafeTheme) * 3) as CafeTheme;
+  }
+  // Keep at least one wood cafe when the random draw omitted that palette.
+  if (shops.length && !shops.some(room => room.cafeTheme === 2)) {
+    const chosen = [...shops].sort((a, b) => a.rect[0] - b.rect[0] || a.rect[1] - b.rect[1])[0];
+    chosen.cafeTheme = 2;
   }
 }

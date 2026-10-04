@@ -1163,8 +1163,14 @@ function cafePlacement(plan: BuildingPlan, r: PlanRoom): CafePlacement | null {
     reserve([win.at[0] + win.dir[0] * shift, win.at[1] + win.dir[1] * shift], win.dir,
       win.kind === "shop" ? C.terraceEntryWidth : win.width, win.kind === "shop" ? C.doorClear : C.windowClear);
   }
-  const front = r.windows.map(i => plan.windows[i]).find(w => w.kind === "shop");
-  if (!front) return null;
+  const windows = r.windows.map(i => plan.windows[i]);
+  const edge = r.polygon.map((a, i) => ({ a, b: r.polygon[(i + 1) % r.polygon.length] }))
+    .sort((a, b) => Math.hypot(b.b[0] - b.a[0], b.b[1] - b.a[1]) - Math.hypot(a.b[0] - a.a[0], a.b[1] - a.a[1]))[0];
+  const edgeLength = Math.hypot(edge.b[0] - edge.a[0], edge.b[1] - edge.a[1]);
+  const front = windows.find(w => w.kind === "shop") ?? windows[0] ?? {
+    at: [(edge.a[0] + edge.b[0]) / 2, (edge.a[1] + edge.b[1]) / 2] as V2,
+    dir: [(edge.b[0] - edge.a[0]) / edgeLength, (edge.b[1] - edge.a[1]) / edgeLength] as V2,
+  };
   let inward: V2 = [-front.dir[1], front.dir[0]];
   if (!inRoom(r.polygon, [front.at[0] + inward[0] * 0.2, front.at[1] + inward[1] * 0.2])) inward = [-inward[0], -inward[1]];
   const seatingFrame = new Matrix4().makeBasis(new Vector3(...front.dir, 0), new Vector3(...inward, 0), new Vector3(0, 0, 1)).setPosition(...front.at, r.floorZ);

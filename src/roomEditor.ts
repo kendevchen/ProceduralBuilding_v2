@@ -3,7 +3,7 @@ import { CAFE_THEME_NAMES } from "./cafes";
 import type GUI from "lil-gui";
 import { type Camera, Raycaster, Vector2 } from "three";
 import { ROOM_INFO } from "./plan";
-import { RoomEdits, editableRoom, EDITABLE_ROOM_TYPES, mergeReason, type EditableRoomType, type EditedPlan } from "./roomEdits";
+import { RoomEdits, editableRoom, roomTypesForLevel, mergeReason, type EditableRoomType, type EditedPlan } from "./roomEdits";
 import type { RoomLabels } from "./roomLabels";
 import type { SalonInfo, DiningInfo, KitchenInfo, CafeInfo } from "./furniture";
 
@@ -15,7 +15,7 @@ interface Host {
   labels(): RoomLabels | null;
   rebuild(): void;
 }
-const choices = Object.fromEntries(EDITABLE_ROOM_TYPES.map(type => [ROOM_INFO[type].name, type]));
+const choicesForLevel = (level: number) => Object.fromEntries(roomTypesForLevel(level).map(type => [ROOM_INFO[type].name, type]));
 
 export class RoomEditor {
   private folder: GUI | null = null;
@@ -143,6 +143,7 @@ export class RoomEditor {
       }
       if (editableRoom(room)) {
         const state = { type: room.type };
+        const choices = choicesForLevel(room.level);
         const options = room.type === "maid" ? { ...choices, "閣樓房（原始）": "maid" } : choices;
         folder.add(state, "type", options).name("房間種類").onChange((value: EditableRoomType) => this.act(() => edits.setType(room.id, value)));
         folder.add({ restore: () => this.act(() => edits.restoreType(room.id)) }, "restore").name("恢復原始房型");
@@ -159,6 +160,7 @@ export class RoomEditor {
           info(furniture ? `${room.type === "shopBack" ? "店面後場" : "廚房"}：沿牆廚具 ${furniture.wallLength.toFixed(2)} m、瓦斯爐烤箱、排煙罩${furniture.hasIsland ? "、水槽中島" : "（門窗與通道限制，本室不放中島）"}${room.type === "kitchen" ? "及黑白石磚地板" : "（保留原地板）"}${furniture.hasIsland ? `；工作通道 ${Math.round(furniture.aisle * 100)} cm` : ""}${furniture.displayCabinets ? `，對面 ${furniture.displayCabinets} 座餐具展示櫃` : ""}。`
               : "目前空間無法容納完整廚具與獨立中島的通道；可調整房間或另行規劃半島。");
         }
+        else if (room.type === "shop") info("更換房型後同步更新咖啡店家具、牆面與地板；店面僅限一樓。戶外桌椅依原有店面開口配置。");
         else info(room.type === "bedroom" || room.type === "study" ? "更換後同步更新家具、牆面與地板。" : "此房型尚無家具，會套用對應牆面與地板。");
       } else info("此空間連動樓梯、入口或建築結構，保留原始用途。");
     } else if (rooms.length === 2 && result) {
@@ -168,7 +170,7 @@ export class RoomEditor {
       else {
         info(`目前合計 ${(rooms[0].area + rooms[1].area).toFixed(1)} m²；合併後再加回拆牆面積。請選擇合併後的房型。`);
         const state = { type: "" };
-        const type = folder.add(state, "type", { "請選擇房型": "", ...choices }).name("合併後房型");
+        const type = folder.add(state, "type", { "請選擇房型": "", ...choicesForLevel(rooms[0].level) }).name("合併後房型");
         const merge = folder.add({ merge: () => this.act(() => {
           const members = edits.merge([this.ids[0], this.ids[1]], state.type as EditableRoomType);
           this.selection = [members]; this.touchMulti = false;

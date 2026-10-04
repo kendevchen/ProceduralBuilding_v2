@@ -4,11 +4,16 @@ import { signedArea, unionRooms } from "./roomGeometry";
 import type { V2 } from "./roof";
 import dims from "../blender/kit_dims.json";
 
-export const EDITABLE_ROOM_TYPES = ["bedroom", "study", "salon", "dining", "kitchen", "wc", "storage"] as const;
+export const EDITABLE_ROOM_TYPES = ["bedroom", "study", "salon", "dining", "kitchen", "wc", "storage", "shop"] as const;
 export type EditableRoomType = (typeof EDITABLE_ROOM_TYPES)[number];
 export const editableType = (type: RoomType): type is EditableRoomType => (EDITABLE_ROOM_TYPES as readonly string[]).includes(type);
+export const roomTypesForLevel = (level: number) => EDITABLE_ROOM_TYPES.filter(type => type !== "shop" || level === 0);
+const validateRoomType = (level: number, type: EditableRoomType) => {
+  if (!editableType(type)) throw new Error("請選擇可用的房型");
+  if (type === "shop" && level !== 0) throw new Error("店面只能設置在一樓");
+};
 // Attic rooms may be converted, but structural spaces never become editable through a rename.
-export const editableRoom = (room: PlanRoom) => room.levels === 1 && (editableType(room.type) || room.type === "maid");
+export const editableRoom = (room: PlanRoom) => room.levels === 1 && ((editableType(room.type) && (room.type !== "shop" || room.level === 0)) || room.type === "maid");
 type Members = string[];
 type Operation = { id: number; kind: "type"; members: Members; type: EditableRoomType }
   | { id: number; kind: "merge"; groups: [Members, Members]; type: EditableRoomType };
@@ -79,6 +84,7 @@ function mergePlan(plan: BuildingPlan, ids: [string, string], type: EditableRoom
   const reason = mergeReason(plan, ids);
   if (reason) throw new Error(reason);
   const [a, b] = ids.map(id => plan.rooms.find(r => r.id === id)!);
+  validateRoomType(a.level, type);
   const shared = plan.walls.filter(w => w.rooms.includes(a.id) && w.rooms.includes(b.id));
   const fill = shared.flatMap(w => bridges(w, a, b));
   if (!fill.length) throw new Error("找不到可移除的共用隔間範圍");
@@ -134,6 +140,7 @@ export class RoomEdits {
         if (op.kind === "type") {
           const r = find(op.members);
           if (!r || !editableRoom(r)) throw new Error("房間位置或開口已改變");
+          validateRoomType(r.level, op.type);
           r.type = op.type; r.name = ROOM_INFO[op.type].name;
         } else {
           const a = find(op.groups[0]), b = find(op.groups[1]);
@@ -160,6 +167,7 @@ export class RoomEdits {
   setType(id: string, type: EditableRoomType): void {
     const room = this.current?.plan.rooms.find(r => r.id === id);
     if (!room || !editableRoom(room) || !editableType(type)) throw new Error("此房間不能更換房型");
+    validateRoomType(room.level, type);
     if (room.type === type) return;
     const members = this.keys(id);
     this.save();
