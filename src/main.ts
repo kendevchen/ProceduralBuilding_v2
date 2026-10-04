@@ -29,6 +29,7 @@ import { LampLights } from "./lampLights";
 import { buildStairs } from "./stairs";
 import { StreetLife } from "./streetlife";
 import { markCafeShops } from "./cafes";
+import { markAtticRooms } from "./attics";
 import { WindowEditor } from "./windowEditor";
 import { RoomEdits } from "./roomEdits";
 import { RoomEditor } from "./roomEditor";
@@ -156,6 +157,7 @@ function rebuild(frame = false): void {
   const edited = roomEdits.apply(planBuilding(b, params));
   const plan = edited.plan;
   markCafeShops(plan, params.seed);
+  markAtticRooms(plan, params.seed);
   lastPlan = plan;
   interiorView.check = plan.issues.length ? `${plan.issues.length} 個問題` : "OK";
   if (plan.issues.length) console.warn(`plan: ${plan.issues.length} issues`, plan.issues);

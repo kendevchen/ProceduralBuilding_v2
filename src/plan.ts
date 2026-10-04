@@ -95,6 +95,7 @@ export interface PlanDoor {
 export interface PlanRoom {
   /** Ground-floor cafe palette: carpet/white, red checks/red, grey wood/wood. */
   cafeTheme?: 0 | 1 | 2;
+  atticTheme?: 0 | 1;
   /** Spatially chosen 2F rear-right dining prototype, independent of room numbering. */
   diningPrototype?: boolean;
   /** e.g. "2F-03" */

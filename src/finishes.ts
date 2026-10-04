@@ -84,7 +84,7 @@ export function kitchenWorktopStamp(): Stamp {
   return stamp(P.kitchenWorktop, rgb("#e7e2d7"), rgb("#b9b7b0"));
 }
 
-export function atticWoodStamp(): Stamp { return stamp(P.cafeFurnitureWood, rgb("#ad8762"), rgb("#785b3d")); }
+export function atticWoodStamp(dark = false): Stamp { return stamp(P.cafeFurnitureWood, rgb(dark ? "#6a4426" : "#ad8762"), rgb(dark ? "#412b19" : "#785b3d")); }
 export function atticBooksStamp(boardZ: number): Stamp { return stamp(P.atticBooks, rgb("#e3dccc"), rgb("#a49b89"), boardZ, boardZ + 3); }
 export function atticFabricStamp(): Stamp { return stamp(P.atticFabric, rgb("#e0d3b8"), rgb("#9e8069")); }
 export function atticGlassStamp(): Stamp { return stamp(P.atticGlass, rgb("#d6aa69"), rgb("#a86646")); }
@@ -131,7 +131,9 @@ export function stampOf(look: Look, room: PlanRoom | null, surface: "wall" | "fl
     const v = c.toArray() as [number, number, number];
     return stamp(surface === "wall" ? P.paint : P.plain, v, v, room.floorZ, room.ceilingZ);
   }
-  const f = room.type === "shop" && room.cafeTheme !== undefined
+  const f = room.type === "maid" && room.atticTheme === 1
+    ? (surface === "wall" ? WALLS : FLOORS).study
+    : room.type === "shop" && room.cafeTheme !== undefined
     ? surface === "floor"
       ? room.cafeTheme === 1 ? { pattern: P.marble, a: "#ddd5c4", b: "#8c3c2e" }
       : room.cafeTheme === 2 ? { pattern: P.herringbone, a: "#a09a8d", b: "#797469" }
