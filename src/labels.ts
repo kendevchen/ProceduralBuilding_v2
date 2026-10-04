@@ -39,8 +39,8 @@ export function textSprite(text: string, width = 3.4, depthTest = true, style: L
     g.strokeStyle = "rgba(0, 0, 0, 0.7)";
     g.fillStyle = "#ffffff";
     lines.forEach((line, i) => {
-      g.strokeText(line, CW / 2, top + i * LINE);
-      g.fillText(line, CW / 2, top + i * LINE);
+      g.strokeText(line, CW / 2, top + i * LINE, CW - 24);
+      g.fillText(line, CW / 2, top + i * LINE, CW - 24);
     });
   }
   const tex = new CanvasTexture(c);

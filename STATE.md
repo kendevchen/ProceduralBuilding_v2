@@ -11,6 +11,7 @@
 | 室內呈現 | 寫實材質／圖解／白模；房間名稱標籤 |
 | 家具 | 宴會廳（桌椅、地毯）、書房（書櫃、書桌、椅子、書、會發光的檯燈）；各樓層臥室（雙人床、床頭櫃、褶紋檯燈）；面積達 11 m² 的臥室用灰綠護牆板，小臥室維持壁紙 |
 | 介面 | 「顯示內部」按鈕（不開面板）、「剖切」面板、點窗戶個別設定（含老虎窗） |
+| 家具總覽 | 頂部「家具總覽」展示 28 種家具／款式，分房型排列，中英文名稱；共用房間模型元件 |
 | 房間編輯 | 點名稱改房型；Shift／手機長按多選兩間後合併；保護結構牆、凹多邊形房間、復原／重做、平面改變後核對重套 |
 | 外觀 | 外牆材質切換（奧斯曼／巴黎淺色石灰岩）、人行道與路樹、大玻璃老虎窗 |
 
@@ -57,6 +58,7 @@
 | 任務 | 讀的規格章節 | 讀的程式 |
 |---|---|---|
 | 加／改家具 | INTERIOR_SPEC 6.8 | `src/furniture.ts`、`src/lampLights.ts` |
+| 家具總覽、中英文名稱 | INTERIOR_SPEC 6.9 | `src/furnitureGallery.ts`、`src/furniture.ts` 的 `buildFurnitureItems`、`src/main.ts` |
 | 房間的地板與牆面 | INTERIOR_SPEC 6.7 | `src/finishes.ts` |
 | 房間種類、門、樓梯間大小（平面規則） | INTERIOR_SPEC 5 | `src/plan.ts` |
 | 點房間名稱、改房型、合併與復原 | INTERIOR_SPEC 5.9 | `src/roomEditor.ts`、`src/roomEdits.ts`、`src/roomGeometry.ts`、`src/roomLabels.ts`；`src/main.ts` 的 `rebuild` |

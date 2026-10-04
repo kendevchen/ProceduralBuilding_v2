@@ -296,8 +296,8 @@ function bookcase(wood: Tris, books: Tris, f: { a: V2; d: V2; n: V2; s0: number;
 /** Head at y=0, foot towards +y, all dimensions shared with kit_dims.json. */
 type BedSide = -1 | 1;
 
-function bedroomSet(linen: Tris, brass: Tris, shade: Tris, m: Matrix4, lamps: Vector3[], sides: BedSide[]): void {
-  const B = BED, l = new Part(linen, m), metal = new Part(brass, m);
+function doubleBed(linen: Tris, m: Matrix4): void {
+  const B = BED, l = new Part(linen, m);
   const w = B.bedWidth, length = B.bedLength, base = B.baseHeight, top = base + B.mattressHeight;
   l.softBox(0, length / 2, base / 2, w, length, base, B.rounding);
   l.softBox(0, length / 2, base + B.mattressHeight / 2, w, length, B.mattressHeight, B.rounding);
@@ -312,36 +312,49 @@ function bedroomSet(linen: Tris, brass: Tris, shade: Tris, m: Matrix4, lamps: Ve
     l.softBox(side * w * 0.24, length * 0.12, top + B.duvetHeight * 2.1,
       w * 0.4, length * 0.17, B.duvetHeight * 1.5, B.rounding);
   }
-  for (const side of sides) {
-    const x = side * (w / 2 + B.sideGap + B.nightWidth / 2), y = B.nightDepth / 2;
-    const f = B.frameThickness, hw = B.nightWidth / 2, hd = B.nightDepth / 2;
-    l.softBox(x, y, B.nightHeight, B.nightWidth, B.nightDepth, f * 2, f);
-    for (const sx of [-1, 1]) for (const sy of [-1, 1])
-      metal.box(x + sx * (hw - f) - f / 2, y + sy * (hd - f) - f / 2, 0,
-        x + sx * (hw - f) + f / 2, y + sy * (hd - f) + f / 2, B.nightHeight);
-    for (const sy of [-1, 1]) metal.box(x - hw, y + sy * (hd - f) - f / 2, B.nightHeight - f * 3,
-      x + hw, y + sy * (hd - f) + f / 2, B.nightHeight - f * 2);
-    const lm = m.clone().multiply(new Matrix4().makeTranslation(x, y, B.nightHeight + f));
-    const stem = new Part(brass, lm), H = B.lampHeight;
-    stem.lathe(0, 0, [[0, 0], [B.shadeTop * 0.6, 0], [B.shadeTop * 0.6, H * 0.04],
-      [f, H * 0.09], [f * 0.6, H * 0.65], [0, H * 0.65]], 16);
-    // Alternating radii form real pleats; inner skin and annular rims close the shade.
-    const segments = 64, thickness = B.shadeThickness;
-    const ring = (k: number, upper: boolean, inner: boolean) => {
-      const a = k * Math.PI * 2 / segments;
-      const r = (upper ? B.shadeTop : B.shadeBottom) - (k % 2 ? thickness : 0) - (inner ? thickness : 0);
-      return new Vector3(r * Math.cos(a), r * Math.sin(a), upper ? H : H * 0.52).applyMatrix4(lm);
-    };
-    for (let k = 0; k < segments; k++) {
-      const n = new Vector3(Math.cos((k + 0.5) * Math.PI * 2 / segments), Math.sin((k + 0.5) * Math.PI * 2 / segments), 0).transformDirection(lm);
-      shade.quad(ring(k, false, false), ring(k + 1, false, false), ring(k + 1, true, false), ring(k, true, false), n);
-      shade.quad(ring(k, false, true), ring(k + 1, false, true), ring(k + 1, true, true), ring(k, true, true), n.clone().negate());
-      for (const upper of [false, true]) shade.quad(ring(k, upper, false), ring(k + 1, upper, false), ring(k + 1, upper, true), ring(k, upper, true), new Vector3(0, 0, upper ? 1 : -1).transformDirection(lm));
-    }
-    lamps.push(new Vector3(0, 0, H * 0.7).applyMatrix4(lm));
-  }
   l.softBox(0, length, top - B.mattressHeight * 0.28, w, B.duvetHeight, B.mattressHeight, B.rounding);
   l.softBox(0, length * 0.35, top + B.duvetHeight, w, length * 0.1, B.duvetHeight * 0.5, B.rounding);
+}
+
+function nightstand(linen: Tris, brass: Tris, m: Matrix4): void {
+  const B = BED, x = 0, y = B.nightDepth / 2, l = new Part(linen, m), metal = new Part(brass, m);
+  const f = B.frameThickness, hw = B.nightWidth / 2, hd = B.nightDepth / 2;
+  l.softBox(x, y, B.nightHeight, B.nightWidth, B.nightDepth, f * 2, f);
+  for (const sx of [-1, 1]) for (const sy of [-1, 1])
+    metal.box(x + sx * (hw - f) - f / 2, y + sy * (hd - f) - f / 2, 0,
+      x + sx * (hw - f) + f / 2, y + sy * (hd - f) + f / 2, B.nightHeight);
+  for (const sy of [-1, 1]) metal.box(x - hw, y + sy * (hd - f) - f / 2, B.nightHeight - f * 3,
+    x + hw, y + sy * (hd - f) + f / 2, B.nightHeight - f * 2);
+}
+
+function bedsideLamp(brass: Tris, shade: Tris, m: Matrix4): number {
+  const B = BED, f = B.frameThickness, lm = m, stem = new Part(brass, lm), H = B.lampHeight;
+  stem.lathe(0, 0, [[0, 0], [B.shadeTop * 0.6, 0], [B.shadeTop * 0.6, H * 0.04],
+    [f, H * 0.09], [f * 0.6, H * 0.65], [0, H * 0.65]], 16);
+  // Alternating radii form real pleats; inner skin and annular rims close the shade.
+  const segments = 64, thickness = B.shadeThickness;
+  const ring = (k: number, upper: boolean, inner: boolean) => {
+    const a = k * Math.PI * 2 / segments;
+    const r = (upper ? B.shadeTop : B.shadeBottom) - (k % 2 ? thickness : 0) - (inner ? thickness : 0);
+    return new Vector3(r * Math.cos(a), r * Math.sin(a), upper ? H : H * 0.52).applyMatrix4(lm);
+  };
+  for (let k = 0; k < segments; k++) {
+    const n = new Vector3(Math.cos((k + 0.5) * Math.PI * 2 / segments), Math.sin((k + 0.5) * Math.PI * 2 / segments), 0).transformDirection(lm);
+    shade.quad(ring(k, false, false), ring(k + 1, false, false), ring(k + 1, true, false), ring(k, true, false), n);
+    shade.quad(ring(k, false, true), ring(k + 1, false, true), ring(k + 1, true, true), ring(k, true, true), n.clone().negate());
+    for (const upper of [false, true]) shade.quad(ring(k, upper, false), ring(k + 1, upper, false), ring(k + 1, upper, true), ring(k, upper, true), new Vector3(0, 0, upper ? 1 : -1).transformDirection(lm));
+  }
+  return H * 0.7;
+}
+
+function bedroomSet(linen: Tris, brass: Tris, shade: Tris, m: Matrix4, lamps: Vector3[], sides: BedSide[]): void {
+  doubleBed(linen, m);
+  for (const side of sides) {
+    const x = side * (BED.bedWidth / 2 + BED.sideGap + BED.nightWidth / 2);
+    nightstand(linen, brass, m.clone().multiply(at(x, 0, 0)));
+    const lm = m.clone().multiply(at(x, BED.nightDepth / 2, BED.nightHeight + BED.frameThickness));
+    lamps.push(new Vector3(0, 0, bedsideLamp(brass, shade, lm)).applyMatrix4(lm));
+  }
 }
 
 /** Prefer two tables, then use one where several openings leave a narrow wall. */
@@ -554,8 +567,7 @@ function framedLandscape(linen: Tris, brass: Tris, art: Tris, m: Matrix4, r: Pla
   }
 }
 
-function salonSet(linen: Tris, wood: Tris, brass: Tris, dark: Tris, books: Tris, rug: Tris, art: Tris,
-  plan: BuildingPlan, r: PlanRoom, m: Matrix4, look: Look): void {
+function fireplace(linen: Tris, brass: Tris, dark: Tris, m: Matrix4): void {
   const S = SALON, stone = new Part(linen, m), black = new Part(dark, m);
   const fw = S.fireWidth / 2, fh = S.fireHeight;
   // Open recess backed with black stone, stepped mantel and fluted pilasters.
@@ -572,6 +584,25 @@ function salonSet(linen: Tris, wood: Tris, brass: Tris, dark: Tris, books: Tris,
   stone.box(-fw - 0.04, 0, fh - 0.10, fw + 0.04, S.fireDepth + 0.025, fh - 0.055);
   stone.box(-fw - 0.09, 0, fh - 0.055, fw + 0.09, S.fireDepth + 0.08, fh);
   new Part(brass, m).lathe(0, 0.30, [[0, 0.07], [0.12, 0.07], [0.12, 0.09], [0, 0.09]], 16);
+}
+
+function salonTable(linen: Tris, wood: Tris, m: Matrix4, kind: "stone" | "wood" | "round"): void {
+  const S = SALON, stone = new Part(linen, m), w = new Part(wood, m);
+  if (kind === "stone") {
+  for (const x of [-0.37, 0.37]) stone.box(x - 0.07, 2.1, 0.02, x + 0.07, 2.65, S.tableHeight - 0.05);
+  stone.softBox(0, 2 + S.tableDepth / 2, S.tableHeight - 0.035, S.tableWidth, S.tableDepth, 0.07, 0.035);
+  } else if (kind === "wood") {
+  w.box(0.06, 2.91, 0.02, 0.16, 3.26, 0.43); w.box(0.67, 2.91, 0.02, 0.77, 3.26, 0.43);
+  w.softBox(0.425, 3.075, 0.46, 0.75, 0.45, 0.055, 0.026);
+  } else {
+  w.lathe(0.895, 2.525, [[0, 0.02], [0.18, 0.02], [0.12, 0.06], [0.12, 0.40], [0.275, 0.40], [0.275, 0.45], [0, 0.45]], 28);
+  }
+}
+
+function salonSet(linen: Tris, wood: Tris, brass: Tris, dark: Tris, books: Tris, rug: Tris, art: Tris,
+  plan: BuildingPlan, r: PlanRoom, m: Matrix4, look: Look): void {
+  const S = SALON, fw = S.fireWidth / 2;
+  fireplace(linen, brass, dark, m);
   for (const side of [-1, 1]) {
     const x0 = side < 0 ? -fw - 0.08 - S.caseWidth : fw + 0.08;
     displayCabinet(linen, brass, m, x0, (x0, x1, z) => {
@@ -582,13 +613,9 @@ function salonSet(linen: Tris, wood: Tris, brass: Tris, dark: Tris, books: Tris,
   const local = (x: number, y: number, turn = 0) => m.clone().multiply(at(x, y, 0, turn));
   salonSofa(linen, wood, local(0, S.depth - S.sofaDepth / 2, Math.PI), S.sofaWidth);
   salonSofa(linen, wood, local(-S.width / 2 + S.sofaDepth / 2, 1.2 + S.shortSofaWidth / 2, -Math.PI / 2), S.shortSofaWidth);
-  // Low stone table and the two nested wood tables in the reference.
-  for (const x of [-0.37, 0.37]) stone.box(x - 0.07, 2.1, 0.02, x + 0.07, 2.65, S.tableHeight - 0.05);
-  stone.softBox(0, 2 + S.tableDepth / 2, S.tableHeight - 0.035, S.tableWidth, S.tableDepth, 0.07, 0.035);
-  const w = new Part(wood, m);
-  w.box(0.06, 2.91, 0.02, 0.16, 3.26, 0.43); w.box(0.67, 2.91, 0.02, 0.77, 3.26, 0.43);
-  w.softBox(0.425, 3.075, 0.46, 0.75, 0.45, 0.055, 0.026);
-  w.lathe(0.895, 2.525, [[0, 0.02], [0.18, 0.02], [0.12, 0.06], [0.12, 0.40], [0.275, 0.40], [0.275, 0.45], [0, 0.45]], 28);
+  salonTable(linen, wood, m, "stone");
+  salonTable(linen, wood, m, "wood");
+  salonTable(linen, wood, m, "round");
   framedLandscape(linen, brass, art, m, r, S.pictureWidth, S.pictureHeight, S.pictureBottom);
   if (look === "real") {
     const x0 = -S.rugWidth / 2, y0 = S.depth - S.rugDepth, origin = new Vector3(x0, y0, 0).applyMatrix4(m);
@@ -760,8 +787,8 @@ function crockeryCabinet(linen: Tris, brass: Tris, decor: Tris, m: Matrix4, x0: 
   });
 }
 
-function diningSet(linen: Tris, wood: Tris, brass: Tris, decor: Tris, art: Tris, rug: Tris, plan: BuildingPlan, r: PlanRoom, placement: DiningPlacement, look: Look): void {
-  const D = DINING, { m, chairs, length } = placement, table = m.clone().multiply(at(0, D.tableY, 0));
+function diningTable(linen: Tris, wood: Tris, table: Matrix4, length: number): void {
+  const D = DINING;
   const w = new Part(wood, table), cloth = new Part(linen, table);
   for (const x of [-length / 2 + 0.15, length / 2 - 0.15]) for (const y of [-D.tableWidth / 2 + 0.12, D.tableWidth / 2 - 0.12])
     w.lathe(x, y, leg(D.tableHeight - 0.05), 10);
@@ -774,9 +801,10 @@ function diningSet(linen: Tris, wood: Tris, brass: Tris, decor: Tris, art: Tris,
     cloth.box(x0, y - 0.009, D.tableHeight - D.clothDrop + 0.015 * Math.sin(i * 1.7), x1, y + 0.009, D.tableHeight + 0.014);
   }
   for (const side of [-1, 1]) cloth.box(side * length / 2 - 0.009, -D.tableWidth / 2, D.tableHeight - D.clothDrop, side * length / 2 + 0.009, D.tableWidth / 2, D.tableHeight + 0.014);
-  for (const side of [-1, 1]) for (const x of [-length / 4, length / 4]) diningChair(linen, brass, decor,
-    m.clone().multiply(at(x, D.tableY + side * D.chairOffset, 0, side > 0 ? Math.PI : 0)));
-  if (chairs === 6) for (const side of [-1, 1]) diningChair(linen, brass, decor, m.clone().multiply(at(side * D.endOffset, D.tableY, 0, side > 0 ? Math.PI / 2 : -Math.PI / 2)));
+}
+
+function diningSideboard(linen: Tris, wood: Tris, brass: Tris, m: Matrix4): void {
+  const D = DINING;
   const cab = new Part(wood, m), cap = new Part(linen, m), metal = new Part(brass, m), half = D.cabinetWidth / 2;
   cab.box(-half, 0.03, 0.10, half, D.cabinetDepth, D.cabinetHeight - 0.035);
   for (const x of [-half + 0.06, half - 0.06]) for (const y of [0.08, D.cabinetDepth - 0.04]) cab.lathe(x, y, leg(0.15), 10);
@@ -786,6 +814,15 @@ function diningSet(linen: Tris, wood: Tris, brass: Tris, decor: Tris, art: Tris,
     for (const x of [-half * 0.52, half * 0.52]) metal.lathe(x, D.cabinetDepth + 0.028, [[0, z + 0.08], [0.016, z + 0.08], [0.016, z + 0.10], [0, z + 0.10]], 10);
   }
   cap.softBox(0, D.cabinetDepth / 2, D.cabinetHeight - 0.018, D.cabinetWidth + 0.045, D.cabinetDepth + 0.04, 0.036, 0.017);
+}
+
+function diningSet(linen: Tris, wood: Tris, brass: Tris, decor: Tris, art: Tris, rug: Tris, plan: BuildingPlan, r: PlanRoom, placement: DiningPlacement, look: Look): void {
+  const D = DINING, { m, chairs, length } = placement, table = m.clone().multiply(at(0, D.tableY, 0));
+  diningTable(linen, wood, table, length);
+  for (const side of [-1, 1]) for (const x of [-length / 4, length / 4]) diningChair(linen, brass, decor,
+    m.clone().multiply(at(x, D.tableY + side * D.chairOffset, 0, side > 0 ? Math.PI : 0)));
+  if (chairs === 6) for (const side of [-1, 1]) diningChair(linen, brass, decor, m.clone().multiply(at(side * D.endOffset, D.tableY, 0, side > 0 ? Math.PI / 2 : -Math.PI / 2)));
+  diningSideboard(linen, wood, brass, m);
   flowerPot(decor, table.clone().multiply(at(0, 0, D.tableHeight + 0.029)));
   flowerPot(decor, m.clone().multiply(at(0, D.cabinetDepth / 2, D.cabinetHeight + 0.001)));
   framedLandscape(linen, brass, art, m, r, D.pictureWidth, D.pictureHeight, D.pictureBottom);
@@ -807,6 +844,70 @@ export interface SalonInfo {
 
 export interface FurnitureInfo {
   lamps: Vector3[];
+}
+
+export interface FurnitureItem { name: string; zh: string; category: string; group: Group }
+
+/** Catalogue recipes call the same component builders as furnished rooms. */
+export function buildFurnitureItems(mats: InteriorMaterials): FurnitureItem[] {
+  type Parts = { wood: Tris; linen: Tris; fabric: Tris; gold: Tris; dark: Tris; brass: Tris; leather: Tris; shade: Tris; books: Tris; art: Tris; rug: Tris };
+  const items: FurnitureItem[] = [], m = new Matrix4();
+  const room = { floorZ: 0, ceilingZ: 3 } as PlanRoom;
+  const add = (category: string, name: string, zh: string, build: (p: Parts) => void) => {
+    const p: Parts = { wood: new Tris(), linen: new Tris(), fabric: new Tris(), gold: new Tris(), dark: new Tris(),
+      brass: new Tris(), leather: new Tris(), shade: new Tris(), books: new Tris(), art: new Tris(), rug: new Tris() };
+    build(p);
+    const group = new Group(); group.name = name; group.userData.furnitureItem = { name, zh, category };
+    const entries: [Tris, Material][] = [[p.wood, mats.furnWood], [p.linen, mats.furnLinen], [p.fabric, mats.furnFabric],
+      [p.gold, mats.furnGold], [p.dark, mats.furnDark], [p.brass, mats.furnBrass], [p.leather, mats.furnLeather],
+      [p.shade, mats.furnShade], [p.books, mats.finishWall], [p.art, mats.finishWall], [p.rug, mats.finishFloor]];
+    for (const [tris, material] of entries) if (tris.pos.length) {
+      const mesh = new Mesh(tris.geometry(), material);
+      mesh.castShadow = tris !== p.rug && tris !== p.books && tris !== p.art && tris !== p.shade;
+      mesh.receiveShadow = true; group.add(mesh);
+    }
+    items.push({ category, name, zh, group });
+  };
+  const rug = (p: Parts, kind: "ballroom" | "salon" | "dining", width: number, depth: number) => {
+    p.rug.stamp = kind === "ballroom" ? carpetStamp(-width / 2, depth / 2, width, depth, 0, 3)
+      : kind === "salon" ? salonRugStamp(-width / 2, depth / 2, 0, width, depth, 0, 3)
+        : diningRugStamp(-width / 2, depth / 2, 0, width, depth, 0, 3);
+    new Part(p.rug, m).box(-width / 2, -depth / 2, 0, width / 2, depth / 2, 0.018);
+  };
+  add("宴會廳", "Banquet table", "宴會長桌", p => banquetTable(p.linen, p.gold, m, DINING.tableLength * 2));
+  add("宴會廳", "Banquet chair", "宴會餐椅", p => banquetChair(p.wood, p.fabric, m));
+  add("宴會廳", "Banquet rug", "宴會廳地毯", p => rug(p, "ballroom", SALON.rugWidth, SALON.rugDepth));
+  add("書房", "Study desk", "書房書桌", p => desk(p.wood, p.dark, m, 1.4, 0.7));
+  add("書房", "Reading table", "長型閱讀桌", p => desk(p.wood, p.dark, m, 2.4, 0.85));
+  add("書房", "Study chair", "書房木椅", p => studyChair(p.dark, p.wood, m));
+  add("書房", "Wall bookcase", "書房壁面書櫃", p => {
+    p.books.stamp = booksStamp(CASE.plinth);
+    bookcase(p.wood, p.books, { a: [0, 0], d: [1, 0], n: [0, 1], s0: 0, s1: 1 }, 0, CASE.top);
+  });
+  add("書房", "Open book", "攤開的書", p => openBook(p.leather, p.linen, m));
+  add("書房", "Brass desk lamp", "黃銅書桌檯燈", p => { lamp(p.brass, p.shade, m); });
+  add("臥室", "Double bed", "雙人床", p => doubleBed(p.linen, m));
+  add("臥室", "Bedside table", "床頭櫃", p => nightstand(p.linen, p.brass, m));
+  add("臥室", "Pleated lamp", "褶紋床頭檯燈", p => { bedsideLamp(p.brass, p.shade, m); });
+  add("客廳", "Main sofa", "客廳主沙發", p => salonSofa(p.linen, p.wood, m, SALON.sofaWidth));
+  add("客廳", "Short sofa", "客廳短沙發", p => salonSofa(p.linen, p.wood, m, SALON.shortSofaWidth));
+  add("客廳", "Stone coffee table", "石材矮茶几", p => salonTable(p.linen, p.wood, m, "stone"));
+  add("客廳", "Wood coffee table", "木色長茶几", p => salonTable(p.linen, p.wood, m, "wood"));
+  add("客廳", "Round side table", "圓形側桌", p => salonTable(p.linen, p.wood, m, "round"));
+  add("客廳", "French fireplace", "法式壁爐", p => fireplace(p.linen, p.brass, p.dark, m));
+  add("客廳", "Cream bookcase", "奶油色書櫃", p => displayCabinet(p.linen, p.brass, m, 0, (x0, x1, z) => {
+    p.books.stamp = booksStamp(0.65); new Part(p.books, m).card(x0 + 0.04, z, x1 - 0.04, Math.min(z + 0.285, SALON.caseHeight - 0.06), 0.20);
+  }));
+  add("客廳", "Framed landscape", "金框風景掛畫", p => framedLandscape(p.linen, p.brass, p.art, m, room, SALON.pictureWidth, SALON.pictureHeight, 0));
+  add("客廳", "Salon rug", "客廳花紋地毯", p => rug(p, "salon", SALON.rugWidth, SALON.rugDepth));
+  add("餐廳", "Dining table", "六人長方形餐桌", p => diningTable(p.linen, p.wood, m, DINING.tableLength));
+  add("餐廳", "Compact dining table", "四人長方形餐桌", p => diningTable(p.linen, p.wood, m, DINING.tableLength * 0.8));
+  add("餐廳", "French dining chair", "法式灰藍餐椅", p => diningChair(p.linen, p.brass, p.art, m));
+  add("餐廳", "Dining sideboard", "餐邊櫃", p => diningSideboard(p.linen, p.wood, p.brass, m));
+  add("餐廳", "Crockery cabinet", "餐具展示高櫃", p => crockeryCabinet(p.linen, p.brass, p.art, m, 0));
+  add("餐廳", "Flower pot", "花盆與花束", p => flowerPot(p.art, m));
+  add("餐廳", "Dining rug", "餐廳花紋地毯", p => rug(p, "dining", DINING.rugWidth, DINING.rugDepth));
+  return items;
 }
 
 /** Ballroom, studies and bedrooms, merged by material. */

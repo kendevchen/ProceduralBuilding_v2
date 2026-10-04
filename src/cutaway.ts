@@ -69,6 +69,14 @@ export class Cutaway {
     this.variants.add(section);
   }
 
+  /** Shared original materials for the furniture overview, without clipping or section shading. */
+  get galleryInterior(): InteriorMaterials {
+    return Object.fromEntries(Object.entries(this.interior).map(([key, material]) => {
+      const original = [...this.cuts].find(([, variant]) => variant === material)?.[0] ?? material;
+      return [key, original];
+    })) as unknown as InteriorMaterials;
+  }
+
   /** the clipped, double-sided variant of a material (made once; a variant is its own) */
   cut(base: Material): Material {
     let m = this.cuts.get(base);

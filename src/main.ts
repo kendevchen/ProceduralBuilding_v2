@@ -11,6 +11,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import GUI from "lil-gui";
 import { Environment } from "./environment";
 import { buildGallery } from "./gallery";
+import { buildFurnitureGallery } from "./furnitureGallery";
 import { buildingStyle, generateBuilding, partyChimneys } from "./generator";
 import { Kit } from "./kit";
 import { FACADE_LOOKS, type FacadeLook, type KitMaterials, LACE_PATTERNS, createMaterials } from "./materials";
@@ -70,7 +71,8 @@ root.rotation.x = -Math.PI / 2;
 scene.add(root);
 const params = defaultParams();
 const roomEdits = new RoomEdits();
-const view = { gallery: false };
+const view = { gallery: false, furnitureGallery: false };
+let overviewSize: { width: number; depth: number } | null = null;
 /** the study lamps' light (lampLights.ts) */
 const lampLights = new LampLights(scene);
 /** sidewalk and street trees, in world space beside the building (streetlife.ts) */
@@ -135,12 +137,18 @@ function rebuild(frame = false): void {
   labels = null;
   street.group.visible = false;
   cutShown = false; // every new group starts with the plain materials
-  if (view.gallery) {
-    const gal = buildGallery(kit, buildingStyle(params));
+  if (view.gallery || view.furnitureGallery) {
+    const gal = view.furnitureGallery ? buildFurnitureGallery(cutaway.galleryInterior) : buildGallery(kit, buildingStyle(params));
+    overviewSize = gal;
+    lampLights.setLamps([]); lampLights.on = false;
     show(gal.group, new Vector3(0, gal.height / 2, 0), Math.hypot(gal.width, gal.depth, gal.height) / 2);
     windows.update(null, null);
     roomEditor.update(null);
-    if (frame) frameGallery(gal.width, gal.depth / 2);
+    if (frame) {
+      frameGallery(gal.width, gal.depth / 2);
+      if (view.furnitureGallery) camera.position.z *= -1;
+    }
+    toolbar.setInterior(false); toolbar.setLevel("");
     return;
   }
   const b = generateBuilding(params, kit);
@@ -221,7 +229,7 @@ function applyCut(force = false): void {
   // the interior is on show whenever the toggle is on, also with the plane past the building (nothing cut away,
   // the real rooms behind the windows); the toggle hides it
   const { at } = cutPosition();
-  const on = cut.on && !view.gallery && !interiorView.plan;
+  const on = cut.on && !view.gallery && !view.furnitureGallery && !interiorView.plan;
   if (force || on !== cutShown) {
     if (shown) cutaway.apply(shown, on);
     if (interior) interior.visible = on;
@@ -249,6 +257,11 @@ function levelAt(z: number): string {
 
 /** the default view, framing the whole building (in the narrower of the two fields of view) */
 function frameHome(): void {
+  if ((view.gallery || view.furnitureGallery) && overviewSize) {
+    frameGallery(overviewSize.width, overviewSize.depth / 2);
+    if (view.furnitureGallery) camera.position.z *= -1;
+    return;
+  }
   const r = Math.hypot(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z, bounds.max.y) / 2;
   const vfov = (camera.fov * Math.PI) / 180;
   const hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect);
@@ -260,11 +273,18 @@ function frameHome(): void {
 // ---- GUI ----
 const gui = new GUI({ title: "european building kit" });
 const update = () => rebuild();
-gui.add(view, "gallery").name("零件總覽").onChange((on: boolean) => {
+gui.add(view, "gallery").name("零件總覽").listen().onChange((on: boolean) => {
+  if (on) { view.furnitureGallery = false; interiorView.plan = false; }
   if (!on) {
     camera.position.set(36, 20, 46);
     controls.target.set(0, 7, 0);
   }
+  toolbar.enableCut(!on && !interiorView.plan);
+  rebuild(true);
+});
+gui.add(view, "furnitureGallery").name("家具總覽").listen().onChange((on: boolean) => {
+  if (on) { view.gallery = false; interiorView.plan = false; }
+  else { camera.position.set(36, 20, 46); controls.target.set(0, 7, 0); }
   toolbar.enableCut(!on && !interiorView.plan);
   rebuild(true);
 });
@@ -320,8 +340,9 @@ fStreet.add(street.params, "sidewalk").name("人行道").onChange(update);
 fStreet.add(street.params, "width", 1.5, 6, 0.1).name("人行道寬度 m").onChange(update);
 fStreet.add(street.params, "count", 0, 8, 1).name("每面路樹數").onChange(update);
 const fInterior = gui.addFolder("🏢 室內樓層 (Interior)");
-fInterior.add(interiorView, "plan").name("平面檢視（除錯）").onChange((on: boolean) => {
+fInterior.add(interiorView, "plan").name("平面檢視（除錯）").listen().onChange((on: boolean) => {
   if (on) {
+    view.gallery = view.furnitureGallery = false;
     const z = lastPlan?.levels[interiorView.level]?.floorZ ?? 0;
     controls.target.set(0, z, 0);
     camera.position.set(12, z + 30, 26);
@@ -329,7 +350,7 @@ fInterior.add(interiorView, "plan").name("平面檢視（除錯）").onChange((o
     camera.position.set(36, 20, 46);
     controls.target.set(0, 7, 0);
   }
-  toolbar.enableCut(!on && !view.gallery);
+  toolbar.enableCut(!on && !view.gallery && !view.furnitureGallery);
   rebuild();
 });
 const levelCtrl = fInterior.add(interiorView, "level", 0, 7, 1).name("樓層（除錯）").onChange(() => {
@@ -367,7 +388,7 @@ const roomEditor = new RoomEditor({
 });
 const windows = new WindowEditor({
   canvas: renderer.domElement, camera, gui, params,
-  shown: () => (view.gallery || interiorView.plan ? null : shown),
+  shown: () => (view.gallery || view.furnitureGallery || interiorView.plan ? null : shown),
   clip: () => (cutShown ? cutaway.plane : null),
   rebuild: () => rebuild(),
   ignorePointer: e => roomEditor.consumedEvent(e),
