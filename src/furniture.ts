@@ -16,9 +16,10 @@
  * Z-up space, like rooms3d.ts.
  */
 import { CanvasTexture, Color, Group, type Material, Matrix4, Mesh, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace, Vector3 } from "three";
-import { type Look, type Stamp, booksStamp, carpetStamp, salonRugStamp, diningRugStamp, kitchenBacksplashStamp, kitchenWorktopStamp, cafeWoodStamp, cafeStoneStamp, cafeWickerStamp, stampOf } from "./finishes";
+import { type Look, type Stamp, booksStamp, carpetStamp, salonRugStamp, diningRugStamp, kitchenBacksplashStamp, kitchenWorktopStamp, cafeWoodStamp, cafeFurnitureStamp, cafeStoneStamp, cafeWickerStamp, stampOf } from "./finishes";
 import type { BuildingPlan, PlanRoom } from "./plan";
 import type { Building } from "./generator";
+import type { CafeTheme } from "./cafes";
 import { type InteriorMaterials, Tris, atticCeiling } from "./rooms3d";
 import type { V2 } from "./roof";
 import dims from "../blender/kit_dims.json";
@@ -1046,35 +1047,38 @@ function kitchenPlacement(plan: BuildingPlan, b: Building, r: PlanRoom): Kitchen
   return best;
 }
 
-// ------------------------------------------------------------------ one ground-floor cafe sample
+// ------------------------------------------------------------------ ground-floor cafes
 const CAFE = dims.interior.cafeFurniture;
-export interface CafeInfo {
-  roomId: string | null; furnished: boolean; tables: number; chairs: number;
+export interface CafeRoomInfo {
+  theme: CafeTheme; furnished: boolean; tables: number; chairs: number;
   stools: number; cabinet: boolean; outdoorTables: number; outdoorChairs: number;
 }
+export interface CafeInfo { furnished: string[]; unfurnished: string[]; rooms: Record<string, CafeRoomInfo> }
 interface CafePlacement { wall: Matrix4; bar: Matrix4; length: number; tables: Matrix4[]; chairs: Matrix4[]; stools: Matrix4[]; cabinet: Matrix4 | null }
 
-function cafeTable(linen: Tris, wood: Tris, dark: Tris, decor: Tris, m: Matrix4, outdoor = false): void {
+function cafeTable(linen: Tris, wood: Tris, dark: Tris, decor: Tris, m: Matrix4, outdoor = false, theme: CafeTheme = 0): void {
   const C = CAFE, r = (outdoor ? C.outdoorDiameter : C.tableDiameter) / 2;
   const frame = new Part(dark, m);
   frame.lathe(0, 0, [[0, 0], [0.21, 0], [0.21, 0.025], [0.035, 0.07], [0.025, C.tableHeight - 0.035], [0, C.tableHeight - 0.035]], 12);
   new Part(wood, m).lathe(0, 0, [[0, C.tableHeight - 0.04], [r, C.tableHeight - 0.04], [r, C.tableHeight - 0.025], [0, C.tableHeight - 0.025]], 16);
-  kitchenStone(decor);
+  if (theme === 0) kitchenStone(decor); else decor.stamp = cafeFurnitureStamp(theme);
   new Part(decor, m).lathe(0, 0, [[0, C.tableHeight - 0.025], [r, C.tableHeight - 0.025], [r, C.tableHeight], [0, C.tableHeight]], 16);
 }
 
-function cafeChair(linen: Tris, wood: Tris, brass: Tris, decor: Tris, m: Matrix4, outdoor = false): void {
+function cafeChair(linen: Tris, wood: Tris, brass: Tris, decor: Tris, m: Matrix4, outdoor = false, theme: CafeTheme = 0): void {
+  const whiteParts = theme === 0 ? linen : decor;
   const C = CAFE, w = C.chairWidth, d = C.chairDepth, p = new Part(wood, m);
   for (const x of [-w * 0.38, w * 0.38]) for (const y of [-d * 0.38, d * 0.38]) {
     p.lathe(x, y, [[0, 0], [0.018, 0], [0.024, C.seatHeight], [0, C.seatHeight]], 6);
   }
   p.box(-w / 2, -d / 2, C.seatHeight - 0.04, w / 2, d / 2, C.seatHeight);
-  if (outdoor) decor.stamp = cafeWickerStamp(); else colour(decor, "#e8deca");
+  if (theme !== 0) decor.stamp = cafeFurnitureStamp(theme);
+  else if (outdoor) decor.stamp = cafeWickerStamp(); else colour(decor, "#e8deca");
   new Part(decor, m).box(-w / 2 + 0.025, -d / 2 + 0.02, C.seatHeight, w / 2 - 0.025, d / 2 - 0.02, C.seatHeight + 0.025);
   for (const x of [-w * 0.38, w * 0.38]) p.strut(x, C.seatHeight, x, C.chairHeight - 0.08, -d * 0.42, 0.028);
   // Low-segment closed oval back; weaving is a shader pattern, not geometry.
   const back = m.clone().multiply(at(0, -d * 0.42, C.chairHeight - 0.17)).multiply(new Matrix4().makeRotationX(Math.PI / 2)).multiply(new Matrix4().makeScale(w * 0.43, 0.17, 1));
-  new Part(linen, back).lathe(0, 0, [[0, -0.025], [1, -0.025], [1, 0.025], [0, 0.025]], 12);
+  new Part(whiteParts, back).lathe(0, 0, [[0, -0.025], [1, -0.025], [1, 0.025], [0, 0.025]], 12);
   const face = back.clone().multiply(new Matrix4().makeScale(0.85, 0.85, 1));
   new Part(decor, face).lathe(0, 0, [[0, -0.03], [1, -0.03], [1, 0.03], [0, 0.03]], 12);
   if (!outdoor) new Part(brass, back).lathe(0, 0, [[0.90, -0.027], [0.95, -0.027], [0.95, 0.027], [0.90, 0.027], [0.90, -0.027]], 12);
@@ -1159,7 +1163,8 @@ function cafePlacement(plan: BuildingPlan, r: PlanRoom): CafePlacement | null {
     reserve([win.at[0] + win.dir[0] * shift, win.at[1] + win.dir[1] * shift], win.dir,
       win.kind === "shop" ? C.terraceEntryWidth : win.width, win.kind === "shop" ? C.doorClear : C.windowClear);
   }
-  const front = r.windows.map(i => plan.windows[i]).find(w => w.kind === "shop")!;
+  const front = r.windows.map(i => plan.windows[i]).find(w => w.kind === "shop");
+  if (!front) return null;
   let inward: V2 = [-front.dir[1], front.dir[0]];
   if (!inRoom(r.polygon, [front.at[0] + inward[0] * 0.2, front.at[1] + inward[1] * 0.2])) inward = [-inward[0], -inward[1]];
   const seatingFrame = new Matrix4().makeBasis(new Vector3(...front.dir, 0), new Vector3(...inward, 0), new Vector3(0, 0, 1)).setPosition(...front.at, r.floorZ);
@@ -1173,46 +1178,51 @@ function cafePlacement(plan: BuildingPlan, r: PlanRoom): CafePlacement | null {
   let best: CafePlacement | null = null, bestScore = -Infinity;
   for (const f of freeStretches(plan, r).sort((a, b) => b.s1 - b.s0 - (a.s1 - a.s0))) {
     if (r.ceilingZ - r.floorZ < C.panelTop + 0.05) return null;
-    const length = Math.min(C.barMaxLength, f.s1 - f.s0 - C.endClear * 2 - C.barEntryClear);
-    if (length < C.barMinLength) continue;
-    const wall = frame(f, (f.s0 + f.s1 - C.barEntryClear) / 2);
-    const bar = wall.clone().multiply(at(0, C.barWorkClear, 0));
-    // Reserve the rear service aisle, the side entrance and the customer side.
-    const barBlock = poly(wall, [-length / 2 - 0.04, 0, length / 2 + C.barEntryClear, C.barWorkClear + C.barDepth + C.barFrontClear]);
-    if (!fits(barBlock, [])) continue;
-    const tables: Matrix4[] = [], chairs: Matrix4[] = [], occupied = [barBlock];
-    // Follow the sketch: two wall-side rows, with each chair before/after its table.
-    const long = C.chairOffset + C.chairDepth / 2 + C.tableClear;
-    const short = C.tableDiameter / 2 + C.tableClear;
-    for (const x of [x0 + short, x1 - short]) {
-      let rowTables: Matrix4[] = [], rowChairs: Matrix4[] = [], rowBlocks: V2[][] = [];
-      for (const rotation of [Math.PI / 2, -Math.PI / 2]) {
-        const candidateTables: Matrix4[] = [], candidateChairs: Matrix4[] = [], candidateBlocks: V2[][] = [];
-        for (let y = y0 + short; y <= y1 - short; y += C.searchStep) {
-          const m = seatingFrame.clone().multiply(at(x, y, 0, rotation)), footprint = poly(m, [-short, -short, long, short]);
-          if (!fits(footprint, [...occupied, ...candidateBlocks])) continue;
-          candidateTables.push(m); candidateChairs.push(m.clone().multiply(at(C.chairOffset, 0, 0, Math.PI / 2)));
-          candidateBlocks.push(footprint);
+    const maximum = Math.min(C.barMaxLength, f.s1 - f.s0 - C.endClear * 2 - C.barEntryClear);
+    if (maximum < C.barMinLength) continue;
+    for (const length of [...new Set([maximum, Math.min(maximum, C.barCompactLength), C.barMinLength])]) {
+      const positions = [(f.s0 + f.s1 - C.barEntryClear) / 2, f.s0 + C.endClear + length / 2, f.s1 - C.endClear - C.barEntryClear - length / 2];
+      for (const position of [...new Set(positions)]) {
+        const wall = frame(f, position);
+        const bar = wall.clone().multiply(at(0, C.barWorkClear, 0));
+        // Reserve the rear service aisle, the side entrance and the customer side.
+        const barBlock = poly(wall, [-length / 2 - 0.04, 0, length / 2 + C.barEntryClear, C.barWorkClear + C.barDepth + C.barFrontClear]);
+        if (!fits(barBlock, [])) continue;
+        const tables: Matrix4[] = [], chairs: Matrix4[] = [], occupied = [barBlock];
+        // Follow the sketch: two wall-side rows, with each chair before/after its table.
+        const long = C.chairOffset + C.chairDepth / 2 + C.tableClear;
+        const short = C.tableDiameter / 2 + C.tableClear;
+        for (const x of [x0 + short, x1 - short]) {
+          let rowTables: Matrix4[] = [], rowChairs: Matrix4[] = [], rowBlocks: V2[][] = [];
+          for (const rotation of [Math.PI / 2, -Math.PI / 2]) {
+            const candidateTables: Matrix4[] = [], candidateChairs: Matrix4[] = [], candidateBlocks: V2[][] = [];
+            for (let y = y0 + short; y <= y1 - short; y += C.searchStep) {
+              const m = seatingFrame.clone().multiply(at(x, y, 0, rotation)), footprint = poly(m, [-short, -short, long, short]);
+              if (!fits(footprint, [...occupied, ...candidateBlocks])) continue;
+              candidateTables.push(m); candidateChairs.push(m.clone().multiply(at(C.chairOffset, 0, 0, Math.PI / 2)));
+              candidateBlocks.push(footprint);
+            }
+            if (candidateTables.length > rowTables.length) { rowTables = candidateTables; rowChairs = candidateChairs; rowBlocks = candidateBlocks; }
+          }
+          tables.push(...rowTables); chairs.push(...rowChairs); occupied.push(...rowBlocks);
         }
-        if (candidateTables.length > rowTables.length) { rowTables = candidateTables; rowChairs = candidateChairs; rowBlocks = candidateBlocks; }
+        const stools: Matrix4[] = [];
+        for (let x = -length / 2 + C.stoolPitch / 2; x < length / 2 - 0.1; x += C.stoolPitch) {
+          const m = bar.clone().multiply(at(x, C.barDepth + 0.4, 0));
+          if (fits(poly(m, [-0.24, -0.24, 0.24, 0.24]), occupied.slice(1))) stools.push(m);
+        }
+        let cabinet: Matrix4 | null = null;
+        for (const edge of freeStretches(plan, r)) {
+          for (let s = edge.s0 + C.endClear; s + C.cabinetWidth < edge.s1 - C.endClear; s += C.searchStep) {
+            const m = frame(edge, s), footprint = poly(m, [-0.04, 0, C.cabinetWidth + 0.04, C.cabinetDepth + 0.25]);
+            if (fits(footprint, occupied)) { cabinet = m; break; }
+          }
+          if (cabinet) break;
+        }
+        const score = tables.length * 1000 + stools.length * 10 + Number(!!cabinet) + length;
+        if (score > bestScore) { best = { wall, bar, length, tables, chairs, stools, cabinet }; bestScore = score; }
       }
-      tables.push(...rowTables); chairs.push(...rowChairs); occupied.push(...rowBlocks);
     }
-    const stools: Matrix4[] = [];
-    for (let x = -length / 2 + C.stoolPitch / 2; x < length / 2 - 0.1; x += C.stoolPitch) {
-      const m = bar.clone().multiply(at(x, C.barDepth + 0.4, 0));
-      if (fits(poly(m, [-0.24, -0.24, 0.24, 0.24]), occupied.slice(1))) stools.push(m);
-    }
-    let cabinet: Matrix4 | null = null;
-    for (const edge of freeStretches(plan, r)) {
-      for (let s = edge.s0 + C.endClear; s + C.cabinetWidth < edge.s1 - C.endClear; s += C.searchStep) {
-        const m = frame(edge, s), footprint = poly(m, [-0.04, 0, C.cabinetWidth + 0.04, C.cabinetDepth + 0.25]);
-        if (fits(footprint, occupied)) { cabinet = m; break; }
-      }
-      if (cabinet) break;
-    }
-    const score = tables.length * 1000 + stools.length * 10 + Number(!!cabinet) + length;
-    if (score > bestScore) { best = { wall, bar, length, tables, chairs, stools, cabinet }; bestScore = score; }
   }
   return best;
 }
@@ -1231,41 +1241,43 @@ function cafeSet(linen: Tris, wood: Tris, brass: Tris, dark: Tris, decor: Tris, 
     new Part(wood, m).box(-C.menuWidth / 2, -0.018, -C.menuHeight / 2, C.menuWidth / 2, 0, C.menuHeight / 2);
     group.add(cafeMenu(m));
   }
-  for (const table of tables) cafeTable(linen, wood, dark, decor, table);
-  for (const chair of chairs) cafeChair(linen, wood, brass, decor, chair);
+  for (const table of tables) cafeTable(linen, wood, dark, decor, table, false, r.cafeTheme);
+  for (const chair of chairs) cafeChair(linen, wood, brass, decor, chair, false, r.cafeTheme);
   for (const m of stools) cafeStool(wood, dark, m);
   if (cabinet) cafeCabinet(linen, brass, decor, cabinet);
 }
 
 /** Exterior tables are generated first; street trees subsequently avoid these polygons. */
-export function buildCafeTerrace(plan: BuildingPlan, b: Building, mats: InteriorMaterials, sidewalk: { sidewalk: boolean; width: number }): { group: Group; reserved: V2[][]; tables: number } {
-  const group = new Group(), reserved: V2[][] = [], C = CAFE;
-  const room = plan.rooms.find(r => r.cafePrototype && r.type === "shop");
-  if (!room || !sidewalk.sidewalk || sidewalk.width - dims.street.curb - C.walkClear < C.terraceOffset + C.terraceHalfDepth) return { group, reserved, tables: 0 };
+export function buildCafeTerrace(plan: BuildingPlan, b: Building, mats: InteriorMaterials, sidewalk: { sidewalk: boolean; width: number }): { group: Group; reserved: V2[][]; tables: number; rooms: Record<string, number> } {
+  const group = new Group(), reserved: V2[][] = [], C = CAFE, rooms: Record<string, number> = {};
+  if (!sidewalk.sidewalk || sidewalk.width - dims.street.curb - C.walkClear < C.terraceOffset + C.terraceHalfDepth) return { group, reserved, tables: 0, rooms };
   const linen = new Tris(), wood = new Tris(), brass = new Tris(), dark = new Tris(), decor = new Tris();
-  for (const wi of room.windows) {
-    const w = plan.windows[wi], side = b.sides[w.side];
-    if (w.kind !== "shop" || side.kind !== "street" || w.bay < 0) continue;
-    const bay = side.bays[w.bay], centre = side.x0 + dims.bay * (w.bay + 0.5);
-    if (!bay) continue;
-    // Three tables across the frontage, chairs towards the facade/street.
-    // Leave the right-hand end open for entry instead of splitting the row.
-    for (let i = 0; i < C.terraceTableCount; i++) {
-      const x = centre - dims.bay / 2 + C.terraceHalfWidth + C.terraceEndClear + i * C.terraceTablePitch, y = -C.terraceOffset;
-      if (x - C.terraceHalfWidth < side.x0 || x + C.terraceHalfWidth > side.x0 + side.bays.length * dims.bay) continue;
-      const m = side.frame.clone().multiply(at(x, y, dims.street.top));
-      const polygon: V2[] = [[-C.terraceHalfWidth, -C.terraceHalfDepth], [C.terraceHalfWidth, -C.terraceHalfDepth],
-        [C.terraceHalfWidth, C.terraceHalfDepth], [-C.terraceHalfWidth, C.terraceHalfDepth]].map(([u, v]) => { const p = new Vector3(u, v, 0).applyMatrix4(m); return [p.x, p.y]; });
-      if (reserved.some(p => overlaps(polygon, p))) continue;
-      reserved.push(polygon); cafeTable(linen, wood, dark, decor, m, true);
-      for (const s of [-1, 1]) cafeChair(linen, wood, brass, decor, m.clone().multiply(at(0, s * C.outdoorChairOffset, 0, s > 0 ? Math.PI : 0)), true);
+  for (const room of plan.rooms.filter(r => r.level === 0 && r.type === "shop" && r.cafeTheme !== undefined)) {
+    rooms[room.id] = 0;
+    for (const wi of room.windows) {
+      const w = plan.windows[wi], side = b.sides[w.side];
+      if (w.kind !== "shop" || side.kind !== "street" || w.bay < 0) continue;
+      const bay = side.bays[w.bay], centre = side.x0 + dims.bay * (w.bay + 0.5);
+      if (!bay) continue;
+      // Three tables across the frontage, chairs towards the facade/street.
+      // Leave the right-hand end open for entry instead of splitting the row.
+      for (let i = 0; i < C.terraceTableCount; i++) {
+        const x = centre - dims.bay / 2 + C.terraceHalfWidth + C.terraceEndClear + i * C.terraceTablePitch, y = -C.terraceOffset;
+        if (x - C.terraceHalfWidth < side.x0 || x + C.terraceHalfWidth > side.x0 + side.bays.length * dims.bay) continue;
+        const m = side.frame.clone().multiply(at(x, y, dims.street.top));
+        const polygon: V2[] = [[-C.terraceHalfWidth, -C.terraceHalfDepth], [C.terraceHalfWidth, -C.terraceHalfDepth],
+          [C.terraceHalfWidth, C.terraceHalfDepth], [-C.terraceHalfWidth, C.terraceHalfDepth]].map(([u, v]) => { const p = new Vector3(u, v, 0).applyMatrix4(m); return [p.x, p.y]; });
+        if (reserved.some(p => overlaps(polygon, p))) continue;
+        reserved.push(polygon); rooms[room.id]++; cafeTable(linen, wood, dark, decor, m, true, room.cafeTheme);
+        for (const s of [-1, 1]) cafeChair(linen, wood, brass, decor, m.clone().multiply(at(0, s * C.outdoorChairOffset, 0, s > 0 ? Math.PI : 0)), true, room.cafeTheme);
+      }
     }
   }
   for (const [tris, material] of [[linen, mats.furnLinen], [wood, mats.furnWood], [brass, mats.furnBrass], [dark, mats.furnDark], [decor, mats.finishWall]] as [Tris, Material][]) {
     if (!tris.pos.length) continue;
     const mesh = new Mesh(tris.geometry(), material); mesh.castShadow = mesh.receiveShadow = true; group.add(mesh);
   }
-  return { group, reserved, tables: reserved.length };
+  return { group, reserved, tables: reserved.length, rooms };
 }
 
 export interface FurnitureInfo {
@@ -1551,12 +1563,16 @@ export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMa
   }
   group.userData.kitchens = kitchenInfo;
 
-  const cafeRoom = plan.rooms.find(r => r.cafePrototype && r.type === "shop");
-  const cafePlacementResult = cafeRoom ? cafePlacement(plan, cafeRoom) : null;
-  if (cafeRoom && cafePlacementResult) cafeSet(linen, wood, brass, dark, diningDecor, group, cafeRoom, cafePlacementResult, look);
-  group.userData.cafe = { roomId: cafeRoom?.id ?? null, furnished: !!cafePlacementResult, tables: cafePlacementResult?.tables.length ?? 0,
-    chairs: cafePlacementResult?.chairs.length ?? 0, stools: cafePlacementResult?.stools.length ?? 0, cabinet: !!cafePlacementResult?.cabinet,
-    outdoorTables: 0, outdoorChairs: 0 } satisfies CafeInfo;
+  const cafes: CafeInfo = { furnished: [], unfurnished: [], rooms: {} };
+  for (const room of plan.rooms.filter(r => r.level === 0 && r.type === "shop" && r.cafeTheme !== undefined)) {
+    const placement = cafePlacement(plan, room);
+    if (placement) { cafeSet(linen, wood, brass, dark, diningDecor, group, room, placement, look); cafes.furnished.push(room.id); }
+    else cafes.unfurnished.push(room.id);
+    cafes.rooms[room.id] = { theme: room.cafeTheme!, furnished: !!placement, tables: placement?.tables.length ?? 0,
+      chairs: placement?.chairs.length ?? 0, stools: placement?.stools.length ?? 0, cabinet: !!placement?.cabinet,
+      outdoorTables: 0, outdoorChairs: 0 };
+  }
+  group.userData.cafe = cafes;
 
   const parts: [Tris, Material][] = [
     [wood, mats.furnWood], [fabric, mats.furnFabric], [linen, mats.furnLinen], [gold, mats.furnGold], [rug, mats.finishFloor],

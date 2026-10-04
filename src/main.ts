@@ -28,7 +28,7 @@ import { type FurnitureInfo, type SalonInfo, type DiningInfo, type KitchenInfo, 
 import { LampLights } from "./lampLights";
 import { buildStairs } from "./stairs";
 import { StreetLife } from "./streetlife";
-import { markCafePrototype } from "./cafePrototype";
+import { markCafeShops } from "./cafes";
 import { WindowEditor } from "./windowEditor";
 import { RoomEdits } from "./roomEdits";
 import { RoomEditor } from "./roomEditor";
@@ -155,7 +155,7 @@ function rebuild(frame = false): void {
   const b = generateBuilding(params, kit);
   const edited = roomEdits.apply(planBuilding(b, params));
   const plan = edited.plan;
-  markCafePrototype(plan);
+  markCafeShops(plan, params.seed);
   lastPlan = plan;
   interiorView.check = plan.issues.length ? `${plan.issues.length} 個問題` : "OK";
   if (plan.issues.length) console.warn(`plan: ${plan.issues.length} issues`, plan.issues);
@@ -198,7 +198,10 @@ function rebuild(frame = false): void {
   g.position.set(-b.width / 2, -b.length / 2, 0); // footprint centred on the origin
   const terrace = buildCafeTerrace(plan, b, cutaway.galleryInterior, street.params);
   const cafeInfo = furniture.userData.cafe as CafeInfo;
-  cafeInfo.outdoorTables = terrace.tables; cafeInfo.outdoorChairs = terrace.tables * 2;
+  for (const [id, count] of Object.entries(terrace.rooms)) {
+    const cafe = cafeInfo.rooms[id];
+    if (cafe) { cafe.outdoorTables = count; cafe.outdoorChairs = count * 2; }
+  }
   g.add(terrace.group);
   street.rebuild(b, params.seed, terrace.reserved);
   street.group.visible = true;

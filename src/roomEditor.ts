@@ -1,3 +1,4 @@
+import { CAFE_THEME_NAMES } from "./cafes";
 /** Room-label selection and an automatically opened GUI, with touch multiselect. */
 import type GUI from "lil-gui";
 import { type Camera, Raycaster, Vector2 } from "three";
@@ -131,9 +132,15 @@ export class RoomEditor {
     if (rooms.length === 1) {
       const room = rooms[0];
       info(`${result!.plan.levels[room.level].name} · ${room.name} · ${room.area.toFixed(1)} m²`);
-      if (room.type === "shop") info(room.cafePrototype && this.cafe?.furnished
-          ? `咖啡店樣板：室內 ${this.cafe.tables} 桌／${this.cafe.chairs} 椅、靠牆吧台、木質背牆與菜單、${this.cafe.stools} 張吧台椅${this.cafe.cabinet ? "、展示櫃" : ""}；戶外 ${this.cafe.outdoorTables} 桌／${this.cafe.outdoorChairs} 椅。`
-          : room.cafePrototype ? "此店面的實牆與門窗配置無法容納靠牆吧台。" : "店面家具目前先製作一間咖啡店樣板，確認後套用其他店面。");
+      if (room.type === "shop") {
+        const cafe = this.cafe?.rooms[room.id];
+        if (cafe) {
+          info(CAFE_THEME_NAMES[cafe.theme]);
+          info(cafe.furnished
+            ? `咖啡店：室內 ${cafe.tables} 桌／${cafe.chairs} 椅、吧台、木質背牆與菜單、${cafe.stools} 張吧台椅${cafe.cabinet ? "、展示櫃" : ""}；戶外 ${cafe.outdoorTables} 桌／${cafe.outdoorChairs} 椅。`
+            : `此店面的實牆與門窗配置無法容納吧台及服務通道；戶外 ${cafe.outdoorTables} 桌／${cafe.outdoorChairs} 椅。`);
+        }
+      }
       if (editableRoom(room)) {
         const state = { type: room.type };
         const options = room.type === "maid" ? { ...choices, "閣樓房（原始）": "maid" } : choices;

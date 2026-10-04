@@ -79,11 +79,11 @@
       "tileWidth": 0.40, "tileDepth": 0.40
     },
     "cafeFurniture": {
-      "_doc": "One ground-floor cafe sample. Metres; cafe tables use x/y local planes, bar starts at y=0; service aisle separates it from its wall. Terrace is placed before street trees.",
+      "_doc": "All ground-floor cafe shops. Metres; cafe tables use x/y local planes, bar starts at y=0; service aisle separates it from its wall. Terrace is placed before street trees.",
       "tableDiameter": 0.65, "outdoorDiameter": 0.55, "tableHeight": 0.74,
       "chairWidth": 0.42, "chairDepth": 0.44, "chairHeight": 0.88, "seatHeight": 0.45,
       "chairOffset": 0.45, "tableClear": 0.04,
-      "barDepth": 0.55, "barHeight": 1.03, "barMinLength": 1.3, "barMaxLength": 3.0,
+      "barDepth": 0.55, "barHeight": 1.03, "barMinLength": 1.3, "barMaxLength": 3.0, "barCompactLength": 2.0,
       "barWorkClear": 0.75, "barEntryClear": 0.65, "barFrontClear": 0.60, "wallGap": 0.025, "endClear": 0.08,
       "stoolHeight": 0.72, "stoolRadius": 0.18, "stoolPitch": 0.80,
       "menuWidth": 0.44, "menuHeight": 0.86, "menuBottom": 1.47, "panelTop": 2.55,

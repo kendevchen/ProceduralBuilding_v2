@@ -41,4 +41,5 @@ export const PURPOSE = {
   tree: 18,
   treeTurn: 19,
   treeSize: 20,
+  cafeTheme: 21,
 } as const;

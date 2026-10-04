@@ -22,7 +22,7 @@ export type Stamp = [number, number, number, number, number, number, number, num
 
 const P = {
   plain: 0, herringbone: 1, boards: 2, hexMixed: 3, hexSparse: 4, marble: 5, carpet: 6, salonRug: 7, diningRug: 8, kitchenMarbleTiles: 9,
-  paint: 10, wallpaper: 11, boiserie: 12, tiles: 13, books: 14, bedroomPanels: 15, diningPanels: 16, blackMarble: 17, kitchenWorktop: 18, cafeFloor: 19, cafePanels: 20, cafeWood: 21, cafeStone: 22, cafeWicker: 23,
+  paint: 10, wallpaper: 11, boiserie: 12, tiles: 13, books: 14, bedroomPanels: 15, diningPanels: 16, blackMarble: 17, kitchenWorktop: 18, cafeFloor: 19, cafePanels: 20, cafeWood: 21, cafeStone: 22, cafeWicker: 23, cafeFurnitureWood: 24,
 } as const;
 type Pattern = (typeof P)[keyof typeof P];
 
@@ -87,6 +87,10 @@ export function kitchenWorktopStamp(): Stamp {
 export function cafeWoodStamp(floorZ = 0, ceilingZ = 3): Stamp {
   return stamp(P.cafeWood, rgb("#9b6b3d"), rgb("#604127"), floorZ, ceilingZ);
 }
+export function cafeFurnitureStamp(theme: 0 | 1 | 2): Stamp {
+  return theme === 2 ? stamp(P.cafeFurnitureWood, rgb("#a69a83"), rgb("#786c58"))
+    : stamp(P.plain, rgb(theme === 1 ? "#963d36" : "#e8deca"), rgb(theme === 1 ? "#963d36" : "#e8deca"));
+}
 export function cafeStoneStamp(): Stamp { return stamp(P.cafeStone, rgb("#594235"), rgb("#bd9978")); }
 export function cafeWickerStamp(): Stamp { return stamp(P.cafeWicker, rgb("#cfb782"), rgb("#73613f")); }
 
@@ -119,8 +123,12 @@ export function stampOf(look: Look, room: PlanRoom | null, surface: "wall" | "fl
     const v = c.toArray() as [number, number, number];
     return stamp(surface === "wall" ? P.paint : P.plain, v, v, room.floorZ, room.ceilingZ);
   }
-  const f = room.type === "shop" && room.cafePrototype
-    ? surface === "floor" ? { pattern: P.cafeFloor, a: "#81917a", b: "#c0bea0" } : { pattern: P.cafePanels, a: "#e5d3aa", b: "#b18c42" }
+  const f = room.type === "shop" && room.cafeTheme !== undefined
+    ? surface === "floor"
+      ? room.cafeTheme === 1 ? { pattern: P.marble, a: "#ddd5c4", b: "#8c3c2e" }
+      : room.cafeTheme === 2 ? { pattern: P.herringbone, a: "#a09a8d", b: "#797469" }
+      : { pattern: P.cafeFloor, a: "#81917a", b: "#c0bea0" }
+      : { pattern: P.cafePanels, a: "#e5d3aa", b: "#b18c42" }
     : surface === "floor" && room.type === "kitchen"
     ? { pattern: P.kitchenMarbleTiles, a: "#e3e2e8", b: "#242830" }
     : surface === "wall" && room.type === "dining"
@@ -471,10 +479,11 @@ float finRough = 0.85;
       if (h > 0.90 && h < 0.94) col = B;
       if (h > top - 0.18) col = mix(A, B, finLine(abs(h - top + 0.09), 0.013));
       finRough = 0.65;
-    } else if (pat == 21) {
-      col = mix(A, B, 0.18 + 0.20 * finNoise(vec2(u * 35.0, h * 2.0)));
+    } else if (pat == 21 || pat == 24) {
+      vec2 grainUV = pat == 24 && abs(N.y) > 0.5 ? vFinPos.xz : vec2(u, h);
+      col = mix(A, B, 0.18 + 0.20 * finNoise(grainUV * vec2(35.0, 2.0)));
       float edge = finPanel(u, h, 1.08, 2.5);
-      if (edge >= 0.0) col *= 1.0 - 0.20 * finLine(abs(edge - 0.03), 0.014);
+      if (pat == 21 && edge >= 0.0) col *= 1.0 - 0.20 * finLine(abs(edge - 0.03), 0.014);
       finRough = 0.55;
     } else if (pat == 22) {
       vec2 stoneUV = abs(N.y) > 0.5 ? vFinPos.xz : vec2(u, vFinPos.y);
@@ -508,7 +517,7 @@ float finRough = 0.85;
       } else col = B * (0.97 + 0.05 * finNoise(vec2(u, h) * 4.0));
     }
     // skirting board
-    if (h < 0.13 && pat != 13 && pat != 14 && pat != 17 && pat != 18 && pat != 22 && pat != 23) col = (pat == 12 || pat == 15) ? mix(A, B, 0.5) : B * 0.95;
+    if (h < 0.13 && pat != 13 && pat != 14 && pat != 17 && pat != 18 && pat != 22 && pat != 23 && pat != 24) col = (pat == 12 || pat == 15) ? mix(A, B, 0.5) : B * 0.95;
     if (h < 0.13 && pat == 16) col = vec3(0.82, 0.80, 0.74) * 0.95;
   }
   diffuseColor.rgb = col;
