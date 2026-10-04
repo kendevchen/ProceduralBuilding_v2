@@ -78,3 +78,39 @@ export function banquetPlaceCard(m: Matrix4, width: number, height: number): Mes
   g.rotateX(Math.PI / 2); g.rotateZ(Math.PI); g.translate(0, 0.0185, height / 2); g.applyMatrix4(m);
   const mesh = new Mesh(g, cardMaterial); return mesh;
 }
+
+const portraits: MeshStandardMaterial[] = [];
+/** Three original period portraits, shared across the upper walls. */
+export function ballroomHighPainting(m: Matrix4, width: number, height: number, bottom: number, frame: number, variant: number): Mesh {
+  const index = variant % 3;
+  if (!portraits[index]) {
+    const material = new MeshStandardMaterial({ name: `banquet_portrait_${index}`, color: "#ffffff", roughness: 0.94 });
+    if (typeof document !== "undefined") {
+      const canvas = document.createElement("canvas"); canvas.width = 384; canvas.height = 512;
+      const c = canvas.getContext("2d")!;
+      const background = c.createLinearGradient(0, 0, 384, 512);
+      background.addColorStop(0, ["#484b43", "#404951", "#5c493d"][index]); background.addColorStop(1, "#242b27");
+      c.fillStyle = background; c.fillRect(0, 0, 384, 512);
+      c.fillStyle = "#a0916845"; c.fillRect(20, 25, 40, 450); c.fillStyle = "#d2ba7c30"; c.fillRect(25, 25, 10, 450);
+      c.fillStyle = ["#843c37", "#35445b", "#b7b0a0"][index];
+      c.beginPath(); c.moveTo(122, 215); c.quadraticCurveTo(188, 190, 247, 219); c.lineTo(274, 443);
+      c.quadraticCurveTo(198, 461, 107, 439); c.closePath(); c.fill();
+      c.fillStyle = "#d1b294"; c.beginPath(); c.ellipse(184 + index * 5, 161, 31, 43, -0.12, 0, Math.PI * 2); c.fill();
+      c.fillStyle = "#bdb3a0"; c.beginPath(); c.ellipse(184, 135, 37, 25, -0.12, Math.PI, Math.PI * 2); c.fill();
+      for (const side of [-1, 1]) { c.beginPath(); c.ellipse(184 + side * 32, 161, 10, 26, 0, 0, Math.PI * 2); c.fill(); }
+      c.fillStyle = "#37322d"; c.fillRect(170, 158, 5, 3); c.fillRect(192, 156, 5, 3);
+      c.strokeStyle = "#996f59"; c.lineWidth = 2; c.beginPath(); c.moveTo(176, 185); c.lineTo(192, 185); c.stroke();
+      c.fillStyle = "#ded6bf"; c.beginPath(); c.moveTo(167, 202); c.lineTo(186, 236); c.lineTo(207, 201); c.closePath(); c.fill();
+      c.strokeStyle = "#c5a965"; c.lineWidth = 13; c.beginPath(); c.moveTo(139, 224); c.lineTo(238, 362); c.stroke();
+      c.fillStyle = "#d4b774"; c.beginPath(); c.arc(207, 263, 10, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = "#ceb49b"; c.lineWidth = 19; c.lineCap = "round";
+      c.beginPath(); c.moveTo(142, 318); c.lineTo(178, 339); c.stroke(); c.beginPath(); c.moveTo(244, 315); c.lineTo(220, 348); c.stroke();
+      c.fillStyle = "#534334"; c.fillRect(160, 341, 77, 23); c.fillStyle = "#d6c394"; c.fillRect(168, 341, 64, 6);
+      const t = new CanvasTexture(canvas); t.colorSpace = SRGBColorSpace; material.map = t;
+    }
+    portraits[index] = material;
+  }
+  const g = new PlaneGeometry(width - frame * 2, height - frame * 2);
+  g.rotateX(Math.PI / 2); g.rotateZ(Math.PI); g.translate(0, 0.071, bottom + height / 2); g.applyMatrix4(m);
+  const mesh = new Mesh(g, portraits[index]); mesh.receiveShadow = true; return mesh;
+}

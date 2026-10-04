@@ -14,12 +14,13 @@
  * Every solid is closed, so a cut through it shows the section colour. Blender
  * Z-up space, like rooms3d.ts.
  */
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { CanvasTexture, Color, Group, type Material, Matrix4, Mesh, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace, Vector3 } from "three";
 import { type Look, type Stamp, booksStamp, carpetStamp, salonRugStamp, diningRugStamp, kitchenBacksplashStamp, kitchenWorktopStamp, banquetWoodStamp, banquetFabricStamp, cafeWoodStamp, cafeFurnitureStamp, cafeStoneStamp, cafeWickerStamp, stampOf } from "./finishes";
 import type { BuildingPlan, PlanRoom } from "./plan";
 import type { Building } from "./generator";
 import type { CafeTheme } from "./cafes";
-import { ballroomPainting, banquetPlaceCard } from "./ballroomArt";
+import { ballroomPainting, ballroomHighPainting, banquetPlaceCard } from "./ballroomArt";
 import { type InteriorMaterials, Tris, atticCeiling } from "./rooms3d";
 import type { V2 } from "./roof";
 import dims from "../blender/kit_dims.json";
@@ -1378,12 +1379,12 @@ export function buildCafeTerrace(plan: BuildingPlan, b: Building, mats: Interior
 }
 
 export interface BallroomInfo {
-  roomId: string | null; furnished: boolean; chairs: number; chandeliers: number; consoles: number; cabinets: number; picture: boolean;
+  roomId: string | null; furnished: boolean; chairs: number; chandeliers: number; consoles: number; cabinets: number; picture: boolean; highPictures: number;
 }
 
 function ballroomSet(plan: BuildingPlan, room: PlanRoom, group: Group, linen: Tris, brass: Tris, decor: Tris,
   crystal: Tris, bulb: Tris, glass: Tris, sources: FurnitureLight[]): BallroomInfo {
-  const B = BANQUET, info: BallroomInfo = { roomId: room.id, furnished: false, chairs: 0, chandeliers: 0, consoles: 0, cabinets: 0, picture: false };
+  const B = BANQUET, info: BallroomInfo = { roomId: room.id, furnished: false, chairs: 0, chandeliers: 0, consoles: 0, cabinets: 0, picture: false, highPictures: 0 };
   const poly = (m: Matrix4, rect: SalonRect): V2[] => [[rect[0], rect[1]], [rect[2], rect[1]], [rect[2], rect[3]], [rect[0], rect[3]]].map(([x, y]) => {
     const p = new Vector3(x, y, 0).applyMatrix4(m); return [p.x, p.y];
   });
@@ -1491,6 +1492,35 @@ function ballroomSet(plan: BuildingPlan, room: PlanRoom, group: Group, linen: Tr
       banquetCabinet(decor, brass, linen, glass, wall); occupied.push(footprint); info.cabinets++; break;
     }
   }
+  // Upper gallery on every wall; window spans remain excluded even for tall windows.
+  const upperBottom = Math.max(B.upperPictureMinBottom, height * B.upperPictureHeightRatio, B.pictureBottom + B.pictureHeight + 0.20);
+  const upperHeight = Math.min(B.upperPictureHeight, height - upperBottom - B.upperPictureTopClear);
+  const wallCounts = new Map<string, number>(), portraits: Mesh[] = [];
+  if (upperHeight >= B.upperPictureMinHeight) for (const edge of edges) {
+    const key = `${Math.round(edge.n[0] * 100)},${Math.round(edge.n[1] * 100)}`;
+    const remaining = B.upperPicturesPerWall - (wallCounts.get(key) ?? 0);
+    const span = edge.s1 - edge.s0 - B.upperPictureEndClear * 2;
+    const width = Math.min(B.upperPictureWidth, span);
+    if (width < B.upperPictureMinWidth || remaining <= 0) continue;
+    const count = Math.min(remaining, Math.max(1, Math.floor((span + B.upperPictureGap) / (width + B.upperPictureGap))));
+    for (let i = 0; i < count; i++) {
+      const s = (edge.s0 + edge.s1) / 2 + (i - (count - 1) / 2) * (width + B.upperPictureGap), wall = wallFrame(edge, s);
+      banquetPictureFrame(brass, wall, width, upperHeight, upperBottom);
+      portraits.push(ballroomHighPainting(wall, width, upperHeight, upperBottom, B.frameWidth, info.highPictures++));
+    }
+    wallCounts.set(key, (wallCounts.get(key) ?? 0) + count);
+  }
+  // All copies of one portrait share a merged mesh: at most three extra draw calls.
+  const byMaterial = new Map<Material, Mesh[]>();
+  for (const portrait of portraits) {
+    const material = portrait.material as Material;
+    const copies = byMaterial.get(material) ?? []; copies.push(portrait); byMaterial.set(material, copies);
+  }
+  for (const [material, copies] of byMaterial) {
+    const geometry = mergeGeometries(copies.map(p => p.geometry));
+    for (const copy of copies) copy.geometry.dispose();
+    if (geometry) { const mesh = new Mesh(geometry, material); mesh.receiveShadow = true; group.add(mesh); }
+  }
   info.furnished = true;
   return info;
 }
@@ -1542,6 +1572,8 @@ export function buildFurnitureItems(mats: InteriorMaterials): FurnitureItem[] {
   add("宴會廳", "Gilt chandelier", "金色水晶吊燈", p => banquetChandelier(p.brass, p.crystal, p.bulb, m, BANQUET.chandelierHeight + 0.40));
   add("宴會廳", "Peacock painting", "巨幅孔雀花卉掛畫", p => banquetPictureFrame(p.brass, m, BANQUET.pictureWidth, BANQUET.pictureHeight, 0),
     () => ballroomPainting(m, BANQUET.pictureWidth, BANQUET.pictureHeight, 0, BANQUET.frameWidth));
+  add("宴會廳", "Upper portrait painting", "宴會廳高處肖像掛畫", p => banquetPictureFrame(p.brass, m, BANQUET.upperPictureWidth, BANQUET.upperPictureHeight, 0),
+    () => ballroomHighPainting(m, BANQUET.upperPictureWidth, BANQUET.upperPictureHeight, 0, BANQUET.frameWidth, 0));
   add("宴會廳", "Banquet console", "宴會廳邊桌", p => banquetConsole(p.art, p.brass, m));
   add("宴會廳", "Crystal console lamp", "水晶燈座邊桌檯燈", p => { banquetLamp(p.brass, p.crystal, p.bulb, m); });
   add("宴會廳", "Glass crockery cabinet", "木質玻璃餐具櫃", p => banquetCabinet(p.art, p.brass, p.linen, p.glass, m));

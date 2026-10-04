@@ -136,7 +136,7 @@ export class RoomEditor {
       info(`${result!.plan.levels[room.level].name} · ${room.name} · ${room.area.toFixed(1)} m²`);
       if (room.type === "ballroom" && this.ballroom?.roomId === room.id) {
         const b = this.ballroom;
-        info(b.furnished ? `宴會廳：深木長桌、${b.chairs} 張金框餐椅、餐牌與花盆燭台、${b.chandeliers} 盞吊燈${b.picture ? "、巨幅孔雀掛畫" : ""}、${b.consoles} 張邊桌與檯燈、${b.cabinets} 座玻璃餐具櫃。`
+        info(b.furnished ? `宴會廳：深木長桌、${b.chairs} 張金框餐椅、餐牌與花盆燭台、${b.chandeliers} 盞吊燈${b.picture ? "、巨幅孔雀掛畫" : ""}、${b.highPictures} 幅高處肖像畫、${b.consoles} 張邊桌與檯燈、${b.cabinets} 座玻璃餐具櫃。`
           : "目前宴會廳的門窗與通道配置無法容納新長桌及完整拉椅空間。");
       }
       if (room.type === "shop") {
