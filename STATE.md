@@ -66,6 +66,7 @@
 
 | 任務 | 讀的規格章節 | 讀的程式 |
 |---|---|---|
+| 跨專案重用房型、家具與材質規劃 | [室內房型與家具規劃指南](Guide/室內房型與家具規劃指南.md) | 含所有房型尺寸、配置、編輯與效能原則 |
 | 加／改家具 | INTERIOR_SPEC 6.8 | `src/furniture.ts`、`src/lampLights.ts` |
 | 家具總覽、中英文名稱 | INTERIOR_SPEC 6.9 | `src/furnitureGallery.ts`、`src/furniture.ts` 的 `buildFurnitureItems`、`src/main.ts` |
 | 房間的地板與牆面 | INTERIOR_SPEC 6.7 | `src/finishes.ts` |
