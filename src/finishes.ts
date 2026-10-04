@@ -21,7 +21,7 @@ export type Look = "real" | "diagram" | "white";
 export type Stamp = [number, number, number, number, number, number, number, number, number];
 
 const P = {
-  plain: 0, herringbone: 1, boards: 2, hexMixed: 3, hexSparse: 4, marble: 5, carpet: 6, salonRug: 7, diningRug: 8,
+  plain: 0, herringbone: 1, boards: 2, hexMixed: 3, hexSparse: 4, marble: 5, carpet: 6, salonRug: 7, diningRug: 8, limestoneTiles: 9,
   paint: 10, wallpaper: 11, boiserie: 12, tiles: 13, books: 14, bedroomPanels: 15, diningPanels: 16,
 } as const;
 type Pattern = (typeof P)[keyof typeof P];
@@ -103,7 +103,9 @@ export function stampOf(look: Look, room: PlanRoom | null, surface: "wall" | "fl
     const v = c.toArray() as [number, number, number];
     return stamp(surface === "wall" ? P.paint : P.plain, v, v, room.floorZ, room.ceilingZ);
   }
-  const f = surface === "wall" && room.type === "dining"
+  const f = surface === "floor" && room.type === "kitchen" && room.level === 1
+    ? { pattern: P.limestoneTiles, a: "#d4c5a8", b: "#b8a78b" }
+    : surface === "wall" && room.type === "dining"
     ? { pattern: P.diningPanels, a: "#b4becb", b: "#c79e48" }
     : surface === "wall" && room.type === "bedroom" && room.area >= dims.interior.bedroomFurniture.largeBedroomArea
     ? { pattern: P.bedroomPanels, a: "#a6b2a0", b: "#879781" }
@@ -360,6 +362,14 @@ float finRough = 0.85;
     else if (pat == 4) r = finHex(uv, A, B, 0.1);
     else if (pat == 5) r = finMarble(uv, A, B);
     else if (pat == 6) r = finCarpet(uv - A.xy, B.xy);
+    else if (pat == 9) {
+      vec2 tileSize = vec2(${dims.interior.kitchenFurniture.tileWidth.toFixed(3)}, ${dims.interior.kitchenFurniture.tileDepth.toFixed(3)});
+      vec2 cell = floor(uv / tileSize), q = fract(uv / tileSize) * tileSize;
+      float edge = min(min(q.x, tileSize.x - q.x), min(q.y, tileSize.y - q.y));
+      vec3 stone = mix(A, B, 0.18 + 0.25 * finHash(cell));
+      stone *= 0.93 + 0.10 * finNoise(uv * 7.0) + 0.04 * finNoise(uv * 130.0);
+      r = vec4(mix(vec3(0.59, 0.54, 0.45), stone, smoothstep(0.001, 0.003, edge)), 0.88);
+    }
     else if (pat == 7 || pat == 8) {
       vec2 delta = uv - A.xy;
       vec2 local = vec2(dot(delta, vec2(cos(A.z), -sin(A.z))), dot(delta, vec2(-sin(A.z), -cos(A.z))) * B.z);

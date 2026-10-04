@@ -4,7 +4,7 @@ import { type Camera, Raycaster, Vector2 } from "three";
 import { ROOM_INFO } from "./plan";
 import { RoomEdits, editableRoom, EDITABLE_ROOM_TYPES, mergeReason, type EditableRoomType, type EditedPlan } from "./roomEdits";
 import type { RoomLabels } from "./roomLabels";
-import type { SalonInfo, DiningInfo } from "./furniture";
+import type { SalonInfo, DiningInfo, KitchenInfo } from "./furniture";
 
 interface Host {
   canvas: HTMLCanvasElement;
@@ -23,6 +23,7 @@ export class RoomEditor {
   private result: EditedPlan | null = null;
   private salon: SalonInfo | null = null;
   private dining: DiningInfo | null = null;
+  private kitchen: KitchenInfo | null = null;
   private ray = new Raycaster();
   private consumed = new WeakSet<Event>();
   private pointers = new Set<number>();
@@ -78,10 +79,11 @@ export class RoomEditor {
     return labels.pick(this.ray);
   }
 
-  update(result: EditedPlan | null, salon: SalonInfo | null = null, dining: DiningInfo | null = null): void {
+  update(result: EditedPlan | null, salon: SalonInfo | null = null, dining: DiningInfo | null = null, kitchen: KitchenInfo | null = null): void {
     this.result = result;
     this.salon = salon;
     this.dining = dining;
+    this.kitchen = kitchen;
     this.ids = [];
     if (result) for (const keys of this.selection) {
       const entry = [...result.members].find(([, values]) => values.length === keys.length && values.every((v, i) => v === keys[i]));
@@ -140,6 +142,9 @@ export class RoomEditor {
           info(furniture ? `餐廳：長桌、${furniture.chairs} 張餐椅、地毯、餐邊櫃、掛畫與兩盆花${furniture.displayCabinets ? `，搭配 ${furniture.displayCabinets} 座餐具高櫃` : ""}。`
             : "此餐廳的輪廓、門窗或淨高無法安全容納家具及拉椅空間。");
         }
+        else if (room.type === "kitchen") info(room.level !== 1 ? "目前廚房家具先製作二樓，其餘樓層待下一階段套用。"
+          : this.kitchen?.furnished.includes(room.id) ? "二樓廚房：系統下櫃、吊櫃、瓦斯爐與烤箱、抽油煙機、水槽中島及石磚地板。"
+            : "目前空間無法容納完整廚具與獨立中島的通道；可調整房間或另行規劃半島。");
         else info(room.type === "bedroom" || room.type === "study" ? "更換後同步更新家具、牆面與地板。" : "此房型尚無家具，會套用對應牆面與地板。");
       } else info("此空間連動樓梯、入口或建築結構，保留原始用途。");
     } else if (rooms.length === 2 && result) {

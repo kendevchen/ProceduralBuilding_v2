@@ -5,7 +5,7 @@ import type { Gallery } from "./gallery";
 import type { InteriorMaterials } from "./rooms3d";
 import { textSprite } from "./labels";
 
-const CATEGORIES = ["宴會廳", "書房", "臥室", "客廳", "餐廳"];
+const CATEGORIES = ["宴會廳", "書房", "臥室", "客廳", "餐廳", "廚房"];
 const ROW_STEP = 6, LABEL_WIDTH = 3.7, MAX_COLUMNS = 6;
 
 export function buildFurnitureGallery(mats: InteriorMaterials): Gallery {

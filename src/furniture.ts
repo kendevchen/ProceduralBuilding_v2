@@ -27,6 +27,7 @@ import { inRoom, roomAnchor, roomContains } from "./roomGeometry";
 const BED = dims.interior.bedroomFurniture;
 const SALON = dims.interior.salonFurniture;
 const DINING = dims.interior.diningFurniture;
+const KITCHEN = dims.interior.kitchenFurniture;
 
 /** the parquet that shows round the carpet, and the clearance round the table */
 const RUG_MARGIN = 0.55;
@@ -842,6 +843,154 @@ export interface SalonInfo {
   unfurnished: string[];
 }
 
+export interface KitchenInfo { furnished: string[]; unfurnished: string[] }
+
+function kitchenStone(t: Tris): void {
+  const a = new Color("#e7e2d7").toArray(), b = new Color("#bcb7ab").toArray();
+  t.stamp = [5, ...a, ...b, 0, 3] as Stamp;
+}
+
+function kitchenHandle(brass: Tris, m: Matrix4, x: number, y: number, z: number): void {
+  const K = KITCHEN;
+  const bar = m.clone().multiply(at(x - K.handleLength / 2, y, z)).multiply(new Matrix4().makeRotationY(Math.PI / 2));
+  new Part(brass, bar).lathe(0, 0, [[0, 0], [K.handleRadius, 0], [K.handleRadius, K.handleLength], [0, K.handleLength]], 12);
+  for (const xx of [x - K.handleLength * 0.4, x + K.handleLength * 0.4]) new Part(brass, m).box(xx - K.handleRadius, y - 0.025, z - K.handleRadius, xx + K.handleRadius, y, z + K.handleRadius);
+}
+
+function kitchenPanel(linen: Tris, decor: Tris, m: Matrix4, x0: number, x1: number, y: number, z0: number, z1: number): void {
+  const K = KITCHEN, p = new Part(linen, m);
+  colour(decor, "#c7c3b7"); new Part(decor, m).box(x0, y, z0, x1, y + 0.005, z1);
+  p.box(x0 + 0.009, y + 0.006, z0 + 0.009, x1 - 0.009, y + K.doorThickness, z1 - 0.009);
+  for (const x of [x0 + 0.015, x1 - K.frame - 0.015]) p.box(x, y + K.doorThickness, z0 + 0.015, x + K.frame, y + K.doorThickness + 0.009, z1 - 0.015);
+  for (const z of [z0 + 0.015, z1 - K.frame - 0.015]) p.box(x0 + 0.015, y + K.doorThickness, z, x1 - 0.015, y + K.doorThickness + 0.009, z + K.frame);
+}
+
+function kitchenBase(linen: Tris, brass: Tris, decor: Tris, m: Matrix4): void {
+  const K = KITCHEN, w = K.moduleWidth / 2, p = new Part(linen, m);
+  p.box(-w + 0.025, 0.035, 0, w - 0.025, K.depth - 0.04, 0.12);
+  p.box(-w, 0, 0.12, w, K.depth, K.height - K.topThickness);
+  for (const [z0, z1] of [[0.15, 0.63], [0.65, K.height - K.topThickness - 0.015]]) {
+    kitchenPanel(linen, decor, m, -w + 0.015, w - 0.015, K.depth, z0, z1);
+    kitchenHandle(brass, m, 0, K.depth + 0.06, z1 - 0.07);
+  }
+  kitchenStone(decor); new Part(decor, m).softBox(0, K.depth / 2, K.height - K.topThickness / 2, K.moduleWidth + 0.02, K.depth + 0.05, K.topThickness, 0.015);
+}
+
+function kitchenUpper(linen: Tris, brass: Tris, decor: Tris, m: Matrix4): void {
+  const K = KITCHEN, width = K.moduleWidth - 0.26, p = new Part(linen, m);
+  p.box(-width / 2, 0, 0, width / 2, K.upperDepth, K.upperHeight);
+  kitchenPanel(linen, decor, m, -width / 2 + 0.015, width / 2 - 0.015, K.upperDepth, 0.025, K.upperHeight - 0.025);
+  kitchenHandle(brass, m, 0, K.upperDepth + 0.06, 0.13);
+  p.box(-width / 2 - 0.015, 0, K.upperHeight - 0.035, width / 2 + 0.015, K.upperDepth + 0.035, K.upperHeight + 0.035);
+}
+
+function kitchenRange(linen: Tris, brass: Tris, dark: Tris, decor: Tris, m: Matrix4): void {
+  const K = KITCHEN, w = K.rangeWidth / 2, p = new Part(linen, m), metal = new Part(brass, m), black = new Part(dark, m);
+  p.box(-w, 0, 0.04, w, K.depth, K.height - 0.05);
+  colour(decor, "#56616b"); new Part(decor, m).box(-w + 0.035, K.depth, 0.13, w - 0.035, K.depth + 0.018, 0.76);
+  black.box(-w + 0.12, K.depth + 0.02, 0.23, w - 0.12, K.depth + 0.024, 0.60);
+  for (const x of [-w + 0.09, w - 0.11]) metal.box(x, K.depth + 0.02, 0.19, x + 0.02, K.depth + 0.03, 0.70);
+  for (const z of [0.19, 0.68]) metal.box(-w + 0.09, K.depth + 0.02, z, w - 0.09, K.depth + 0.03, z + 0.02);
+  kitchenHandle(brass, m, 0, K.depth + 0.065, 0.65);
+  for (let i = -2; i <= 2; i++) {
+    const knob = m.clone().multiply(at(i * 0.14, K.depth + 0.035, 0.80)).multiply(new Matrix4().makeRotationX(-Math.PI / 2));
+    new Part(brass, knob).lathe(0, 0, [[0, 0], [0.021, 0], [0.021, 0.025], [0, 0.025]], 14);
+  }
+  black.box(-w, 0, K.height - 0.05, w, K.depth, K.height);
+  for (const x of [-w * 0.48, w * 0.48]) for (const y of [K.depth * 0.25, K.depth * 0.75]) {
+    black.lathe(x, y, [[0, K.height], [0.058, K.height], [0.058, K.height + 0.02], [0, K.height + 0.02]], 20);
+    for (const dx of [-0.085, 0.085]) black.box(x + dx - 0.009, y - 0.10, K.height + 0.02, x + dx + 0.009, y + 0.10, K.height + 0.035);
+    for (const dy of [-0.085, 0.085]) black.box(x - 0.10, y + dy - 0.009, K.height + 0.02, x + 0.10, y + dy + 0.009, K.height + 0.035);
+  }
+}
+
+function kitchenHood(linen: Tris, dark: Tris, m: Matrix4): void {
+  const K = KITCHEN, p = new Part(linen, m), half = K.hoodWidth / 2;
+  p.box(-half, 0, 0, half, K.hoodDepth, K.hoodHeight);
+  for (const z of [0, 0.075, K.hoodHeight - 0.08]) p.box(-half - 0.025, 0, z, half + 0.025, K.hoodDepth + 0.035, z + 0.045);
+  // Recessed framed face and two stepped corbels.
+  p.box(-half + 0.06, K.hoodDepth, 0.16, half - 0.06, K.hoodDepth + 0.018, K.hoodHeight - 0.12);
+  for (const x of [-half + 0.045, half - 0.12]) for (let i = 0; i < 4; i++)
+    p.box(x, 0.06 + i * 0.025, -0.19 + i * 0.045, x + 0.075, K.hoodDepth - 0.08, -0.145 + i * 0.045);
+  new Part(dark, m).box(-half + 0.12, 0.06, -0.008, half - 0.12, K.hoodDepth - 0.06, 0.003);
+}
+
+function kitchenIsland(linen: Tris, brass: Tris, dark: Tris, decor: Tris, m: Matrix4): void {
+  const K = KITCHEN, p = new Part(linen, m), half = K.islandLength / 2, d = K.islandDepth / 2;
+  p.box(-half + 0.025, -d + 0.025, 0, half - 0.025, d - 0.025, 0.12);
+  p.box(-half, -d, 0.12, half, d, K.height - K.sinkDrop - 0.015);
+  for (const x of [-half, half - 0.035]) p.box(x, -d, K.height - K.sinkDrop - 0.015, x + 0.035, d, K.height - K.topThickness);
+  for (const y of [-d, d - 0.035]) p.box(-half, y, K.height - K.sinkDrop - 0.015, half, y + 0.035, K.height - K.topThickness);
+  for (const side of [-1, 1]) {
+    const front = m.clone().multiply(at(0, side * d, 0, side < 0 ? Math.PI : 0));
+    for (const x of [-half / 2, half / 2]) {
+      kitchenPanel(linen, decor, front, x - half / 2 + 0.014, x + half / 2 - 0.014, 0, 0.14, 0.64);
+      kitchenPanel(linen, decor, front, x - half / 2 + 0.014, x + half / 2 - 0.014, 0, 0.66, K.height - K.topThickness - 0.01);
+      kitchenHandle(brass, front, x, 0.055, 0.76);
+    }
+  }
+  // Four stone slabs form a genuine sink opening, with a recessed closed basin below.
+  kitchenStone(decor); const stone = new Part(decor, m), sw = K.sinkWidth / 2, sd = K.sinkDepth / 2, z0 = K.height - K.topThickness;
+  stone.box(-half - 0.025, -d - 0.025, z0, -sw, d + 0.025, K.height);
+  stone.box(sw, -d - 0.025, z0, half + 0.025, d + 0.025, K.height);
+  stone.box(-sw, -d - 0.025, z0, sw, -sd, K.height);
+  stone.box(-sw, sd, z0, sw, d + 0.025, K.height);
+  const basin = new Part(dark, m), bottom = K.height - K.sinkDrop;
+  basin.box(-sw, -sd, bottom, sw, sd, bottom + 0.012);
+  for (const x of [-sw, sw - 0.012]) basin.box(x, -sd, bottom, x + 0.012, sd, K.height);
+  for (const y of [-sd, sd - 0.012]) basin.box(-sw, y, bottom, sw, y + 0.012, K.height);
+  const faucet = new Part(brass, m), r = K.tapRadius, fy = sd + 0.075;
+  faucet.lathe(0, fy, [[0, K.height], [r * 2, K.height], [r * 2, K.height + 0.025], [r, K.height + 0.025], [r, K.height + K.tapHeight * 0.65], [0, K.height + K.tapHeight * 0.65]], 16);
+  const crown = K.height + K.tapHeight * 0.65, radius = K.tapHeight * 0.35;
+  for (let i = 0; i < 12; i++) {
+    const a = i * Math.PI / 12, b = (i + 1) * Math.PI / 12;
+    const tube = m.clone().multiply(at(0, fy - radius, crown)).multiply(new Matrix4().makeRotationZ(Math.PI / 2));
+    new Part(brass, tube).strut(radius * Math.cos(a), radius * Math.sin(a), radius * Math.cos(b), radius * Math.sin(b), 0, r * 2);
+  }
+}
+
+/** The island clearance is measured in metres; the set is never uniformly shrunk. */
+function kitchenPlacement(plan: BuildingPlan, r: PlanRoom): Matrix4 | null {
+  const K = KITCHEN, length = K.rangeWidth + K.moduleWidth * 2;
+  const islandY = K.depth + K.frontProjection + K.aisle + K.islandDepth / 2 + K.frontProjection;
+  const blocks: SalonRect[] = [
+    [-length / 2 - 0.025, 0, length / 2 + 0.025, K.depth + K.frontProjection],
+    [-K.islandLength / 2 - 0.025, islandY - K.islandDepth / 2 - K.frontProjection, K.islandLength / 2 + 0.025, islandY + K.islandDepth / 2 + K.frontProjection],
+  ];
+  const openings: V2[][] = [];
+  const reserve = (c: V2, d: V2, width: number, clear: number) => {
+    const len = Math.hypot(...d); if (!len) return;
+    const u: V2 = [d[0] / len, d[1] / len]; let n: V2 = [-u[1], u[0]];
+    if (!inRoom(r.polygon, [c[0] + n[0] * 0.3, c[1] + n[1] * 0.3])) n = [-n[0], -n[1]];
+    const p = (x: number, y: number): V2 => [c[0] + u[0] * x + n[0] * y, c[1] + u[1] * x + n[1] * y];
+    openings.push([p(-width / 2 - 0.10, -0.25), p(width / 2 + 0.10, -0.25), p(width / 2 + 0.10, clear), p(-width / 2 - 0.10, clear)]);
+  };
+  for (const dr of r.doors) {
+    const w = plan.walls[dr.wall], d: V2 = [w.b[0] - w.a[0], w.b[1] - w.a[1]], len = Math.hypot(...d);
+    reserve([w.a[0] + d[0] * dr.at / len, w.a[1] + d[1] * dr.at / len], d, dr.width, K.doorClear);
+  }
+  for (const wi of r.windows) { const w = plan.windows[wi]; reserve(w.at, w.dir, w.width, K.windowClear); }
+  if (r.ceilingZ - r.floorZ < K.hoodBottom + K.hoodHeight + 0.05) return null;
+  for (const f of freeStretches(plan, r).sort((a, b) => b.s1 - b.s0 - (a.s1 - a.s0))) {
+    const lo = f.s0 + length / 2 + 0.03, hi = f.s1 - length / 2 - 0.03;
+    if (hi < lo) continue;
+    const candidates = [(lo + hi) / 2]; for (let s = lo; s <= hi; s += K.searchStep) candidates.push(s);
+    for (const s of candidates) {
+      const m = new Matrix4().makeBasis(new Vector3(...f.d, 0), new Vector3(...f.n, 0), new Vector3(0, 0, 1))
+        .setPosition(f.a[0] + f.d[0] * s + f.n[0] * K.wallGap, f.a[1] + f.d[1] * s + f.n[1] * K.wallGap, r.floorZ);
+      const poly = ([x0, y0, x1, y1]: SalonRect): V2[] => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => {
+        const p = new Vector3(x, y, 0).applyMatrix4(m); return [p.x, p.y];
+      });
+      if (blocks.some(rect => !roomContains(r.polygon, poly(rect)) || openings.some(o => overlaps(poly(rect), o)))) continue;
+      const envelope: SalonRect = [-K.islandLength / 2 - K.outerClear, K.depth + K.frontProjection,
+        K.islandLength / 2 + K.outerClear, islandY + K.islandDepth / 2 + K.frontProjection + K.outerClear];
+      if (!roomContains(r.polygon, poly(envelope))) continue;
+      return m;
+    }
+  }
+  return null;
+}
+
 export interface FurnitureInfo {
   lamps: Vector3[];
 }
@@ -907,6 +1056,11 @@ export function buildFurnitureItems(mats: InteriorMaterials): FurnitureItem[] {
   add("餐廳", "Crockery cabinet", "餐具展示高櫃", p => crockeryCabinet(p.linen, p.brass, p.art, m, 0));
   add("餐廳", "Flower pot", "花盆與花束", p => flowerPot(p.art, m));
   add("餐廳", "Dining rug", "餐廳花紋地毯", p => rug(p, "dining", DINING.rugWidth, DINING.rugDepth));
+  add("廚房", "Kitchen base cabinet", "廚房下櫃與檯面", p => kitchenBase(p.linen, p.brass, p.art, m));
+  add("廚房", "Kitchen wall cabinet", "廚房吊櫃", p => kitchenUpper(p.linen, p.brass, p.art, m));
+  add("廚房", "Gas range and oven", "瓦斯爐與烤箱", p => kitchenRange(p.linen, p.brass, p.dark, p.art, m));
+  add("廚房", "French extractor hood", "法式抽油煙機", p => kitchenHood(p.linen, p.dark, m));
+  add("廚房", "Island with sink", "中島、水槽與水龍頭", p => kitchenIsland(p.linen, p.brass, p.dark, p.art, m));
   return items;
 }
 
@@ -1077,6 +1231,25 @@ export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMa
     } else diningInfo.unfurnished.push(diningRoom.id);
   }
   group.userData.dining = diningInfo;
+
+  const kitchenInfo: KitchenInfo = { furnished: [], unfurnished: [] };
+  for (const r of plan.rooms.filter(r => r.type === "kitchen" && r.level === 1)) {
+    const m = kitchenPlacement(plan, r);
+    if (!m) { kitchenInfo.unfurnished.push(r.id); continue; }
+    const K = KITCHEN, centre = K.rangeWidth / 2 + K.moduleWidth / 2;
+    kitchenRange(linen, brass, dark, diningDecor, m);
+    kitchenHood(linen, dark, m.clone().multiply(at(0, 0, K.hoodBottom)));
+    for (const x of [-centre, centre]) {
+      kitchenBase(linen, brass, diningDecor, m.clone().multiply(at(x, 0, 0)));
+      kitchenUpper(linen, brass, diningDecor, m.clone().multiply(at(x, 0, K.upperBottom)));
+    }
+    colour(diningDecor, "#ddd7c9");
+    new Part(diningDecor, m).box(-centre - K.moduleWidth / 2, 0, K.height, centre + K.moduleWidth / 2, 0.012, K.hoodBottom);
+    const islandY = K.depth + K.frontProjection + K.aisle + K.islandDepth / 2 + K.frontProjection;
+    kitchenIsland(linen, brass, dark, diningDecor, m.clone().multiply(at(0, islandY, 0)));
+    kitchenInfo.furnished.push(r.id);
+  }
+  group.userData.kitchens = kitchenInfo;
 
   const parts: [Tris, Material][] = [
     [wood, mats.furnWood], [fabric, mats.furnFabric], [linen, mats.furnLinen], [gold, mats.furnGold], [rug, mats.finishFloor],
