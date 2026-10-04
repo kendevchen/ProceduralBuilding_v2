@@ -76,7 +76,7 @@
       "sinkWidth": 0.45, "sinkDepth": 0.32, "sinkDrop": 0.16,
       "tapHeight": 0.30, "tapRadius": 0.012,
       "doorClear": 0.90, "windowClear": 0.60, "searchStep": 0.05,
-      "tileWidth": 0.60, "tileDepth": 0.40
+      "tileWidth": 0.40, "tileDepth": 0.40
     },
     "diningFurniture": {
       "_doc": "Dining furniture on all floors. Metres; cabinet at y=0, table long axis x.",

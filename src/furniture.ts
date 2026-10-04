@@ -16,7 +16,7 @@
  * Z-up space, like rooms3d.ts.
  */
 import { Color, Group, type Material, Matrix4, Mesh, Vector3 } from "three";
-import { type Look, type Stamp, booksStamp, carpetStamp, salonRugStamp, diningRugStamp } from "./finishes";
+import { type Look, type Stamp, booksStamp, carpetStamp, salonRugStamp, diningRugStamp, kitchenBacksplashStamp, stampOf } from "./finishes";
 import type { BuildingPlan, PlanRoom } from "./plan";
 import type { Building } from "./generator";
 import { type InteriorMaterials, Tris, atticCeiling } from "./rooms3d";
@@ -1288,7 +1288,9 @@ export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMa
       for (let i = 0; i < count; i++) kitchenUpper(linen, brass, diningDecor, m.clone().multiply(at(a + width * (i + 0.5), 0, K.upperBottom)), width);
     }
     colour(diningDecor, "#ddd7c9");
-    new Part(diningDecor, m).box(left, 0, K.height, right, 0.012, K.hoodBottom);
+    if (look === "real") diningDecor.stamp = kitchenBacksplashStamp(r.floorZ, r.ceilingZ);
+    else if (look === "diagram") diningDecor.stamp = stampOf(look, r, "wall");
+    new Part(diningDecor, m).box(left, 0, K.height, right, 0.012, Math.max(K.hoodBottom + K.hoodHeight, K.upperBottom + K.upperHeight));
     const islandY = K.depth + K.frontProjection + aisle + K.islandDepth / 2 + K.frontProjection;
     kitchenIsland(linen, brass, dark, diningDecor, m.clone().multiply(at(0, islandY, 0)));
     for (const display of displays) crockeryCabinet(linen, brass, diningDecor, display.m, 0, display.width);
