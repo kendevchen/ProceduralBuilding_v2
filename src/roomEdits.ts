@@ -85,6 +85,7 @@ function mergePlan(plan: BuildingPlan, ids: [string, string], type: EditableRoom
   const polygon = unionRooms([a.polygon, b.polygon, ...fill]);
   const merged: PlanRoom = {
     ...a, id, type, name: ROOM_INFO[type].name, polygon, area: signedArea(polygon),
+    diningPrototype: a.diningPrototype || b.diningPrototype || undefined,
     rect: [Math.min(a.rect[0], b.rect[0]), Math.min(a.rect[1], b.rect[1]), Math.max(a.rect[2], b.rect[2]), Math.max(a.rect[3], b.rect[3])],
     windows: [...new Set([...a.windows, ...b.windows])], doors: [],
   };

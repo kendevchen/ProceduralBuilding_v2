@@ -15,8 +15,8 @@
  * Every solid is closed, so a cut through it shows the section colour. Blender
  * Z-up space, like rooms3d.ts.
  */
-import { Group, type Material, Matrix4, Mesh, Vector3 } from "three";
-import { type Look, booksStamp, carpetStamp, salonRugStamp } from "./finishes";
+import { Color, Group, type Material, Matrix4, Mesh, Vector3 } from "three";
+import { type Look, type Stamp, booksStamp, carpetStamp, salonRugStamp, diningRugStamp } from "./finishes";
 import type { BuildingPlan, PlanRoom } from "./plan";
 import type { Building } from "./generator";
 import { type InteriorMaterials, Tris, atticCeiling } from "./rooms3d";
@@ -26,6 +26,7 @@ import { inRoom, roomAnchor, roomContains } from "./roomGeometry";
 
 const BED = dims.interior.bedroomFurniture;
 const SALON = dims.interior.salonFurniture;
+const DINING = dims.interior.diningFurniture;
 
 /** the parquet that shows round the carpet, and the clearance round the table */
 const RUG_MARGIN = 0.55;
@@ -587,6 +588,154 @@ function salonSet(linen: Tris, wood: Tris, brass: Tris, dark: Tris, books: Tris,
   }
 }
 
+// ------------------------------------------------------------------ rear-right dining sample
+export interface DiningInfo { room: string | null; furnished: boolean; chairs: number; reason: string | null }
+interface DiningPlacement { m: Matrix4; chairs: 4 | 6; length: number }
+
+function diningPlacement(plan: BuildingPlan, r: PlanRoom): DiningPlacement | null {
+  const D = DINING;
+  const openings: V2[][] = [];
+  const reserve = (at: V2, dir: V2, width: number, clearance: number) => {
+    const len = Math.hypot(...dir); if (!len) return;
+    const d: V2 = [dir[0] / len, dir[1] / len]; let n: V2 = [-d[1], d[0]];
+    if (!inRoom(r.polygon, [at[0] + n[0] * 0.3, at[1] + n[1] * 0.3])) n = [-n[0], -n[1]];
+    const p = (x: number, y: number): V2 => [at[0] + d[0] * x + n[0] * y, at[1] + d[1] * x + n[1] * y];
+    openings.push([p(-width / 2 - 0.12, -0.25), p(width / 2 + 0.12, -0.25), p(width / 2 + 0.12, clearance), p(-width / 2 - 0.12, clearance)]);
+  };
+  for (const dr of r.doors) {
+    const w = plan.walls[dr.wall], d: V2 = [w.b[0] - w.a[0], w.b[1] - w.a[1]], len = Math.hypot(...d);
+    reserve([w.a[0] + d[0] * dr.at / len, w.a[1] + d[1] * dr.at / len], d, dr.width, D.doorClear);
+  }
+  for (const wi of r.windows) { const w = plan.windows[wi]; reserve(w.at, w.dir, w.width, D.windowClear); }
+  if (r.ceilingZ - r.floorZ < D.chairHeight + 0.05) return null;
+  for (const chairs of [6, 4] as const) for (const scale of [1, 0.9, 0.8]) {
+    const length = chairs === 6 ? D.tableLength : D.tableLength * 0.8;
+    const half = chairs === 6 ? D.endOffset + D.chairDepth / 2 : length / 2 + 0.3;
+    const rugWidth = chairs === 6 ? D.rugWidth : Math.min(D.rugWidth, half * 2);
+    const rects: SalonRect[] = [
+      [-D.cabinetWidth / 2, 0, D.cabinetWidth / 2, D.cabinetDepth],
+      [-length / 2, D.tableY - D.tableWidth / 2, length / 2, D.tableY + D.tableWidth / 2],
+    ];
+    for (const side of [-1, 1]) for (const x of [-length / 4, length / 4]) {
+      const y = D.tableY + side * D.chairOffset;
+      rects.push([x - D.chairWidth / 2, y - D.chairDepth / 2, x + D.chairWidth / 2, y + D.chairDepth / 2]);
+    }
+    if (chairs === 6) for (const side of [-1, 1]) rects.push([side * D.endOffset - D.chairDepth / 2,
+      D.tableY - D.chairWidth / 2, side * D.endOffset + D.chairDepth / 2, D.tableY + D.chairWidth / 2]);
+    for (const f of freeStretches(plan, r, true).sort((a, b) => b.s1 - b.s0 - (a.s1 - a.s0))) {
+      const lo = f.s0 + half * scale, hi = f.s1 - half * scale; if (hi < lo) continue;
+      const candidates = [(lo + hi) / 2]; for (let s = lo; s <= hi; s += D.searchStep) candidates.push(s);
+      for (const s of candidates) {
+        const m = new Matrix4().makeBasis(new Vector3(...f.d, 0).multiplyScalar(scale), new Vector3(...f.n, 0).multiplyScalar(scale), new Vector3(0, 0, 1))
+          .setPosition(f.a[0] + f.d[0] * s + f.n[0] * D.wallGap, f.a[1] + f.d[1] * s + f.n[1] * D.wallGap, r.floorZ);
+        const poly = ([x0, y0, x1, y1]: SalonRect): V2[] => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => {
+          const p = new Vector3(x, y, 0).applyMatrix4(m); return [p.x, p.y];
+        });
+        if (!roomContains(r.polygon, poly([-Math.max(half, rugWidth / 2), 0, Math.max(half, rugWidth / 2), D.tableY + D.rugDepth / 2]))) continue;
+        if (rects.some(rect => openings.some(o => overlaps(poly(rect), o)))) continue;
+        // Pull-back space behind every chair, also clear of opening approaches.
+        const pulled = rects.slice(2).map(rect => {
+          const cx = (rect[0] + rect[2]) / 2, cy = (rect[1] + rect[3]) / 2;
+          const dx = Math.abs(cy - D.tableY) < 0.01 ? Math.sign(cx) * 0.25 : 0;
+          const dy = dx ? 0 : Math.sign(cy - D.tableY) * 0.25;
+          return [rect[0] + dx, rect[1] + dy, rect[2] + dx, rect[3] + dy] as SalonRect;
+        });
+        if (pulled.some(rect => !roomContains(r.polygon, poly(rect)) || openings.some(o => overlaps(poly(rect), o)))) continue;
+        return { m, chairs, length };
+      }
+    }
+  }
+  return null;
+}
+
+function colour(t: Tris, hex: string): void {
+  const c = new Color(hex).toArray(); t.stamp = [0, ...c, ...c, 0, 3] as Stamp;
+}
+
+/** Six Louis-style seats with oval upholstered backs, curved gilt rails and armrests. */
+function diningChair(linen: Tris, brass: Tris, decor: Tris, m: Matrix4): void {
+  const D = DINING, w = D.chairWidth, d = D.chairDepth, frame = new Part(linen, m), gilt = new Part(brass, m);
+  for (const x of [-w * 0.38, w * 0.38]) for (const y of [-d * 0.38, d * 0.38]) frame.lathe(x, y, leg(D.seatHeight), 10);
+  frame.softBox(0, 0, D.seatHeight - 0.055, w, d, 0.09, 0.025);
+  colour(decor, "#aab8c7"); new Part(decor, m).softBox(0, 0, D.seatHeight + 0.035, w - 0.065, d - 0.04, 0.10, 0.045);
+  for (const x of [-w * 0.35, w * 0.35]) {
+    frame.strut(x, D.seatHeight, x * 0.85, D.chairHeight - 0.20, -d * 0.43, 0.032);
+    frame.box(x - 0.016, 0.10, D.seatHeight, x + 0.016, 0.13, D.seatHeight + 0.21);
+    frame.softBox(x, -0.02, D.seatHeight + 0.21, 0.035, 0.33, 0.04, 0.017);
+  }
+  const cz = D.chairHeight - 0.23, rx = w * 0.43, rz = 0.235;
+  for (let i = 0; i < 24; i++) {
+    const a = i * Math.PI * 2 / 24, b = (i + 1) * Math.PI * 2 / 24;
+    frame.strut(rx * Math.cos(a), cz + rz * Math.sin(a), rx * Math.cos(b), cz + rz * Math.sin(b), -d * 0.43, 0.043);
+    gilt.strut(rx * 0.94 * Math.cos(a), cz + rz * 0.94 * Math.sin(a), rx * 0.94 * Math.cos(b), cz + rz * 0.94 * Math.sin(b), -d * 0.43 + 0.024, 0.008);
+  }
+  // Thin closed elliptical cushion (front/back discs and rim).
+  for (let i = 0; i < 24; i++) {
+    const a = i * Math.PI * 2 / 24, b = (i + 1) * Math.PI * 2 / 24;
+    const p = (angle: number, y: number) => new Vector3(rx * 0.86 * Math.cos(angle), y, cz + rz * 0.86 * Math.sin(angle)).applyMatrix4(m);
+    const y0 = -d * 0.43 - 0.012, y1 = y0 + 0.045;
+    for (const [y, sign] of [[y0, -1], [y1, 1]]) decor.tri(new Vector3(0, y, cz).applyMatrix4(m), p(a, y), p(b, y), new Vector3(0, sign, 0).transformDirection(m));
+    decor.quad(p(a, y0), p(b, y0), p(b, y1), p(a, y1), new Vector3(Math.cos(a), 0, Math.sin(a)).transformDirection(m));
+  }
+}
+
+function flowerPot(decor: Tris, m: Matrix4): void {
+  const D = DINING, p = new Part(decor, m);
+  colour(decor, "#77906a");
+  p.lathe(0, 0, [[0, 0], [D.potRadius * 0.65, 0], [D.potRadius, D.potHeight * 0.85], [D.potRadius * 1.04, D.potHeight], [0, D.potHeight]], 20);
+  for (let i = 0; i < 9; i++) {
+    const a = i * 2.39996, x = Math.cos(a) * D.potRadius * 0.8, y = Math.sin(a) * D.potRadius * 0.8;
+    const z = D.flowerHeight - (i % 3) * 0.035;
+    colour(decor, "#526c41"); p.lathe(x, y, [[0, D.potHeight], [0.004, D.potHeight], [0.004, z], [0, z]], 6);
+    for (const side of [-1, 1]) {
+      const leaf = m.clone().multiply(at(x + side * 0.018, y, z - 0.06, a)).multiply(new Matrix4().makeRotationY(side * 0.6));
+      new Part(decor, leaf).softBox(0, 0, 0, 0.075, 0.025, 0.018, 0.008);
+    }
+    colour(decor, i % 2 ? "#f2d6d8" : "#f5eee3");
+    for (let k = 0; k < 5; k++) {
+      const a = k * Math.PI * 2 / 5;
+      p.softBox(x + Math.cos(a) * 0.022, y + Math.sin(a) * 0.022, z, 0.036, 0.032, 0.024, 0.012);
+    }
+    colour(decor, "#c7a450"); p.softBox(x, y, z + 0.01, 0.02, 0.02, 0.02, 0.009);
+  }
+}
+
+function diningSet(linen: Tris, wood: Tris, brass: Tris, decor: Tris, rug: Tris, plan: BuildingPlan, r: PlanRoom, placement: DiningPlacement, look: Look): void {
+  const D = DINING, { m, chairs, length } = placement, table = m.clone().multiply(at(0, D.tableY, 0));
+  const w = new Part(wood, table), cloth = new Part(linen, table);
+  for (const x of [-length / 2 + 0.15, length / 2 - 0.15]) for (const y of [-D.tableWidth / 2 + 0.12, D.tableWidth / 2 - 0.12])
+    w.lathe(x, y, leg(D.tableHeight - 0.05), 10);
+  w.box(-length / 2, -D.tableWidth / 2, D.tableHeight - 0.05, length / 2, D.tableWidth / 2, D.tableHeight);
+  cloth.softBox(0, 0, D.tableHeight + 0.014, length + 0.035, D.tableWidth + 0.035, 0.028, 0.014);
+  // Narrow closed drapes with gently varying hems, rather than a solid block below the table.
+  for (const side of [-1, 1]) for (let i = 0; i < 32; i++) {
+    const x0 = -length / 2 + length * i / 32, x1 = -length / 2 + length * (i + 1) / 32;
+    const y = side * (D.tableWidth / 2 + 0.012 + 0.012 * Math.sin(i * 1.7));
+    cloth.box(x0, y - 0.009, D.tableHeight - D.clothDrop + 0.015 * Math.sin(i * 1.7), x1, y + 0.009, D.tableHeight + 0.014);
+  }
+  for (const side of [-1, 1]) cloth.box(side * length / 2 - 0.009, -D.tableWidth / 2, D.tableHeight - D.clothDrop, side * length / 2 + 0.009, D.tableWidth / 2, D.tableHeight + 0.014);
+  for (const side of [-1, 1]) for (const x of [-length / 4, length / 4]) diningChair(linen, brass, decor,
+    m.clone().multiply(at(x, D.tableY + side * D.chairOffset, 0, side > 0 ? Math.PI : 0)));
+  if (chairs === 6) for (const side of [-1, 1]) diningChair(linen, brass, decor, m.clone().multiply(at(side * D.endOffset, D.tableY, 0, side > 0 ? Math.PI / 2 : -Math.PI / 2)));
+  const cab = new Part(wood, m), cap = new Part(linen, m), metal = new Part(brass, m), half = D.cabinetWidth / 2;
+  cab.box(-half, 0.03, 0.10, half, D.cabinetDepth, D.cabinetHeight - 0.035);
+  for (const x of [-half + 0.06, half - 0.06]) for (const y of [0.08, D.cabinetDepth - 0.04]) cab.lathe(x, y, leg(0.15), 10);
+  for (let row = 0; row < 3; row++) {
+    const z = 0.16 + row * 0.21;
+    cab.box(-half + 0.025, D.cabinetDepth, z, half - 0.025, D.cabinetDepth + 0.018, z + 0.19);
+    for (const x of [-half * 0.52, half * 0.52]) metal.lathe(x, D.cabinetDepth + 0.028, [[0, z + 0.08], [0.016, z + 0.08], [0.016, z + 0.10], [0, z + 0.10]], 10);
+  }
+  cap.softBox(0, D.cabinetDepth / 2, D.cabinetHeight - 0.018, D.cabinetWidth + 0.045, D.cabinetDepth + 0.04, 0.036, 0.017);
+  flowerPot(decor, table.clone().multiply(at(0, 0, D.tableHeight + 0.029)));
+  flowerPot(decor, m.clone().multiply(at(0, D.cabinetDepth / 2, D.cabinetHeight + 0.001)));
+  if (look === "real") {
+    const width = chairs === 6 ? D.rugWidth : Math.min(D.rugWidth, length + 0.6), y0 = D.tableY - D.rugDepth / 2;
+    const origin = new Vector3(-width / 2, y0, 0).applyMatrix4(m), scale = Math.hypot(m.elements[0], m.elements[1]);
+    rug.stamp = diningRugStamp(origin.x - plan.width / 2, plan.length / 2 - origin.y, Math.atan2(m.elements[1], m.elements[0]), width * scale, D.rugDepth * scale, r.floorZ, r.ceilingZ);
+    new Part(rug, m).box(-width / 2, y0, 0.008, width / 2, y0 + D.rugDepth, 0.018);
+  }
+}
+
 export interface SalonInfo {
   furnished: string[];
   scales: Record<string, number>;
@@ -604,6 +753,7 @@ export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMa
   const wood = new Tris(), fabric = new Tris(), linen = new Tris(), gold = new Tris(), rug = new Tris();
   const dark = new Tris(), brass = new Tris(), leather = new Tris(), shade = new Tris(), books = new Tris();
   const salonRug = new Tris(), salonArt = new Tris();
+  const diningDecor = new Tris(), diningRug = new Tris();
 
   const room = plan.rooms.find(r => r.type === "ballroom");
   if (room) {
@@ -753,15 +903,27 @@ export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMa
   }
   group.userData.salons = salonInfo;
 
+  const diningRoom = plan.rooms.find(r => r.diningPrototype && r.type === "dining");
+  const diningInfo: DiningInfo = { room: diningRoom?.id ?? null, furnished: false, chairs: 0, reason: null };
+  if (diningRoom) {
+    const placement = diningPlacement(plan, diningRoom);
+    if (placement) {
+      diningSet(linen, wood, brass, diningDecor, diningRug, plan, diningRoom, placement, look);
+      diningInfo.furnished = true; diningInfo.chairs = placement.chairs;
+    } else diningInfo.reason = "此餐廳的門窗與輪廓無法安全容納餐桌、拉椅空間及餐邊櫃。";
+  }
+  group.userData.dining = diningInfo;
+
   const parts: [Tris, Material][] = [
     [wood, mats.furnWood], [fabric, mats.furnFabric], [linen, mats.furnLinen], [gold, mats.furnGold], [rug, mats.finishFloor],
     [dark, mats.furnDark], [brass, mats.furnBrass], [leather, mats.furnLeather], [shade, mats.furnShade], [books, mats.finishWall],
     [salonRug, mats.finishFloor], [salonArt, mats.finishWall],
+    [diningRug, mats.finishFloor], [diningDecor, mats.finishWall],
   ];
   for (const [t, m] of parts) {
     if (!t.pos.length) continue;
     const mesh = new Mesh(t.geometry(), m);
-    mesh.castShadow = t !== rug && t !== salonRug && t !== salonArt && t !== books && t !== shade;
+    mesh.castShadow = t !== rug && t !== salonRug && t !== diningRug && t !== salonArt && t !== books && t !== shade;
     mesh.receiveShadow = true;
     group.add(mesh);
   }

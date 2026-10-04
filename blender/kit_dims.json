@@ -63,6 +63,17 @@
     "ballroom": { "minBays": 2, "maxBays": 4 },
     "twoFlatsBays": 7,
     "serviceStair": { "bays": 6, "depth": 13.0 },
+    "diningFurniture": {
+      "_doc": "Rear-right 2F dining sample. Metres; cabinet at y=0, table long axis x.",
+      "tableLength": 1.8, "tableWidth": 0.85, "tableHeight": 0.76,
+      "clothDrop": 0.28, "tableY": 1.95,
+      "chairWidth": 0.48, "chairDepth": 0.50, "chairHeight": 1.04, "seatHeight": 0.46,
+      "chairOffset": 0.82, "endOffset": 1.35,
+      "cabinetWidth": 1.5, "cabinetDepth": 0.42, "cabinetHeight": 0.88,
+      "rugWidth": 3.1, "rugDepth": 2.8,
+      "wallGap": 0.04, "doorClear": 0.9, "windowClear": 0.6, "searchStep": 0.10,
+      "potRadius": 0.09, "potHeight": 0.15, "flowerHeight": 0.37
+    },
     "salonFurniture": {
       "_doc": "Salon furniture on all floors. Metres, x along fireplace wall, +y into room. Sizes include placement envelopes.",
       "width": 3.6, "depth": 4.6, "wallGap": 0.04,

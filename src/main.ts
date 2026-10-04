@@ -23,7 +23,7 @@ import { partyWalls, roofCap, roofShape } from "./roof";
 import { type CutAxis, type CutMode, Cutaway } from "./cutaway";
 import { buildRooms3d } from "./rooms3d";
 import { RoomLabels } from "./roomLabels";
-import { type FurnitureInfo, type SalonInfo, buildFurniture } from "./furniture";
+import { type FurnitureInfo, type SalonInfo, type DiningInfo, buildFurniture } from "./furniture";
 import { LampLights } from "./lampLights";
 import { buildStairs } from "./stairs";
 import { StreetLife } from "./streetlife";
@@ -200,7 +200,7 @@ function rebuild(frame = false): void {
   labels = new RoomLabels(plan, interiorView.area);
   g.add(labels.group);
   applyCut(true);
-  roomEditor.update(edited, furniture.userData.salons as SalonInfo);
+  roomEditor.update(edited, furniture.userData.salons as SalonInfo, furniture.userData.dining as DiningInfo);
 }
 
 /** the plane's place (world space) for the slider */

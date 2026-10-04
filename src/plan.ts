@@ -93,6 +93,8 @@ export interface PlanDoor {
 }
 
 export interface PlanRoom {
+  /** Spatially chosen 2F rear-right dining prototype, independent of room numbering. */
+  diningPrototype?: boolean;
   /** e.g. "2F-03" */
   id: string;
   type: RoomType;
@@ -1088,6 +1090,12 @@ export function planBuilding(b: Building, p: BuildingParams): BuildingPlan {
 
   for (const lv of levels) {
     const floor = layoutFloor(g, b, p, lv, windows, ballroomLevel);
+    const diningCandidate = lv.index === 1 ? floor.units.filter(u => u.type === "bedroom")
+      .sort((a, c) => c.y1 - a.y1 || c.x1 - a.x1)[0] : undefined;
+    // A small apartment must retain its only bedroom when bay counts change.
+    const diningPrototype = diningCandidate && floor.units.some(u => u !== diningCandidate && u.type === "bedroom" &&
+      u.apartment === diningCandidate.apartment) ? diningCandidate : undefined;
+    if (diningPrototype) diningPrototype.type = "dining";
     const units = floor.units.sort((a, c) => a.y0 - c.y0 || a.x0 - c.x0);
     units.forEach((u, k) => (u.id = `${lv.name}-${String(k + 1).padStart(2, "0")}`));
     const cage = units.find(u => u.cells.some(c => c.id === g.cage[0]))!;
@@ -1106,6 +1114,7 @@ export function planBuilding(b: Building, p: BuildingParams): BuildingPlan {
       const type = u.type ?? "storage";
       const tall = type === "ballroom";
       const room: PlanRoom = {
+        diningPrototype: u === diningPrototype || undefined,
         id: u.id!, type, name: type === "storage" && lv.cls === "R" ? "閣樓儲藏間" : ROOM_INFO[type].name,
         level: lv.index, levels: tall ? 2 : 1, apartment: u.apartment, rect: rectOf(u), polygon,
         area: polygonArea(polygon), floorZ: lv.floorZ, ceilingZ: tall ? levels[lv.index + 1].ceilingZ : lv.ceilingZ,

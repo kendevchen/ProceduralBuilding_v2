@@ -21,8 +21,8 @@ export type Look = "real" | "diagram" | "white";
 export type Stamp = [number, number, number, number, number, number, number, number, number];
 
 const P = {
-  plain: 0, herringbone: 1, boards: 2, hexMixed: 3, hexSparse: 4, marble: 5, carpet: 6, salonRug: 7,
-  paint: 10, wallpaper: 11, boiserie: 12, tiles: 13, books: 14, bedroomPanels: 15,
+  plain: 0, herringbone: 1, boards: 2, hexMixed: 3, hexSparse: 4, marble: 5, carpet: 6, salonRug: 7, diningRug: 8,
+  paint: 10, wallpaper: 11, boiserie: 12, tiles: 13, books: 14, bedroomPanels: 15, diningPanels: 16,
 } as const;
 type Pattern = (typeof P)[keyof typeof P];
 
@@ -84,6 +84,10 @@ export function salonRugStamp(x: number, z: number, angle: number, w: number, d:
   return [P.salonRug, x, z, angle, w, d, handedness, floorZ, ceilingZ];
 }
 
+export function diningRugStamp(x: number, z: number, angle: number, w: number, d: number, floorZ: number, ceilingZ: number): Stamp {
+  return [P.diningRug, x, z, angle, w, d, 1, floorZ, ceilingZ];
+}
+
 /** the stamp of a bookcase's rows of books: h counts up from the underside of its lowest board (z) */
 export function booksStamp(boardZ: number): Stamp {
   return [P.books, 0, 0, 0, 0, 0, 0, boardZ, boardZ + 3];
@@ -99,7 +103,9 @@ export function stampOf(look: Look, room: PlanRoom | null, surface: "wall" | "fl
     const v = c.toArray() as [number, number, number];
     return stamp(surface === "wall" ? P.paint : P.plain, v, v, room.floorZ, room.ceilingZ);
   }
-  const f = surface === "wall" && room.type === "bedroom" && room.area >= dims.interior.bedroomFurniture.largeBedroomArea
+  const f = surface === "wall" && room.type === "dining" && room.diningPrototype
+    ? { pattern: P.diningPanels, a: "#b4becb", b: "#c79e48" }
+    : surface === "wall" && room.type === "bedroom" && room.area >= dims.interior.bedroomFurniture.largeBedroomArea
     ? { pattern: P.bedroomPanels, a: "#a6b2a0", b: "#879781" }
     : (surface === "wall" ? WALLS : FLOORS)[room.type];
   return stamp(f.pattern, rgb(f.a), rgb(f.b), room.floorZ, room.ceilingZ);
@@ -309,19 +315,22 @@ vec4 finBooks(float u, float h) {
 }
 
 // Muted wool rug: scrolling stems, eight-petal flowers and a narrow woven border.
-vec4 finSalonRug(vec2 uv, vec2 size) {
+vec4 finSalonRug(vec2 uv, vec2 size, bool dining) {
   float e = min(min(uv.x, size.x - uv.x), min(uv.y, size.y - uv.y));
   vec3 base = vec3(0.57, 0.51, 0.41), ink = vec3(0.27, 0.24, 0.19);
+  if (dining) { base = vec3(0.79, 0.75, 0.64); ink = vec3(0.53, 0.43, 0.24); }
   vec2 q = mod(uv, 0.34) - 0.17;
   float a = atan(q.y, q.x), r = length(q);
   float flower = finLine(abs(r - (0.09 + 0.027 * cos(a * 8.0))), 0.004);
   float vine = finLine(abs(q.x - 0.09 * sin(q.y * 24.0)), 0.003);
   float motif = max(flower, vine * 0.7);
+  if (dining) motif = max(motif, finLine(abs(length((uv - size * 0.5) / vec2(1.3, 0.9)) - 0.65), 0.014));
   if (e < 0.22) {
     base *= 0.88;
     motif = max(motif, max(finLine(abs(e - 0.025), 0.006), finLine(abs(e - 0.20), 0.006)));
   }
   vec3 col = mix(base, ink, motif * 0.65);
+  if (dining) col = mix(col, vec3(0.40, 0.48, 0.53), flower * 0.25);
   col *= 0.94 + 0.12 * finNoise(uv * 160.0);
   return vec4(col, 1.0);
 }
@@ -351,10 +360,10 @@ float finRough = 0.85;
     else if (pat == 4) r = finHex(uv, A, B, 0.1);
     else if (pat == 5) r = finMarble(uv, A, B);
     else if (pat == 6) r = finCarpet(uv - A.xy, B.xy);
-    else if (pat == 7) {
+    else if (pat == 7 || pat == 8) {
       vec2 delta = uv - A.xy;
       vec2 local = vec2(dot(delta, vec2(cos(A.z), -sin(A.z))), dot(delta, vec2(-sin(A.z), -cos(A.z))) * B.z);
-      r = finSalonRug(local, B.xy);
+      r = finSalonRug(local, B.xy, pat == 8);
     }
     col = r.rgb;
     finRough = r.w;
@@ -371,7 +380,25 @@ float finRough = 0.85;
       float dm = abs(q.x) * 1.6 + abs(q.y);
       col = mix(col, B, (1.0 - smoothstep(0.1, 0.12, dm)) * 0.75);
       if (h > top - 0.3) col = A * 0.96;
-    } else if (pat == 12 || pat == 15) {
+    } else if (pat == 16) {
+      // French grey-blue upper panels, gilt frame, floral frieze and ivory dado.
+      float panel = finPanel(u, h, 1.05, top - 0.28);
+      if (panel >= 0.0) {
+        float gilt = max(finLine(abs(panel - 0.025), 0.008), finLine(abs(panel - 0.043), 0.004));
+        col = mix(col, B, gilt);
+        if (panel > 0.07 && panel < 0.18) {
+          vec2 q = vec2(fract(u / 0.12) - 0.5, fract(h / 0.12) - 0.5);
+          float flower = 1.0 - smoothstep(0.18, 0.28, length(q) + 0.07 * cos(atan(q.y, q.x) * 5.0));
+          col = mix(col, vec3(0.77, 0.78, 0.77), flower * 0.5);
+        }
+      }
+      if (h < 0.95 || h > top - 0.22) {
+        col = vec3(0.82, 0.80, 0.74);
+        float lower = finPanel(u, h, 0.18, 0.80);
+        if (lower >= 0.0) col *= 1.0 - 0.15 * finLine(abs(lower - 0.025), 0.008);
+      }
+      if (h > 0.91 && h < 0.96) col = B;
+      finRough = 0.65;
       // boiserie
       float d = max(finPanel(u, h, 0.18, 0.8), finPanel(u, h, 1.1, top - 0.45));
       if (d >= 0.0) col = mix(col, B, 0.75 * finLine(abs(d - 0.025), 0.006)) * (1.0 + 0.1 * finLine(abs(d - 0.04), 0.005));
@@ -396,6 +423,7 @@ float finRough = 0.85;
     }
     // skirting board
     if (h < 0.13 && pat != 13 && pat != 14) col = (pat == 12 || pat == 15) ? mix(A, B, 0.5) : B * 0.95;
+    if (h < 0.13 && pat == 16) col = vec3(0.82, 0.80, 0.74) * 0.95;
   }
   diffuseColor.rgb = col;
 }
