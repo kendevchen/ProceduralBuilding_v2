@@ -22,6 +22,7 @@ import dims from "../blender/kit_dims.json";
 import type { Building } from "./generator";
 import { PURPOSE, rand } from "./rng";
 import { type V2, insetEdges } from "./roof";
+import { inRoom } from "./roomGeometry";
 
 const D = dims.street;
 const BAY = dims.bay;
@@ -302,7 +303,7 @@ export class StreetLife {
   }
 
   /** rebuild the sidewalk and the trees for a building */
-  rebuild(b: Building, seed: number): void {
+  rebuild(b: Building, seed: number, seating: V2[][] = []): void {
     this.clear();
     const s = this.params;
     // which footprint edges face a street: the street facades and the pan coupés between them
@@ -313,7 +314,7 @@ export class StreetLife {
     });
     const w = s.width;
     if (s.sidewalk) this.buildSidewalk(b, edgeStreet);
-    if (s.count > 0) this.buildTrees(b, edgeStreet, seed, w);
+    if (s.count > 0) this.buildTrees(b, edgeStreet, seed, w, seating);
   }
 
   private clear(): void {
@@ -346,7 +347,7 @@ export class StreetLife {
     this.add(slab(ring(F, street, w + g, 0, r + g), c, 0, 0.02, ring(F, street, w, -g, r)), this.mats.cobbles, "gutter", false);
   }
 
-  private buildTrees(b: Building, street: boolean[], seed: number, w: number): void {
+  private buildTrees(b: Building, street: boolean[], seed: number, w: number, seating: V2[][]): void {
     const T = D.tree;
     const off = w * T.offset;
     const n = this.params.count;
@@ -354,6 +355,15 @@ export class StreetLife {
     const toWorld = (frame: Matrix4, sx: number, sy: number) => {
       const p = new Vector3(sx, sy, 0).applyMatrix4(frame);
       return { x: p.x - b.width / 2, z: b.length / 2 - p.y };
+    };
+    const clear = (spot: { x: number; z: number }) => {
+      const p: V2 = [spot.x + b.width / 2, b.length / 2 - spot.z];
+      const radius = T.grate + T.ring + dims.interior.cafeFurniture.treeClear;
+      return seating.every(polygon => !inRoom(polygon, p) && polygon.every((a, i) => {
+        const c = polygon[(i + 1) % polygon.length], dx = c[0] - a[0], dy = c[1] - a[1];
+        const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy)));
+        return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy) >= radius;
+      }));
     };
     const spots: { x: number; z: number }[] = [];
     b.sides.forEach(side => {
@@ -365,12 +375,21 @@ export class StreetLife {
       for (let k = 0; k < n; k++) {
         let x = lo + ((hi - lo) * (k + 0.5)) / n;
         if (door !== null && Math.abs(x - door) < T.clear) x = door + (x >= door ? 1 : -1) * T.clear;
-        if (x < lo || x > hi || xs.some(o => Math.abs(o - x) < 2.4)) continue;
-        xs.push(x);
+        const preferred = x;
+        let found: number | null = null;
+        for (let step = 0; step <= Math.ceil((hi - lo) / 0.35); step++) {
+          for (const direction of step ? [1, -1] : [0]) {
+            const candidate = preferred + direction * step * 0.35;
+            if (candidate < lo || candidate > hi || (door !== null && Math.abs(candidate - door) < T.clear) || xs.some(o => Math.abs(o - candidate) < 2.4)) continue;
+            if (clear(toWorld(side.frame, candidate, -off))) { found = candidate; break; }
+          }
+          if (found !== null) break;
+        }
+        if (found !== null) xs.push(found);
       }
       for (const x of xs) spots.push(toWorld(side.frame, x, -off));
       // the pan coupé's diagonal gets one
-      if (side.diag && n > 0) spots.push(toWorld(side.diag.frame, 0, -off));
+      if (side.diag && n > 0) { const spot = toWorld(side.diag.frame, 0, -off); if (clear(spot)) spots.push(spot); }
     });
     if (!spots.length) return;
 

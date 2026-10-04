@@ -4,7 +4,7 @@ import { type Camera, Raycaster, Vector2 } from "three";
 import { ROOM_INFO } from "./plan";
 import { RoomEdits, editableRoom, EDITABLE_ROOM_TYPES, mergeReason, type EditableRoomType, type EditedPlan } from "./roomEdits";
 import type { RoomLabels } from "./roomLabels";
-import type { SalonInfo, DiningInfo, KitchenInfo } from "./furniture";
+import type { SalonInfo, DiningInfo, KitchenInfo, CafeInfo } from "./furniture";
 
 interface Host {
   canvas: HTMLCanvasElement;
@@ -24,6 +24,7 @@ export class RoomEditor {
   private salon: SalonInfo | null = null;
   private dining: DiningInfo | null = null;
   private kitchen: KitchenInfo | null = null;
+  private cafe: CafeInfo | null = null;
   private ray = new Raycaster();
   private consumed = new WeakSet<Event>();
   private pointers = new Set<number>();
@@ -79,11 +80,12 @@ export class RoomEditor {
     return labels.pick(this.ray);
   }
 
-  update(result: EditedPlan | null, salon: SalonInfo | null = null, dining: DiningInfo | null = null, kitchen: KitchenInfo | null = null): void {
+  update(result: EditedPlan | null, salon: SalonInfo | null = null, dining: DiningInfo | null = null, kitchen: KitchenInfo | null = null, cafe: CafeInfo | null = null): void {
     this.result = result;
     this.salon = salon;
     this.dining = dining;
     this.kitchen = kitchen;
+    this.cafe = cafe;
     this.ids = [];
     if (result) for (const keys of this.selection) {
       const entry = [...result.members].find(([, values]) => values.length === keys.length && values.every((v, i) => v === keys[i]));
@@ -129,6 +131,9 @@ export class RoomEditor {
     if (rooms.length === 1) {
       const room = rooms[0];
       info(`${result!.plan.levels[room.level].name} · ${room.name} · ${room.area.toFixed(1)} m²`);
+      if (room.type === "shop") info(room.cafePrototype && this.cafe?.furnished
+          ? `咖啡店樣板：室內 ${this.cafe.tables} 桌／${this.cafe.chairs} 椅、靠牆吧台、木質背牆與菜單、${this.cafe.stools} 張吧台椅${this.cafe.cabinet ? "、展示櫃" : ""}；戶外 ${this.cafe.outdoorTables} 桌／${this.cafe.outdoorChairs} 椅。`
+          : room.cafePrototype ? "此店面的實牆與門窗配置無法容納靠牆吧台。" : "店面家具目前先製作一間咖啡店樣板，確認後套用其他店面。");
       if (editableRoom(room)) {
         const state = { type: room.type };
         const options = room.type === "maid" ? { ...choices, "閣樓房（原始）": "maid" } : choices;

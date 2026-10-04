@@ -93,6 +93,8 @@ export interface PlanDoor {
 }
 
 export interface PlanRoom {
+  /** One ground-floor cafe sample, selected after room edits. */
+  cafePrototype?: boolean;
   /** Spatially chosen 2F rear-right dining prototype, independent of room numbering. */
   diningPrototype?: boolean;
   /** e.g. "2F-03" */

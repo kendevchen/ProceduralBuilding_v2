@@ -24,10 +24,11 @@ import { partyWalls, roofCap, roofShape } from "./roof";
 import { type CutAxis, type CutMode, Cutaway } from "./cutaway";
 import { buildRooms3d } from "./rooms3d";
 import { RoomLabels } from "./roomLabels";
-import { type FurnitureInfo, type SalonInfo, type DiningInfo, type KitchenInfo, buildFurniture } from "./furniture";
+import { type FurnitureInfo, type SalonInfo, type DiningInfo, type KitchenInfo, type CafeInfo, buildCafeTerrace, buildFurniture } from "./furniture";
 import { LampLights } from "./lampLights";
 import { buildStairs } from "./stairs";
 import { StreetLife } from "./streetlife";
+import { markCafePrototype } from "./cafePrototype";
 import { WindowEditor } from "./windowEditor";
 import { RoomEdits } from "./roomEdits";
 import { RoomEditor } from "./roomEditor";
@@ -154,6 +155,7 @@ function rebuild(frame = false): void {
   const b = generateBuilding(params, kit);
   const edited = roomEdits.apply(planBuilding(b, params));
   const plan = edited.plan;
+  markCafePrototype(plan);
   lastPlan = plan;
   interiorView.check = plan.issues.length ? `${plan.issues.length} 個問題` : "OK";
   if (plan.issues.length) console.warn(`plan: ${plan.issues.length} issues`, plan.issues);
@@ -194,7 +196,11 @@ function rebuild(frame = false): void {
   lampLights.setLamps((furniture.userData.furniture as FurnitureInfo).lamps.map(p => new Vector3(p.x - b.width / 2, p.z, b.length / 2 - p.y)));
   g.add(interior);
   g.position.set(-b.width / 2, -b.length / 2, 0); // footprint centred on the origin
-  street.rebuild(b, params.seed);
+  const terrace = buildCafeTerrace(plan, b, cutaway.galleryInterior, street.params);
+  const cafeInfo = furniture.userData.cafe as CafeInfo;
+  cafeInfo.outdoorTables = terrace.tables; cafeInfo.outdoorChairs = terrace.tables * 2;
+  g.add(terrace.group);
+  street.rebuild(b, params.seed, terrace.reserved);
   street.group.visible = true;
   show(g, new Vector3(0, cap.top / 2, 0), Math.hypot(b.width, b.length, cap.top) / 2);
   windows.update(b, g);
@@ -208,7 +214,7 @@ function rebuild(frame = false): void {
   labels = new RoomLabels(plan, interiorView.area);
   g.add(labels.group);
   applyCut(true);
-  roomEditor.update(edited, furniture.userData.salons as SalonInfo, furniture.userData.dining as DiningInfo, furniture.userData.kitchens as KitchenInfo);
+  roomEditor.update(edited, furniture.userData.salons as SalonInfo, furniture.userData.dining as DiningInfo, furniture.userData.kitchens as KitchenInfo, cafeInfo);
 }
 
 /** the plane's place (world space) for the slider */
