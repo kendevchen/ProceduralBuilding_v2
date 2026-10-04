@@ -231,7 +231,7 @@ function lamp(brass: Tris, shade: Tris, m: Matrix4): number {
 }
 
 /** the polygon's edges with the stretches along them that doors and windows take */
-function freeStretches(plan: BuildingPlan, room: PlanRoom): { a: V2; d: V2; n: V2; s0: number; s1: number }[] {
+function freeStretches(plan: BuildingPlan, room: PlanRoom, splitWindows = false): { a: V2; d: V2; n: V2; s0: number; s1: number }[] {
   const out: { a: V2; d: V2; n: V2; s0: number; s1: number }[] = [];
   const poly = room.polygon;
   poly.forEach((a, i) => {
@@ -243,8 +243,10 @@ function freeStretches(plan: BuildingPlan, room: PlanRoom): { a: V2; d: V2; n: V
     const along = (p: V2) => ((p[0] - a[0]) * d[0] + (p[1] - a[1]) * d[1]);
     const off = (p: V2) => Math.abs((p[0] - a[0]) * n[0] + (p[1] - a[1]) * n[1]);
     // a wall with a window gets no bookcase
-    if (room.windows.some(wi => { const w = plan.windows[wi]; return off(w.at) < 0.3 && along(w.at) > -0.2 && along(w.at) < len + 0.2; })) return;
+    const windows = room.windows.map(wi => plan.windows[wi]).filter(w => off(w.at) < 0.3 && along(w.at) > -0.2 && along(w.at) < len + 0.2);
+    if (!splitWindows && windows.length) return;
     const blocked: [number, number][] = [];
+    if (splitWindows) for (const w of windows) blocked.push([along(w.at) - w.width / 2 - 0.12, along(w.at) + w.width / 2 + 0.12]);
     for (const dr of room.doors) {
       const w = plan.walls[dr.wall];
       const wl = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
@@ -438,7 +440,7 @@ function overlaps(a: V2[], b: V2[]): boolean {
 }
 
 /** Complete set fits a real polygon and keeps all opening approaches free. */
-function salonPlacement(plan: BuildingPlan, r: PlanRoom): Matrix4 | null {
+function salonPlacement(plan: BuildingPlan, b: Building, r: PlanRoom): Matrix4 | null {
   const S = SALON, half = S.width / 2;
   const solids: SalonRect[] = [
     [-S.fireWidth / 2 - S.caseWidth - 0.08, 0, S.fireWidth / 2 + S.caseWidth + 0.08, S.fireDepth + 0.12],
@@ -466,14 +468,24 @@ function salonPlacement(plan: BuildingPlan, r: PlanRoom): Matrix4 | null {
   for (const wi of r.windows) {
     const w = plan.windows[wi]; opening(w.at, w.dir, w.width, S.windowClear);
   }
-  if (r.ceilingZ - r.floorZ < S.caseHeight + 0.1) return null;
-  for (const scale of [1, 0.9, 0.8, 0.7, 0.63]) for (const f of freeStretches(plan, r).sort((a, b) => b.s1 - b.s0 - (a.s1 - a.s0))) {
+  if (r.ceilingZ - r.floorZ + 1e-6 < S.caseHeight + 0.05) return null;
+  const attic = plan.levels[plan.levels.length - 1];
+  const ceilingAt = r.level === attic.index ? atticCeiling(b, attic.ceilingZ) : () => r.ceilingZ;
+  const heights: [SalonRect, number][] = [
+    [[-S.fireWidth / 2, 0, S.fireWidth / 2, S.fireDepth + 0.12], S.fireHeight],
+    [[-S.fireWidth / 2 - 0.08 - S.caseWidth - 0.025, 0, -S.fireWidth / 2 - 0.055, S.caseDepth + 0.04], S.caseHeight],
+    [[S.fireWidth / 2 + 0.055, 0, S.fireWidth / 2 + 0.08 + S.caseWidth + 0.025, S.caseDepth + 0.04], S.caseHeight],
+    [[-S.pictureWidth / 2, 0.025, S.pictureWidth / 2, 0.081], S.pictureBottom + S.pictureHeight],
+    [solids[1], S.sofaHeight + 0.05], [solids[2], S.sofaHeight + 0.05],
+    [solids[3], S.tableHeight], [solids[4], 0.45], [solids[5], 0.49],
+  ];
+  for (const scale of [1, 0.9, 0.8, 0.7, 0.63]) for (const f of freeStretches(plan, r, true).sort((a, b) => b.s1 - b.s0 - (a.s1 - a.s0))) {
     const lo = f.s0 + half * scale, hi = f.s1 - half * scale;
     if (hi < lo) continue;
     const candidates = [(lo + hi) / 2];
     for (let s = lo; s <= hi; s += S.searchStep) candidates.push(s);
-    for (const s of candidates) {
-      const m = new Matrix4().makeBasis(new Vector3(...f.d, 0).multiplyScalar(scale),
+    for (const s of candidates) for (const mirror of [1, -1]) {
+      const m = new Matrix4().makeBasis(new Vector3(...f.d, 0).multiplyScalar(scale * mirror),
         new Vector3(...f.n, 0).multiplyScalar(scale), new Vector3(0, 0, 1))
         .setPosition(f.a[0] + f.d[0] * s + f.n[0] * S.wallGap, f.a[1] + f.d[1] * s + f.n[1] * S.wallGap, r.floorZ);
       const footprint = ([x0, y0, x1, y1]: SalonRect): V2[] => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => {
@@ -482,6 +494,7 @@ function salonPlacement(plan: BuildingPlan, r: PlanRoom): Matrix4 | null {
       // Reserve the entire arrangement, including its walkway and the rug.
       if (!roomContains(r.polygon, footprint([-half, 0, half, S.depth]))) continue;
       if (solids.some(rect => openings.some(o => overlaps(footprint(rect), o)))) continue;
+      if (heights.some(([rect, height]) => footprint(rect).some(p => ceilingAt(p) - r.floorZ + 1e-6 < height + 0.05))) continue;
       return m;
     }
   }
@@ -568,16 +581,16 @@ function salonSet(linen: Tris, wood: Tris, brass: Tris, dark: Tris, books: Tris,
   if (look === "real") {
     const x0 = -S.rugWidth / 2, y0 = S.depth - S.rugDepth, origin = new Vector3(x0, y0, 0).applyMatrix4(m);
     const scale = Math.hypot(m.elements[0], m.elements[1]), angle = Math.atan2(m.elements[1], m.elements[0]);
-    rug.stamp = salonRugStamp(origin.x - plan.width / 2, plan.length / 2 - origin.y, angle, S.rugWidth * scale, S.rugDepth * scale, r.floorZ, r.ceilingZ);
+    const handedness = Math.sign(m.elements[0] * m.elements[5] - m.elements[1] * m.elements[4]);
+    rug.stamp = salonRugStamp(origin.x - plan.width / 2, plan.length / 2 - origin.y, angle, S.rugWidth * scale, S.rugDepth * scale, r.floorZ, r.ceilingZ, handedness);
     new Part(rug, m).box(x0, y0, 0.008, -x0, S.depth, 0.018);
   }
 }
 
 export interface SalonInfo {
-  prototype: string | null;
-  scale: number | null;
-  skipped: string[];
-  reason: string | null;
+  furnished: string[];
+  scales: Record<string, number>;
+  unfurnished: string[];
 }
 
 export interface FurnitureInfo {
@@ -729,18 +742,16 @@ export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMa
   }
   group.userData.bedrooms = { furnished: bedrooms, oneTable: oneTableBedrooms, unfurnished: unfurnishedBedrooms };
 
-  // Prototype only: select by actual floor and area after every rebuild, never a fixed ID.
-  const salons = plan.rooms.filter(r => r.level === 1 && r.levels === 1 && r.type === "salon")
-    .sort((a, b) => b.area - a.area || a.id.localeCompare(b.id));
-  let salonRoom: string | null = null, salonScale: number | null = null;
-  const skippedSalons: string[] = [];
-  for (const r of salons) {
-    const m = salonPlacement(plan, r);
-    if (!m) { skippedSalons.push(r.id); continue; }
+  // All current salons, including rooms converted or merged in the editor.
+  const salonInfo: SalonInfo = { furnished: [], scales: {}, unfurnished: [] };
+  for (const r of plan.rooms.filter(r => r.type === "salon")) {
+    const m = salonPlacement(plan, b, r);
+    if (!m) { salonInfo.unfurnished.push(r.id); continue; }
     salonSet(linen, wood, brass, dark, books, salonRug, salonArt, plan, r, m, look);
-    salonRoom = r.id; salonScale = Math.hypot(m.elements[0], m.elements[1]); break;
+    salonInfo.furnished.push(r.id);
+    salonInfo.scales[r.id] = Math.hypot(m.elements[0], m.elements[1]);
   }
-  group.userData.salons = { prototype: salonRoom, scale: salonScale, skipped: skippedSalons, reason: salonRoom ? null : salons.length ? "二樓客廳無法安全容納完整家具組" : "目前配置沒有二樓客廳" } satisfies SalonInfo;
+  group.userData.salons = salonInfo;
 
   const parts: [Tris, Material][] = [
     [wood, mats.furnWood], [fabric, mats.furnFabric], [linen, mats.furnLinen], [gold, mats.furnGold], [rug, mats.finishFloor],

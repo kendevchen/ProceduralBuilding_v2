@@ -64,7 +64,7 @@
     "twoFlatsBays": 7,
     "serviceStair": { "bays": 6, "depth": 13.0 },
     "salonFurniture": {
-      "_doc": "Single 2F salon prototype. Metres, x along fireplace wall, +y into room. Sizes include placement envelopes.",
+      "_doc": "Salon furniture on all floors. Metres, x along fireplace wall, +y into room. Sizes include placement envelopes.",
       "width": 3.6, "depth": 4.6, "wallGap": 0.04,
       "sofaWidth": 2.4, "sofaDepth": 0.9, "sofaHeight": 0.88,
       "seatHeight": 0.44, "shortSofaWidth": 1.8,

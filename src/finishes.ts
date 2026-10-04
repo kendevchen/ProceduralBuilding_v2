@@ -80,8 +80,8 @@ export function carpetStamp(x: number, z: number, w: number, d: number, floorZ: 
 }
 
 /** Rotated salon rug; angle is its Blender local x axis. */
-export function salonRugStamp(x: number, z: number, angle: number, w: number, d: number, floorZ: number, ceilingZ: number): Stamp {
-  return [P.salonRug, x, z, angle, w, d, 0, floorZ, ceilingZ];
+export function salonRugStamp(x: number, z: number, angle: number, w: number, d: number, floorZ: number, ceilingZ: number, handedness = 1): Stamp {
+  return [P.salonRug, x, z, angle, w, d, handedness, floorZ, ceilingZ];
 }
 
 /** the stamp of a bookcase's rows of books: h counts up from the underside of its lowest board (z) */
@@ -353,7 +353,7 @@ float finRough = 0.85;
     else if (pat == 6) r = finCarpet(uv - A.xy, B.xy);
     else if (pat == 7) {
       vec2 delta = uv - A.xy;
-      vec2 local = vec2(dot(delta, vec2(cos(A.z), -sin(A.z))), dot(delta, vec2(-sin(A.z), -cos(A.z))));
+      vec2 local = vec2(dot(delta, vec2(cos(A.z), -sin(A.z))), dot(delta, vec2(-sin(A.z), -cos(A.z))) * B.z);
       r = finSalonRug(local, B.xy);
     }
     col = r.rgb;
