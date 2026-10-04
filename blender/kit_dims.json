@@ -89,8 +89,8 @@
       "menuWidth": 0.44, "menuHeight": 0.86, "menuBottom": 1.47, "panelTop": 2.55,
       "cabinetWidth": 0.85, "cabinetDepth": 0.35, "cabinetHeight": 1.5,
       "doorClear": 1.0, "windowClear": 0.45, "searchStep": 0.20,
-      "terraceOffset": 0.675, "terraceSideOffset": 0.925, "terraceHalfWidth": 0.35, "terraceHalfDepth": 0.65,
-      "terraceRowPitch": 1.325, "outdoorChairOffset": 0.425,
+      "terraceOffset": 0.40, "terraceSideOffset": 1.225, "terraceHalfWidth": 0.65, "terraceHalfDepth": 0.35,
+      "outdoorChairOffset": 0.425,
       "terraceEntryWidth": 1.1, "walkClear": 1.1, "treeClear": 0.10,
       "carpetRepeat": 0.28
     },
