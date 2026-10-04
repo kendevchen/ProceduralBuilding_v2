@@ -1,13 +1,14 @@
 # Build with Vite and publish to GitHub Pages:
 #   main            -> https://kendevchen.github.io/ProceduralBuilding_v2/
 #   interior-floors -> https://kendevchen.github.io/ProceduralBuilding_v2/dev/  (development preview)
-# A push to either branch rebuilds both, since Pages publishes one site.
+#   feature/room-editor -> https://kendevchen.github.io/ProceduralBuilding_v2/room-editor/
+# A push to a listed branch rebuilds all previews, since Pages publishes one site.
 # (Pages must be set to "GitHub Actions" as its source, not "Deploy from a branch".)
 name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main, interior-floors]
+    branches: [main, interior-floors, feature/room-editor]
   workflow_dispatch:
 
 permissions:
@@ -46,6 +47,16 @@ jobs:
         run: |
           npm ci
           npx vite build --base /ProceduralBuilding_v2/dev/ --outDir ../main/dist/dev
+      - name: Check out the room editor branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/room-editor
+          path: room-editor
+      - name: Build the room editor preview under /room-editor/
+        working-directory: room-editor
+        run: |
+          npm ci
+          npx vite build --base /ProceduralBuilding_v2/room-editor/ --outDir ../main/dist/room-editor
       - uses: actions/upload-pages-artifact@v3
         with:
           path: main/dist
