@@ -21,7 +21,7 @@ export type Look = "real" | "diagram" | "white";
 export type Stamp = [number, number, number, number, number, number, number, number, number];
 
 const P = {
-  plain: 0, herringbone: 1, boards: 2, hexMixed: 3, hexSparse: 4, marble: 5, carpet: 6,
+  plain: 0, herringbone: 1, boards: 2, hexMixed: 3, hexSparse: 4, marble: 5, carpet: 6, salonRug: 7,
   paint: 10, wallpaper: 11, boiserie: 12, tiles: 13, books: 14, bedroomPanels: 15,
 } as const;
 type Pattern = (typeof P)[keyof typeof P];
@@ -77,6 +77,11 @@ export const PLAIN: Stamp = stamp(P.plain, rgb(PLAIN_COLOR), rgb(PLAIN_COLOR));
 /** the stamp of a carpet: it carries its corner (world x, z) and its size instead of colours */
 export function carpetStamp(x: number, z: number, w: number, d: number, floorZ: number, ceilingZ: number): Stamp {
   return [P.carpet, x, z, 0, w, d, 0, floorZ, ceilingZ];
+}
+
+/** Rotated salon rug; angle is its Blender local x axis. */
+export function salonRugStamp(x: number, z: number, angle: number, w: number, d: number, floorZ: number, ceilingZ: number): Stamp {
+  return [P.salonRug, x, z, angle, w, d, 0, floorZ, ceilingZ];
 }
 
 /** the stamp of a bookcase's rows of books: h counts up from the underside of its lowest board (z) */
@@ -303,6 +308,24 @@ vec4 finBooks(float u, float h) {
   return vec4(col, 0.7);
 }
 
+// Muted wool rug: scrolling stems, eight-petal flowers and a narrow woven border.
+vec4 finSalonRug(vec2 uv, vec2 size) {
+  float e = min(min(uv.x, size.x - uv.x), min(uv.y, size.y - uv.y));
+  vec3 base = vec3(0.57, 0.51, 0.41), ink = vec3(0.27, 0.24, 0.19);
+  vec2 q = mod(uv, 0.34) - 0.17;
+  float a = atan(q.y, q.x), r = length(q);
+  float flower = finLine(abs(r - (0.09 + 0.027 * cos(a * 8.0))), 0.004);
+  float vine = finLine(abs(q.x - 0.09 * sin(q.y * 24.0)), 0.003);
+  float motif = max(flower, vine * 0.7);
+  if (e < 0.22) {
+    base *= 0.88;
+    motif = max(motif, max(finLine(abs(e - 0.025), 0.006), finLine(abs(e - 0.20), 0.006)));
+  }
+  vec3 col = mix(base, ink, motif * 0.65);
+  col *= 0.94 + 0.12 * finNoise(uv * 160.0);
+  return vec4(col, 1.0);
+}
+
 // boiserie: panels of moulding below the dado rail and up to the cornice
 float finPanel(float u, float h, float z0, float z1) {
   float px = fract(u / 0.9) * 0.9;
@@ -328,6 +351,11 @@ float finRough = 0.85;
     else if (pat == 4) r = finHex(uv, A, B, 0.1);
     else if (pat == 5) r = finMarble(uv, A, B);
     else if (pat == 6) r = finCarpet(uv - A.xy, B.xy);
+    else if (pat == 7) {
+      vec2 delta = uv - A.xy;
+      vec2 local = vec2(dot(delta, vec2(cos(A.z), -sin(A.z))), dot(delta, vec2(-sin(A.z), -cos(A.z))));
+      r = finSalonRug(local, B.xy);
+    }
     col = r.rgb;
     finRough = r.w;
   } else {

@@ -16,7 +16,7 @@
  * Z-up space, like rooms3d.ts.
  */
 import { Group, type Material, Matrix4, Mesh, Vector3 } from "three";
-import { type Look, booksStamp, carpetStamp } from "./finishes";
+import { type Look, booksStamp, carpetStamp, salonRugStamp } from "./finishes";
 import type { BuildingPlan, PlanRoom } from "./plan";
 import type { Building } from "./generator";
 import { type InteriorMaterials, Tris, atticCeiling } from "./rooms3d";
@@ -25,6 +25,7 @@ import dims from "../blender/kit_dims.json";
 import { inRoom, roomAnchor, roomContains } from "./roomGeometry";
 
 const BED = dims.interior.bedroomFurniture;
+const SALON = dims.interior.salonFurniture;
 
 /** the parquet that shows round the carpet, and the clearance round the table */
 const RUG_MARGIN = 0.55;
@@ -423,6 +424,162 @@ function bedroomPlacement(plan: BuildingPlan, b: Building, room: PlanRoom): { m:
 // ------------------------------------------------------------------ building
 
 /** where the study's lamps stand (Blender xyz), for the lights (lampLights.ts) */
+// ------------------------------------------------------------------ single 2F salon prototype
+type SalonRect = [number, number, number, number];
+
+/** Positive area overlap of two convex footprints (touching is allowed). */
+function overlaps(a: V2[], b: V2[]): boolean {
+  for (const poly of [a, b]) for (let i = 0; i < poly.length; i++) {
+    const p = poly[i], q = poly[(i + 1) % poly.length], nx = p[1] - q[1], ny = q[0] - p[0];
+    const aa = a.map(v => v[0] * nx + v[1] * ny), bb = b.map(v => v[0] * nx + v[1] * ny);
+    if (Math.max(...aa) <= Math.min(...bb) + 1e-6 || Math.max(...bb) <= Math.min(...aa) + 1e-6) return false;
+  }
+  return true;
+}
+
+/** Complete set fits a real polygon and keeps all opening approaches free. */
+function salonPlacement(plan: BuildingPlan, r: PlanRoom): Matrix4 | null {
+  const S = SALON, half = S.width / 2;
+  const solids: SalonRect[] = [
+    [-S.fireWidth / 2 - S.caseWidth - 0.08, 0, S.fireWidth / 2 + S.caseWidth + 0.08, S.fireDepth + 0.12],
+    [-S.sofaWidth / 2, S.depth - S.sofaDepth, S.sofaWidth / 2, S.depth],
+    [-half, 1.2, -half + S.sofaDepth, 1.2 + S.shortSofaWidth],
+    [-S.tableWidth / 2, 2.0, S.tableWidth / 2, 2.0 + S.tableDepth],
+    [0.62, 2.25, 1.17, 2.80],
+    [0.05, 2.85, 0.8, 3.3],
+  ];
+  const openings: V2[][] = [];
+  const opening = (c: V2, d: V2, width: number, clear: number) => {
+    const len = Math.hypot(...d); if (!len) return;
+    const u: V2 = [d[0] / len, d[1] / len];
+    let n: V2 = [-u[1], u[0]];
+    // Polygons are inset from structural wall axes; probe beyond the thickest wall.
+    if (!inRoom(r.polygon, [c[0] + n[0] * 0.3, c[1] + n[1] * 0.3])) n = [-n[0], -n[1]];
+    const p = (x: number, y: number): V2 => [c[0] + u[0] * x + n[0] * y, c[1] + u[1] * x + n[1] * y];
+    openings.push([p(-width / 2 - 0.12, -0.25), p(width / 2 + 0.12, -0.25),
+      p(width / 2 + 0.12, clear), p(-width / 2 - 0.12, clear)]);
+  };
+  for (const door of r.doors) {
+    const w = plan.walls[door.wall], d: V2 = [w.b[0] - w.a[0], w.b[1] - w.a[1]], len = Math.hypot(...d);
+    opening([w.a[0] + d[0] * door.at / len, w.a[1] + d[1] * door.at / len], d, door.width, S.doorClear);
+  }
+  for (const wi of r.windows) {
+    const w = plan.windows[wi]; opening(w.at, w.dir, w.width, S.windowClear);
+  }
+  if (r.ceilingZ - r.floorZ < S.caseHeight + 0.1) return null;
+  for (const scale of [1, 0.9, 0.8, 0.7, 0.63]) for (const f of freeStretches(plan, r).sort((a, b) => b.s1 - b.s0 - (a.s1 - a.s0))) {
+    const lo = f.s0 + half * scale, hi = f.s1 - half * scale;
+    if (hi < lo) continue;
+    const candidates = [(lo + hi) / 2];
+    for (let s = lo; s <= hi; s += S.searchStep) candidates.push(s);
+    for (const s of candidates) {
+      const m = new Matrix4().makeBasis(new Vector3(...f.d, 0).multiplyScalar(scale),
+        new Vector3(...f.n, 0).multiplyScalar(scale), new Vector3(0, 0, 1))
+        .setPosition(f.a[0] + f.d[0] * s + f.n[0] * S.wallGap, f.a[1] + f.d[1] * s + f.n[1] * S.wallGap, r.floorZ);
+      const footprint = ([x0, y0, x1, y1]: SalonRect): V2[] => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => {
+        const p = new Vector3(x, y, 0).applyMatrix4(m); return [p.x, p.y];
+      });
+      // Reserve the entire arrangement, including its walkway and the rug.
+      if (!roomContains(r.polygon, footprint([-half, 0, half, S.depth]))) continue;
+      if (solids.some(rect => openings.some(o => overlaps(footprint(rect), o)))) continue;
+      return m;
+    }
+  }
+  return null;
+}
+
+/** Upholstered sofa faces +y; rounded arms, separate cushions and piping seams. */
+function salonSofa(linen: Tris, wood: Tris, m: Matrix4, width: number): void {
+  const S = SALON, f = new Part(linen, m), w = new Part(wood, m), d = S.sofaDepth;
+  for (const x of [-width / 2 + 0.16, width / 2 - 0.16]) for (const y of [-d / 2 + 0.15, d / 2 - 0.15])
+    w.lathe(x, y, [[0, 0], [0.035, 0], [0.028, 0.13], [0, 0.13]], 10);
+  f.softBox(0, 0, 0.24, width, d, 0.24, 0.085);
+  const count = width > 2 ? 3 : 2, seatW = (width - 0.34) / count;
+  for (let i = 0; i < count; i++) {
+    const x = -width / 2 + 0.17 + seatW * (i + 0.5);
+    f.softBox(x, 0.07, S.seatHeight - 0.08, seatW - 0.025, d - 0.22, 0.16, 0.065);
+    f.softBox(x, -d / 2 + 0.15, 0.65, seatW - 0.02, 0.25, 0.43, 0.09);
+  }
+  for (const side of [-1, 1]) {
+    f.softBox(side * (width / 2 - 0.09), 0.02, 0.50, 0.18, d - 0.02, 0.49, 0.085);
+    const pm = m.clone().multiply(new Matrix4().makeTranslation(side * (width / 2 - 0.40), -0.08, 0.66))
+      .multiply(new Matrix4().makeRotationX(-0.15)).multiply(new Matrix4().makeRotationY(side * 0.14));
+    new Part(linen, pm).softBox(0, 0, 0, 0.38, 0.14, 0.36, 0.055);
+  }
+}
+
+function salonSet(linen: Tris, wood: Tris, brass: Tris, dark: Tris, books: Tris, rug: Tris, art: Tris,
+  plan: BuildingPlan, r: PlanRoom, m: Matrix4, look: Look): void {
+  const S = SALON, stone = new Part(linen, m), black = new Part(dark, m);
+  const fw = S.fireWidth / 2, fh = S.fireHeight;
+  // Open recess backed with black stone, stepped mantel and fluted pilasters.
+  black.box(-fw + 0.20, 0.01, 0.08, fw - 0.20, 0.025, fh - 0.24);
+  stone.box(-fw - 0.09, 0, 0, fw + 0.09, S.fireDepth + 0.12, 0.06);
+  for (const side of [-1, 1]) {
+    const x = side * (fw - 0.13);
+    stone.box(x - 0.13, 0.03, 0.06, x + 0.13, S.fireDepth, fh - 0.15);
+    stone.box(x - 0.16, 0.01, 0.06, x + 0.16, S.fireDepth + 0.035, 0.16);
+    for (const u of [-0.065, 0, 0.065]) stone.box(x + u - 0.009, S.fireDepth, 0.22, x + u + 0.009, S.fireDepth + 0.012, fh - 0.29);
+    stone.box(x - 0.15, 0.01, fh - 0.31, x + 0.15, S.fireDepth + 0.025, fh - 0.19);
+  }
+  stone.box(-fw, 0.02, fh - 0.25, fw, S.fireDepth, fh - 0.10);
+  stone.box(-fw - 0.04, 0, fh - 0.10, fw + 0.04, S.fireDepth + 0.025, fh - 0.055);
+  stone.box(-fw - 0.09, 0, fh - 0.055, fw + 0.09, S.fireDepth + 0.08, fh);
+  new Part(brass, m).lathe(0, 0.30, [[0, 0.07], [0.12, 0.07], [0.12, 0.09], [0, 0.09]], 16);
+  for (const side of [-1, 1]) {
+    const x0 = side < 0 ? -fw - 0.08 - S.caseWidth : fw + 0.08, x1 = x0 + S.caseWidth;
+    stone.box(x0, 0, 0, x1, S.caseDepth, 0.63);
+    stone.box(x0 + 0.03, S.caseDepth, 0.10, x1 - 0.03, S.caseDepth + 0.018, 0.57);
+    new Part(brass, m).lathe((x0 + x1) / 2, S.caseDepth + 0.026, [[0, 0.42], [0.013, 0.42], [0.013, 0.45], [0, 0.45]], 8);
+    stone.box(x0, 0, 0.63, x1, 0.02, S.caseHeight);
+    for (const x of [x0, x1 - 0.035]) stone.box(x, 0, 0.63, x + 0.035, S.caseDepth, S.caseHeight);
+    for (let z = 0.65; z < S.caseHeight - 0.2; z += 0.34) {
+      stone.box(x0, 0, z, x1, S.caseDepth, z + 0.025);
+      books.stamp = booksStamp(r.floorZ + 0.65);
+      new Part(books, m).card(x0 + 0.04, z + 0.025, x1 - 0.04, Math.min(z + 0.31, S.caseHeight - 0.06), 0.20);
+    }
+    stone.box(x0 - 0.025, 0, S.caseHeight - 0.06, x1 + 0.025, S.caseDepth + 0.04, S.caseHeight);
+  }
+  const local = (x: number, y: number, turn = 0) => m.clone().multiply(at(x, y, 0, turn));
+  salonSofa(linen, wood, local(0, S.depth - S.sofaDepth / 2, Math.PI), S.sofaWidth);
+  salonSofa(linen, wood, local(-S.width / 2 + S.sofaDepth / 2, 1.2 + S.shortSofaWidth / 2, -Math.PI / 2), S.shortSofaWidth);
+  // Low stone table and the two nested wood tables in the reference.
+  for (const x of [-0.37, 0.37]) stone.box(x - 0.07, 2.1, 0.02, x + 0.07, 2.65, S.tableHeight - 0.05);
+  stone.softBox(0, 2 + S.tableDepth / 2, S.tableHeight - 0.035, S.tableWidth, S.tableDepth, 0.07, 0.035);
+  const w = new Part(wood, m);
+  w.box(0.06, 2.91, 0.02, 0.16, 3.26, 0.43); w.box(0.67, 2.91, 0.02, 0.77, 3.26, 0.43);
+  w.softBox(0.425, 3.075, 0.46, 0.75, 0.45, 0.055, 0.026);
+  w.lathe(0.895, 2.525, [[0, 0.02], [0.18, 0.02], [0.12, 0.06], [0.12, 0.40], [0.275, 0.40], [0.275, 0.45], [0, 0.45]], 28);
+  // Original landscape above the mantel: gilt frame, ivory mat and brush-like colour patches.
+  const pw = S.pictureWidth / 2, bottom = S.pictureBottom, top = bottom + S.pictureHeight;
+  stone.box(-pw, 0.03, bottom, pw, 0.07, top);
+  const gilt = new Part(brass, m);
+  for (const x of [-pw, pw - 0.025]) gilt.box(x, 0.025, bottom, x + 0.025, 0.08, top);
+  for (const z of [bottom, top - 0.025]) gilt.box(-pw, 0.025, z, pw, 0.08, z + 0.025);
+  const ax = pw - 0.085, az = bottom + 0.085, ah = S.pictureHeight - 0.17;
+  for (let ix = 0; ix < 36; ix++) for (let iz = 0; iz < 20; iz++) {
+    const u = (ix + 0.5) / 36, v = (iz + 0.5) / 20;
+    const hill = 0.40 + 0.13 * Math.sin(u * 7) + 0.04 * Math.cos(u * 21);
+    const variation = 0.93 + 0.08 * Math.sin(ix * 19 + iz * 13);
+    const c = (v > hill ? [0.43, 0.55, 0.57] : v > hill - 0.14 ? [0.23, 0.32, 0.18] : [0.40, 0.36, 0.20]).map(n => n * variation);
+    art.stamp = [0, ...c, ...c, r.floorZ, r.ceilingZ] as import("./finishes").Stamp;
+    new Part(art, m).card(-ax + ix * ax * 2 / 36, az + iz * ah / 20, -ax + (ix + 1) * ax * 2 / 36, az + (iz + 1) * ah / 20, 0.081);
+  }
+  if (look === "real") {
+    const x0 = -S.rugWidth / 2, y0 = S.depth - S.rugDepth, origin = new Vector3(x0, y0, 0).applyMatrix4(m);
+    const scale = Math.hypot(m.elements[0], m.elements[1]), angle = Math.atan2(m.elements[1], m.elements[0]);
+    rug.stamp = salonRugStamp(origin.x - plan.width / 2, plan.length / 2 - origin.y, angle, S.rugWidth * scale, S.rugDepth * scale, r.floorZ, r.ceilingZ);
+    new Part(rug, m).box(x0, y0, 0.008, -x0, S.depth, 0.018);
+  }
+}
+
+export interface SalonInfo {
+  prototype: string | null;
+  scale: number | null;
+  skipped: string[];
+  reason: string | null;
+}
+
 export interface FurnitureInfo {
   lamps: Vector3[];
 }
@@ -433,6 +590,7 @@ export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMa
   const lamps: Vector3[] = [];
   const wood = new Tris(), fabric = new Tris(), linen = new Tris(), gold = new Tris(), rug = new Tris();
   const dark = new Tris(), brass = new Tris(), leather = new Tris(), shade = new Tris(), books = new Tris();
+  const salonRug = new Tris(), salonArt = new Tris();
 
   const room = plan.rooms.find(r => r.type === "ballroom");
   if (room) {
@@ -571,14 +729,28 @@ export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMa
   }
   group.userData.bedrooms = { furnished: bedrooms, oneTable: oneTableBedrooms, unfurnished: unfurnishedBedrooms };
 
+  // Prototype only: select by actual floor and area after every rebuild, never a fixed ID.
+  const salons = plan.rooms.filter(r => r.level === 1 && r.levels === 1 && r.type === "salon")
+    .sort((a, b) => b.area - a.area || a.id.localeCompare(b.id));
+  let salonRoom: string | null = null, salonScale: number | null = null;
+  const skippedSalons: string[] = [];
+  for (const r of salons) {
+    const m = salonPlacement(plan, r);
+    if (!m) { skippedSalons.push(r.id); continue; }
+    salonSet(linen, wood, brass, dark, books, salonRug, salonArt, plan, r, m, look);
+    salonRoom = r.id; salonScale = Math.hypot(m.elements[0], m.elements[1]); break;
+  }
+  group.userData.salons = { prototype: salonRoom, scale: salonScale, skipped: skippedSalons, reason: salonRoom ? null : salons.length ? "二樓客廳無法安全容納完整家具組" : "目前配置沒有二樓客廳" } satisfies SalonInfo;
+
   const parts: [Tris, Material][] = [
     [wood, mats.furnWood], [fabric, mats.furnFabric], [linen, mats.furnLinen], [gold, mats.furnGold], [rug, mats.finishFloor],
     [dark, mats.furnDark], [brass, mats.furnBrass], [leather, mats.furnLeather], [shade, mats.furnShade], [books, mats.finishWall],
+    [salonRug, mats.finishFloor], [salonArt, mats.finishWall],
   ];
   for (const [t, m] of parts) {
     if (!t.pos.length) continue;
     const mesh = new Mesh(t.geometry(), m);
-    mesh.castShadow = t !== rug && t !== books && t !== shade;
+    mesh.castShadow = t !== rug && t !== salonRug && t !== salonArt && t !== books && t !== shade;
     mesh.receiveShadow = true;
     group.add(mesh);
   }

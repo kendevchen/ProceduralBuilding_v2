@@ -4,6 +4,7 @@ import { type Camera, Raycaster, Vector2 } from "three";
 import { ROOM_INFO } from "./plan";
 import { RoomEdits, editableRoom, EDITABLE_ROOM_TYPES, mergeReason, type EditableRoomType, type EditedPlan } from "./roomEdits";
 import type { RoomLabels } from "./roomLabels";
+import type { SalonInfo } from "./furniture";
 
 interface Host {
   canvas: HTMLCanvasElement;
@@ -20,6 +21,7 @@ export class RoomEditor {
   private selection: string[][] = [];
   private ids: string[] = [];
   private result: EditedPlan | null = null;
+  private salon: SalonInfo | null = null;
   private ray = new Raycaster();
   private consumed = new WeakSet<Event>();
   private pointers = new Set<number>();
@@ -75,8 +77,9 @@ export class RoomEditor {
     return labels.pick(this.ray);
   }
 
-  update(result: EditedPlan | null): void {
+  update(result: EditedPlan | null, salon: SalonInfo | null = null): void {
     this.result = result;
+    this.salon = salon;
     this.ids = [];
     if (result) for (const keys of this.selection) {
       const entry = [...result.members].find(([, values]) => values.length === keys.length && values.every((v, i) => v === keys[i]));
@@ -127,7 +130,10 @@ export class RoomEditor {
         const options = room.type === "maid" ? { ...choices, "閣樓房（原始）": "maid" } : choices;
         folder.add(state, "type", options).name("房間種類").onChange((value: EditableRoomType) => this.act(() => edits.setType(room.id, value)));
         folder.add({ restore: () => this.act(() => edits.restoreType(room.id)) }, "restore").name("恢復原始房型");
-        info(room.type === "bedroom" || room.type === "study" ? "更換後同步更新家具、牆面與地板。" : "此房型尚無家具，會套用對應牆面與地板。");
+        if (room.type === "salon") info(this.salon?.prototype === room.id
+          ? `二樓客廳家具樣板${this.salon.scale && this.salon.scale < 1 ? "（依空間採緊湊尺寸）" : ""}：沙發、桌組、壁爐書櫃與掛畫。`
+          : room.level === 1 && this.salon?.reason ? this.salon.reason : "目前僅二樓一間客廳配置家具樣板，其餘客廳待下一階段套用。");
+        else info(room.type === "bedroom" || room.type === "study" ? "更換後同步更新家具、牆面與地板。" : "此房型尚無家具，會套用對應牆面與地板。");
       } else info("此空間連動樓梯、入口或建築結構，保留原始用途。");
     } else if (rooms.length === 2 && result) {
       info(rooms.map(r => `${result.plan.levels[r.level].name} ${r.name}`).join(" ＋ "));
