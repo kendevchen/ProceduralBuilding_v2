@@ -61,6 +61,23 @@
       "walkOffset": 0.5, "soffit": 0.12, "rail": 0.9
     },
     "ballroom": { "minBays": 2, "maxBays": 4 },
+    "atticFurniture": {
+      "_doc": "One maid room reading/bed sample. Metres; bed head y=0, chair faces +y. Per-piece mansard headroom.",
+      "bedWidth": 0.90, "compactBedWidth": 0.82, "bedLength": 2.0, "bedBaseHeight": 0.24,
+      "mattressHeight": 0.16, "duvetHeight": 0.08, "headHeight": 0.70,
+      "bedSideClear": 0.22, "bedFootClear": 0.45, "bedSitClear": 1.35, "bedBodyClear": 0.95,
+      "bedWallOffsets": [0.035, 0.25, 0.50],
+      "chairWidth": 0.76, "chairDepth": 0.82, "chairHeight": 1.03, "seatHeight": 0.43,
+      "chairCompactScale": 0.86, "chairSitClear": 1.55,
+      "tableDiameter": 0.55, "compactTableDiameter": 0.45, "tableHeight": 0.46,
+      "tableOffset": 0.85, "tableClear": 0.10,
+      "shelfWidth": 0.60, "shelfDepth": 0.30, "shelfPlinth": 0.10, "shelfPitch": 0.31,
+      "shelfBoard": 0.018, "shelfMaxHeight": 2.20, "shelfMinHeight": 0.65, "shelfAccess": 0.20,
+      "lampHeight": 1.48, "lampBaseRadius": 0.13, "lampShadeRadius": 0.22,
+      "lampSideOffset": 0.80, "lampIntensity": 3.0, "lampRange": 3.4,
+      "wallGap": 0.035, "roofClear": 0.10, "doorClear": 0.85, "windowClear": 0.42,
+      "searchStep": 0.20
+    },
     "banquetFurniture": {
       "_doc": "Banquet refit: metres; table long axis x, wall furniture +y into room. Lights reuse fixed pool.",
       "tableWidth": 1.15, "tableHeight": 0.77, "tableMinLength": 2.2, "tableMaxLength": 8.0,

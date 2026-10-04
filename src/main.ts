@@ -24,7 +24,7 @@ import { partyWalls, roofCap, roofShape } from "./roof";
 import { type CutAxis, type CutMode, Cutaway } from "./cutaway";
 import { buildRooms3d } from "./rooms3d";
 import { RoomLabels } from "./roomLabels";
-import { type FurnitureInfo, type SalonInfo, type DiningInfo, type KitchenInfo, type CafeInfo, type BallroomInfo, buildCafeTerrace, buildFurniture } from "./furniture";
+import { type FurnitureInfo, type SalonInfo, type DiningInfo, type KitchenInfo, type CafeInfo, type BallroomInfo, type AtticInfo, buildCafeTerrace, buildFurniture } from "./furniture";
 import { LampLights } from "./lampLights";
 import { buildStairs } from "./stairs";
 import { StreetLife } from "./streetlife";
@@ -222,7 +222,7 @@ function rebuild(frame = false): void {
   labels = new RoomLabels(plan, interiorView.area);
   g.add(labels.group);
   applyCut(true);
-  roomEditor.update(edited, furniture.userData.salons as SalonInfo, furniture.userData.dining as DiningInfo, furniture.userData.kitchens as KitchenInfo, cafeInfo, furniture.userData.ballroom as BallroomInfo ?? null);
+  roomEditor.update(edited, furniture.userData.salons as SalonInfo, furniture.userData.dining as DiningInfo, furniture.userData.kitchens as KitchenInfo, cafeInfo, furniture.userData.ballroom as BallroomInfo ?? null, furniture.userData.attic as AtticInfo ?? null);
 }
 
 /** the plane's place (world space) for the slider */

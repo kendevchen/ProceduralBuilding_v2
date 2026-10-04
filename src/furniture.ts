@@ -16,7 +16,7 @@
  */
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { CanvasTexture, Color, Group, type Material, Matrix4, Mesh, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace, Vector3 } from "three";
-import { type Look, type Stamp, booksStamp, carpetStamp, salonRugStamp, diningRugStamp, kitchenBacksplashStamp, kitchenWorktopStamp, banquetWoodStamp, banquetFabricStamp, cafeWoodStamp, cafeFurnitureStamp, cafeStoneStamp, cafeWickerStamp, stampOf } from "./finishes";
+import { type Look, type Stamp, atticWoodStamp, atticBooksStamp, atticFabricStamp, atticGlassStamp, booksStamp, carpetStamp, salonRugStamp, diningRugStamp, kitchenBacksplashStamp, kitchenWorktopStamp, banquetWoodStamp, banquetFabricStamp, cafeWoodStamp, cafeFurnitureStamp, cafeStoneStamp, cafeWickerStamp, stampOf } from "./finishes";
 import type { BuildingPlan, PlanRoom } from "./plan";
 import type { Building } from "./generator";
 import type { CafeTheme } from "./cafes";
@@ -383,6 +383,156 @@ function bookcase(wood: Tris, books: Tris, f: { a: V2; d: V2; n: V2; s0: number;
     const zb = CASE.plinth + r * CASE.pitch + CASE.board;
     bk.card(0.0125, zb, len - 0.0125, zb + CASE.pitch - CASE.board, 0.17);
   }
+}
+
+// ------------------------------------------------------------------ attic reading/bed sample
+const ATTIC = dims.interior.atticFurniture;
+export interface AtticInfo {
+  roomId: string | null; bed: boolean; reading: boolean; lamp: boolean; shelves: number; compact: boolean; missing: string[];
+}
+interface AtticPlacement {
+  bed: Matrix4; reading: Matrix4 | null; lamp: Matrix4 | null;
+  shelves: { m: Matrix4; width: number; height: number }[]; compact: boolean;
+}
+function atticSingleBed(linen: Tris, decor: Tris, m: Matrix4): void {
+  const A = ATTIC, p = new Part(decor, m), w = A.bedWidth / 2, h = A.bedBaseHeight;
+  decor.stamp = atticWoodStamp();
+  p.box(-w, 0, 0.08, w, A.bedLength, h);
+  p.box(-w, 0, h, w, 0.07, A.headHeight);
+  for (const x of [-w + 0.04, w - 0.04]) for (const y of [0.06, A.bedLength - 0.06]) p.box(x - 0.025, y - 0.025, 0, x + 0.025, y + 0.025, 0.10);
+  const bedding = new Part(linen, m), top = h + A.mattressHeight;
+  bedding.softBox(0, A.bedLength / 2, h + A.mattressHeight / 2, A.bedWidth - 0.03, A.bedLength - 0.08, A.mattressHeight, 0.035);
+  bedding.softBox(0, A.bedLength * 0.60, top + A.duvetHeight / 2, A.bedWidth + 0.04, A.bedLength * 0.72, A.duvetHeight, 0.035);
+  bedding.softBox(0, A.bedLength * 0.18, top + 0.07, A.bedWidth * 0.76, 0.38, 0.14, 0.055);
+}
+function atticArmchair(decor: Tris, m: Matrix4): void {
+  const A = ATTIC, w = A.chairWidth, d = A.chairDepth;
+  decor.stamp = atticWoodStamp(); const wood = new Part(decor, m);
+  for (const x of [-w * 0.35, w * 0.35]) for (const y of [-d * 0.35, d * 0.35]) wood.lathe(x, y, leg(A.seatHeight * 0.65), 6);
+  decor.stamp = atticFabricStamp(); const pad = new Part(decor, m);
+  pad.softBox(0, 0, A.seatHeight - 0.06, w * 0.9, d * 0.9, 0.20, 0.055);
+  pad.softBox(0, d * 0.06, A.seatHeight + 0.045, w * 0.70, d * 0.70, 0.09, 0.035);
+  pad.softBox(0, -d * 0.36, (A.chairHeight + A.seatHeight) / 2, w * 0.80, 0.17, A.chairHeight - A.seatHeight, 0.055);
+  for (const side of [-1, 1]) {
+    pad.box(side * w * 0.38 - 0.07, -d * 0.30, A.seatHeight, side * w * 0.38 + 0.07, d * 0.35, A.seatHeight + 0.19);
+    const arm = m.clone().multiply(at(side * w * 0.38, 0, A.seatHeight + 0.21));
+    new Part(decor, arm).lathe(0, 0, [[0, -0.06], [0.07, -0.06], [0.07, 0.06], [0, 0.06]], 8);
+  }
+}
+function atticRoundTable(decor: Tris, m: Matrix4, diameter = ATTIC.tableDiameter): void {
+  const A = ATTIC, p = new Part(decor, m); decor.stamp = atticWoodStamp();
+  p.lathe(0, 0, [[0, 0], [diameter * 0.33, 0], [diameter * 0.33, 0.025], [0.035, 0.08], [0.028, A.tableHeight - 0.05], [0, A.tableHeight - 0.05]], 10);
+  banquetSlab(decor, m, diameter, diameter, A.tableHeight - 0.045, A.tableHeight);
+}
+function atticBookshelf(decor: Tris, books: Tris, m: Matrix4, width: number, height: number): void {
+  const A = ATTIC, rows = Math.max(1, Math.floor((height - A.shelfPlinth - A.shelfBoard) / A.shelfPitch));
+  const top = A.shelfPlinth + rows * A.shelfPitch + A.shelfBoard;
+  decor.stamp = atticWoodStamp(); const p = new Part(decor, m);
+  p.box(-width / 2, 0, 0, width / 2, A.shelfDepth, A.shelfPlinth);
+  p.box(-width / 2, 0, A.shelfPlinth, width / 2, 0.018, top);
+  for (const x of [-width / 2, width / 2 - A.shelfBoard]) p.box(x, 0, A.shelfPlinth, x + A.shelfBoard, A.shelfDepth, top);
+  books.stamp = atticBooksStamp(m.elements[14] + A.shelfPlinth);
+  for (let row = 0; row <= rows; row++) {
+    const z = A.shelfPlinth + row * A.shelfPitch;
+    p.box(-width / 2, 0, z, width / 2, A.shelfDepth, z + A.shelfBoard);
+    if (row < rows) new Part(books, m).card(-width / 2 + A.shelfBoard, z + A.shelfBoard, width / 2 - A.shelfBoard, z + A.shelfPitch - 0.008, A.shelfDepth - 0.05);
+  }
+}
+function atticFloorLamp(brass: Tris, decor: Tris, bulb: Tris, m: Matrix4): void {
+  const A = ATTIC, h = A.lampHeight, p = new Part(brass, m);
+  p.lathe(0, 0, [[0, 0], [A.lampBaseRadius, 0], [A.lampBaseRadius, 0.035], [0.04, 0.07], [0.015, 0.10], [0.012, h - 0.18], [0, h - 0.18]], 10);
+  decor.stamp = atticGlassStamp();
+  new Part(decor, m).lathe(0, 0, [[A.lampShadeRadius, h - 0.22], [A.lampShadeRadius * 0.75, h - 0.09], [0.04, h],
+    [0.03, h], [A.lampShadeRadius * 0.75 - 0.008, h - 0.09], [A.lampShadeRadius - 0.008, h - 0.22], [A.lampShadeRadius, h - 0.22]], 24);
+  new Part(bulb, m).lathe(0, 0, [[0, h - 0.27], [0.035, h - 0.25], [0.035, h - 0.15], [0, h - 0.13]], 8);
+}
+
+function atticPlacement(plan: BuildingPlan, b: Building, room: PlanRoom): AtticPlacement | null {
+  const A = ATTIC, up = atticCeiling(b, room.ceilingZ), openings: V2[][] = [];
+  const poly = (m: Matrix4, rect: SalonRect): V2[] => [[rect[0], rect[1]], [rect[2], rect[1]], [rect[2], rect[3]], [rect[0], rect[3]]].map(([x, y]) => {
+    const p = new Vector3(x, y, 0).applyMatrix4(m); return [p.x, p.y];
+  });
+  const reserve = (c: V2, d: V2, width: number, depth: number) => {
+    let n: V2 = [-d[1], d[0]]; if (!inRoom(room.polygon, [c[0] + n[0] * 0.2, c[1] + n[1] * 0.2])) n = [-n[0], -n[1]];
+    const m = new Matrix4().makeBasis(new Vector3(...d, 0), new Vector3(...n, 0), new Vector3(0, 0, 1)).setPosition(...c, room.floorZ);
+    openings.push(poly(m, [-width / 2 - 0.10, -0.10, width / 2 + 0.10, depth]));
+  };
+  for (const door of room.doors) {
+    const w = plan.walls[door.wall], length = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
+    const d: V2 = [(w.b[0] - w.a[0]) / length, (w.b[1] - w.a[1]) / length];
+    reserve([w.a[0] + d[0] * door.at, w.a[1] + d[1] * door.at], d, door.width, A.doorClear);
+  }
+  for (const i of room.windows) { const w = plan.windows[i]; reserve(w.at, w.dir, w.width, A.windowClear); }
+  const fits = (p: V2[], occupied: V2[][]) => roomContains(room.polygon, p) && ![...openings, ...occupied].some(o => overlaps(p, o));
+  const headroom = (m: Matrix4, rect: SalonRect, height: number) => poly(m, rect).every(p => up(p) - room.floorZ >= height + A.roofClear);
+  const edges = freeStretches(plan, room).sort((a, b) => (b.s1 - b.s0) - (a.s1 - a.s0));
+  const wall = (f: typeof edges[number], s: number, depth: number) => new Matrix4().makeBasis(new Vector3(...f.d, 0), new Vector3(...f.n, 0), new Vector3(0, 0, 1))
+    .setPosition(f.a[0] + f.d[0] * s + f.n[0] * depth, f.a[1] + f.d[1] * s + f.n[1] * depth, room.floorZ);
+  let best: AtticPlacement | null = null, bestScore = -Infinity;
+  for (const compact of [false, true]) for (const edge of edges) {
+    const width = compact ? A.compactBedWidth : A.bedWidth;
+    if (edge.s1 - edge.s0 < width + A.bedSideClear * 2) continue;
+    const positions = [(edge.s0 + edge.s1) / 2];
+    for (let s = edge.s0 + width / 2 + A.bedSideClear; s <= edge.s1 - width / 2 - A.bedSideClear; s += A.searchStep) positions.push(s);
+    for (const depth of A.bedWallOffsets) for (const s of positions) {
+      const bed = wall(edge, s, depth).multiply(new Matrix4().makeScale(width / A.bedWidth, 1, 1));
+      const bedBlock = poly(bed, [-A.bedWidth / 2 - A.bedSideClear, 0, A.bedWidth / 2 + A.bedSideClear, A.bedLength + A.bedFootClear]);
+      if (!fits(bedBlock, []) || !headroom(bed, [-A.bedWidth / 2, 0, A.bedWidth / 2, 0.45], A.bedSitClear) ||
+        !headroom(bed, [-A.bedWidth / 2, 0.45, A.bedWidth / 2, A.bedLength], A.bedBodyClear)) continue;
+      const occupied = [bedBlock];
+      let reading: Matrix4 | null = null, lamp: Matrix4 | null = null;
+      const scale = compact ? A.chairCompactScale : 1, diameter = compact ? A.compactTableDiameter : A.tableDiameter;
+      for (const f of edges) {
+        for (let u = f.s0 + A.chairWidth * scale / 2 + A.wallGap; u <= f.s1 - A.chairWidth * scale / 2 - A.wallGap; u += A.searchStep) {
+          const m = wall(f, u, A.chairDepth * scale / 2 + A.wallGap);
+          const block = poly(m, [-A.chairWidth * scale / 2 - A.tableClear, -A.chairDepth * scale / 2,
+            A.chairWidth * scale / 2 + A.tableClear, A.tableOffset + diameter / 2 + A.tableClear]);
+          if (!fits(block, occupied) || !headroom(m, [-A.chairWidth * scale / 2, -A.chairDepth * scale / 2,
+            A.chairWidth * scale / 2, A.chairDepth * scale / 2], A.chairSitClear) ||
+            !headroom(m, [-diameter / 2, A.tableOffset - diameter / 2, diameter / 2, A.tableOffset + diameter / 2], A.tableHeight)) continue;
+          reading = m; occupied.push(block); break;
+        }
+        if (reading) break;
+      }
+      if (reading) {
+        for (const x of [-A.lampSideOffset, A.lampSideOffset]) {
+          const m = reading.clone().multiply(at(x, 0, 0)), r = A.lampShadeRadius + 0.04, footprint = poly(m, [-r, -r, r, r]);
+          if (fits(footprint, occupied) && headroom(m, [-r, -r, r, r], A.lampHeight)) { lamp = m; occupied.push(footprint); break; }
+        }
+      }
+      const shelves: AtticPlacement["shelves"] = [];
+      for (const f of edges) {
+        const count = Math.floor((f.s1 - f.s0 - A.wallGap * 2) / A.shelfWidth);
+        for (let i = 0; i < count; i++) {
+          const m = wall(f, f.s0 + A.wallGap + (i + 0.5) * A.shelfWidth, A.wallGap);
+          const footprint = poly(m, [-A.shelfWidth / 2, 0, A.shelfWidth / 2, A.shelfDepth + A.shelfAccess]);
+          if (!fits(footprint, occupied)) continue;
+          const points = poly(m, [-A.shelfWidth / 2, 0, A.shelfWidth / 2, A.shelfDepth]);
+          const height = Math.min(A.shelfMaxHeight, ...points.map(p => up(p) - room.floorZ - A.roofClear));
+          if (height < A.shelfMinHeight) continue;
+          shelves.push({ m, width: A.shelfWidth, height }); occupied.push(footprint);
+        }
+      }
+      const score = Number(!!reading) * 10000 + Number(!!lamp) * 1000 + Math.min(shelves.length, 4) * 100 + Number(!compact);
+      if (score > bestScore) { best = { bed, reading, lamp, shelves, compact }; bestScore = score; }
+      if (reading && lamp && shelves.length >= 2 && !compact) return best;
+    }
+  }
+  return best;
+}
+function atticSet(linen: Tris, brass: Tris, decor: Tris, books: Tris, bulb: Tris, placement: AtticPlacement, sources: FurnitureLight[]): void {
+  const A = ATTIC, { bed, reading, lamp, shelves, compact } = placement;
+  atticSingleBed(linen, decor, bed);
+  if (reading) {
+    const scale = compact ? A.chairCompactScale : 1;
+    atticArmchair(decor, reading.clone().multiply(new Matrix4().makeScale(scale, scale, 1)));
+    atticRoundTable(decor, reading.clone().multiply(at(0, A.tableOffset, 0)), compact ? A.compactTableDiameter : A.tableDiameter);
+  }
+  if (lamp) {
+    atticFloorLamp(brass, decor, bulb, lamp);
+    sources.push({ position: new Vector3(0, 0, A.lampHeight - 0.19).applyMatrix4(lamp), intensity: A.lampIntensity, distance: A.lampRange });
+  }
+  for (const shelf of shelves) atticBookshelf(decor, books, shelf.m, shelf.width, shelf.height);
 }
 
 // ------------------------------------------------------------------ bedrooms
@@ -1587,6 +1737,13 @@ export function buildFurnitureItems(mats: InteriorMaterials): FurnitureItem[] {
   });
   add("書房", "Open book", "攤開的書", p => openBook(p.leather, p.linen, m));
   add("書房", "Brass desk lamp", "黃銅書桌檯燈", p => { lamp(p.brass, p.shade, m); });
+  add("閣樓房", "Attic single bed", "閣樓原木單人床", p => atticSingleBed(p.linen, p.art, m));
+  add("閣樓房", "Attic reading armchair", "閣樓花紋單人沙發", p => atticArmchair(p.art, m));
+  add("閣樓房", "Attic round table", "閣樓原木小圓桌", p => atticRoundTable(p.art, m));
+  add("閣樓房", "Stepped pale-book shelves", "階梯式淺色書本書櫃", p => {
+    for (const [i, height] of [1.25, 2.20, 1.56].entries()) atticBookshelf(p.art, p.books, at((i - 1) * ATTIC.shelfWidth, 0, 0), ATTIC.shelfWidth, height);
+  });
+  add("閣樓房", "Stained-glass floor lamp", "彩繪玻璃立燈", p => atticFloorLamp(p.brass, p.art, p.bulb, m));
   add("臥室", "Double bed", "雙人床", p => doubleBed(p.linen, m));
   add("臥室", "Bedside table", "床頭櫃", p => nightstand(p.linen, p.brass, m));
   add("臥室", "Pleated lamp", "褶紋床頭檯燈", p => { bedsideLamp(p.brass, p.shade, m); });
@@ -1747,6 +1904,26 @@ export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMa
     lampAt(length / 2 - 0.22, dep / 2 - 0.18);
     if (big) lampAt(-length / 2 + 0.22, dep / 2 - 0.18);
   }
+
+  const atticRooms = plan.rooms.filter(r => r.type === "maid" && r.level === attic.index).sort((a, b) => b.area - a.area || a.id.localeCompare(b.id));
+  let sample: { room: PlanRoom; placement: AtticPlacement } | null = null;
+  for (const room of atticRooms) {
+    const placement = atticPlacement(plan, b, room);
+    if (!placement) continue;
+    const score = (p: AtticPlacement) => Number(!!p.reading) * 100 + Number(!!p.lamp) * 10 + Math.min(p.shelves.length, 4);
+    if (!sample || score(placement) > score(sample.placement)) sample = { room, placement };
+    if (placement.reading && placement.lamp && placement.shelves.length) break;
+  }
+  const atticInfo: AtticInfo = { roomId: sample?.room.id ?? atticRooms[0]?.id ?? null, bed: !!sample, reading: !!sample?.placement.reading,
+    lamp: !!sample?.placement.lamp, shelves: sample?.placement.shelves.length ?? 0, compact: !!sample?.placement.compact, missing: [] };
+  if (atticInfo.roomId) {
+    if (!atticInfo.bed) atticInfo.missing.push("單人床");
+    if (!atticInfo.reading) atticInfo.missing.push("單人沙發與小桌");
+    if (!atticInfo.lamp) atticInfo.missing.push("立燈");
+    if (!atticInfo.shelves) atticInfo.missing.push("書櫃");
+  }
+  if (sample) atticSet(linen, brass, diningDecor, books, banquetBulb, sample.placement, lightSources);
+  group.userData.attic = atticInfo;
 
   const bedrooms: string[] = [], unfurnishedBedrooms: string[] = [];
   const oneTableBedrooms: string[] = [];

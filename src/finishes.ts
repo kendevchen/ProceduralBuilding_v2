@@ -22,7 +22,7 @@ export type Stamp = [number, number, number, number, number, number, number, num
 
 const P = {
   plain: 0, herringbone: 1, boards: 2, hexMixed: 3, hexSparse: 4, marble: 5, carpet: 6, salonRug: 7, diningRug: 8, kitchenMarbleTiles: 9,
-  paint: 10, wallpaper: 11, boiserie: 12, tiles: 13, books: 14, bedroomPanels: 15, diningPanels: 16, blackMarble: 17, kitchenWorktop: 18, cafeFloor: 19, cafePanels: 20, cafeWood: 21, cafeStone: 22, cafeWicker: 23, cafeFurnitureWood: 24, banquetPanels: 25, banquetWood: 26, banquetFabric: 27,
+  paint: 10, wallpaper: 11, boiserie: 12, tiles: 13, books: 14, bedroomPanels: 15, diningPanels: 16, blackMarble: 17, kitchenWorktop: 18, cafeFloor: 19, cafePanels: 20, cafeWood: 21, cafeStone: 22, cafeWicker: 23, cafeFurnitureWood: 24, banquetPanels: 25, banquetWood: 26, banquetFabric: 27, atticBooks: 28, atticFabric: 29, atticGlass: 30,
 } as const;
 type Pattern = (typeof P)[keyof typeof P];
 
@@ -83,6 +83,11 @@ export function kitchenBacksplashStamp(floorZ: number, ceilingZ: number): Stamp 
 export function kitchenWorktopStamp(): Stamp {
   return stamp(P.kitchenWorktop, rgb("#e7e2d7"), rgb("#b9b7b0"));
 }
+
+export function atticWoodStamp(): Stamp { return stamp(P.cafeFurnitureWood, rgb("#ad8762"), rgb("#785b3d")); }
+export function atticBooksStamp(boardZ: number): Stamp { return stamp(P.atticBooks, rgb("#e3dccc"), rgb("#a49b89"), boardZ, boardZ + 3); }
+export function atticFabricStamp(): Stamp { return stamp(P.atticFabric, rgb("#e0d3b8"), rgb("#9e8069")); }
+export function atticGlassStamp(): Stamp { return stamp(P.atticGlass, rgb("#d6aa69"), rgb("#a86646")); }
 
 export function banquetWoodStamp(): Stamp { return stamp(P.banquetWood, rgb("#493027"), rgb("#271b17")); }
 export function banquetFabricStamp(): Stamp { return stamp(P.banquetFabric, rgb("#a7b9b8"), rgb("#d8dbca")); }
@@ -355,6 +360,30 @@ vec4 finBooks(float u, float h) {
   return vec4(col, 0.7);
 }
 
+// Pale modern book spines with plain titles and occasional horizontal stacks.
+vec4 finAtticBooks(float u, float h) {
+  float pitch = ${dims.interior.atticFurniture.shelfPitch.toFixed(3)};
+  float row = floor(h / pitch), y = mod(h, pitch);
+  float group = floor(u / 0.30), x = fract(u / 0.30);
+  vec3 back = vec3(0.33, 0.25, 0.17);
+  float key = finHash(vec2(group, row));
+  if (key < 0.24) {
+    float book = floor(y / 0.038), spine = mod(y, 0.038);
+    if (y > 0.17 || x < 0.10 || x > 0.88) return vec4(back, 0.85);
+    vec3 paper = mix(vec3(0.86, 0.82, 0.73), vec3(0.61, 0.57, 0.49), finHash(vec2(group + book, row)));
+    return vec4(paper * mix(0.65, 1.0, smoothstep(0.0, 0.003, spine)), 0.90);
+  }
+  float id = floor(x * 6.0), q = fract(x * 6.0);
+  float top = 0.20 + 0.08 * finHash(vec2(group * 6.0 + id, row + 4.0));
+  if (y > top || (key > 0.91 && id > 3.0)) return vec4(back, 0.85);
+  vec3 paper = mix(vec3(0.90, 0.87, 0.79), vec3(0.62, 0.59, 0.53), finHash(vec2(group * 6.0 + id, row)) * 0.75);
+  float edge = min(q, 1.0 - q) * 0.05;
+  paper *= mix(0.63, 1.0, smoothstep(0.0, 0.003, edge));
+  float title = finLine(abs(y - top * 0.70), 0.002) + finLine(abs(y - top * 0.61), 0.0015);
+  if (q > 0.20 && q < 0.80) paper = mix(paper, vec3(0.44, 0.43, 0.39), title * 0.40);
+  return vec4(paper, 0.92);
+}
+
 // Muted wool rug: scrolling stems, eight-petal flowers and a narrow woven border.
 vec4 finSalonRug(vec2 uv, vec2 size, bool dining) {
   float e = min(min(uv.x, size.x - uv.x), min(uv.y, size.y - uv.y));
@@ -527,6 +556,24 @@ float finRough = 0.85;
     } else if (pat == 17) {
       col = finKitchenStone(vec2(u, h), A, B, 0.85);
       finRough = 0.24;
+    } else if (pat == 28) {
+      vec4 bk = finAtticBooks(u, h); col = bk.rgb; finRough = bk.w;
+    } else if (pat == 29) {
+      vec2 q = mod(vec2(u, h), 0.18) - 0.09;
+      float petals = 0.0;
+      for (int k = 0; k < 5; k++) {
+        float a = float(k) * 1.256637;
+        vec2 d = q - vec2(cos(a), sin(a)) * 0.030;
+        petals = max(petals, 1.0 - smoothstep(0.017, 0.023, length(d)));
+      }
+      float stem = finLine(abs(q.x - 0.015 * sin(q.y * 45.0)), 0.0015);
+      col = mix(A, B, max(petals * 0.42, stem * 0.22)); finRough = 0.92;
+    } else if (pat == 30) {
+      vec2 uv = vFinPos.xz * 13.0, cell = floor(uv), q = fract(uv);
+      float edge = min(min(q.x, 1.0 - q.x), min(q.y, 1.0 - q.y));
+      float key = finHash(cell);
+      col = key < 0.32 ? vec3(0.61, 0.35, 0.24) : key < 0.60 ? vec3(0.73, 0.58, 0.33) : vec3(0.65, 0.67, 0.43);
+      col = mix(vec3(0.19, 0.16, 0.12), col, smoothstep(0.012, 0.025, edge)); finRough = 0.34;
     } else if (pat == 14) {
       vec4 bk = finBooks(u, h);
       col = bk.rgb;
@@ -543,7 +590,7 @@ float finRough = 0.85;
       } else col = B * (0.97 + 0.05 * finNoise(vec2(u, h) * 4.0));
     }
     // skirting board
-    if (h < 0.13 && pat != 13 && pat != 14 && pat != 17 && pat != 18 && pat != 22 && pat != 23 && pat != 24 && pat != 26 && pat != 27) col = (pat == 12 || pat == 15) ? mix(A, B, 0.5) : B * 0.95;
+    if (h < 0.13 && pat != 13 && pat != 14 && pat != 17 && pat != 18 && pat != 22 && pat != 23 && pat != 24 && pat != 26 && pat != 27 && pat != 28 && pat != 29 && pat != 30) col = (pat == 12 || pat == 15) ? mix(A, B, 0.5) : B * 0.95;
     if (h < 0.13 && pat == 16) col = vec3(0.82, 0.80, 0.74) * 0.95;
   }
   diffuseColor.rgb = col;
