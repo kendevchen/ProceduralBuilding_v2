@@ -24,7 +24,7 @@ import { partyWalls, roofCap, roofShape } from "./roof";
 import { type CutAxis, type CutMode, Cutaway } from "./cutaway";
 import { buildRooms3d } from "./rooms3d";
 import { RoomLabels } from "./roomLabels";
-import { type FurnitureInfo, type SalonInfo, type DiningInfo, type KitchenInfo, type CafeInfo, buildCafeTerrace, buildFurniture } from "./furniture";
+import { type FurnitureInfo, type SalonInfo, type DiningInfo, type KitchenInfo, type CafeInfo, type BallroomInfo, buildCafeTerrace, buildFurniture } from "./furniture";
 import { LampLights } from "./lampLights";
 import { buildStairs } from "./stairs";
 import { StreetLife } from "./streetlife";
@@ -193,7 +193,12 @@ function rebuild(frame = false): void {
   const furniture = buildFurniture(plan, b, cutaway.interior, interiorView.look);
   interior.add(furniture);
   // the lamps' places in world space: Blender (x, y, z) -> (x - W/2, z, L/2 - y)
-  lampLights.setLamps((furniture.userData.furniture as FurnitureInfo).lamps.map(p => new Vector3(p.x - b.width / 2, p.z, b.length / 2 - p.y)));
+  const furnitureInfo = furniture.userData.furniture as FurnitureInfo;
+  const worldLight = (p: Vector3) => new Vector3(p.x - b.width / 2, p.z, b.length / 2 - p.y);
+  lampLights.setLamps([
+    ...furnitureInfo.lamps.map(p => ({ position: worldLight(p), intensity: 9, distance: 4.2 })),
+    ...furnitureInfo.lightSources.map(source => ({ ...source, position: worldLight(source.position) })),
+  ]);
   g.add(interior);
   g.position.set(-b.width / 2, -b.length / 2, 0); // footprint centred on the origin
   const terrace = buildCafeTerrace(plan, b, cutaway.galleryInterior, street.params);
@@ -217,7 +222,7 @@ function rebuild(frame = false): void {
   labels = new RoomLabels(plan, interiorView.area);
   g.add(labels.group);
   applyCut(true);
-  roomEditor.update(edited, furniture.userData.salons as SalonInfo, furniture.userData.dining as DiningInfo, furniture.userData.kitchens as KitchenInfo, cafeInfo);
+  roomEditor.update(edited, furniture.userData.salons as SalonInfo, furniture.userData.dining as DiningInfo, furniture.userData.kitchens as KitchenInfo, cafeInfo, furniture.userData.ballroom as BallroomInfo ?? null);
 }
 
 /** the plane's place (world space) for the slider */

@@ -2,10 +2,9 @@
  * Furnishings (INTERIOR_SPEC.md §6.8), in code like the stairs: plain geometry
  * merged per material. One ballroom per building, and a few studies, so there is
  * no need to instance or to go through Blender.
- *   - the ballroom: a long banquet table under a white cloth with a pleated gold
- *     skirt, upholstered chairs round it (turned front legs, an arched back with a
- *     cross lattice), and a wool carpet on the parquet (its pattern is drawn in
- *     finishes.ts);
+ *   - the ballroom: a rounded walnut table, gilt upholstered chairs, cards and
+ *     floral centerpieces, chandeliers, painting, consoles and glass cabinets;
+ *     its original carpet remains on the parquet (finishes.ts);
  *   - the studies: bookcases along the walls without windows (the books are a
  *     shader pattern on a card in each shelf), a desk or reading table with turned
  *     legs, ebony chairs with spindle backs, an open book and brass lamps whose
@@ -16,15 +15,17 @@
  * Z-up space, like rooms3d.ts.
  */
 import { CanvasTexture, Color, Group, type Material, Matrix4, Mesh, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace, Vector3 } from "three";
-import { type Look, type Stamp, booksStamp, carpetStamp, salonRugStamp, diningRugStamp, kitchenBacksplashStamp, kitchenWorktopStamp, cafeWoodStamp, cafeFurnitureStamp, cafeStoneStamp, cafeWickerStamp, stampOf } from "./finishes";
+import { type Look, type Stamp, booksStamp, carpetStamp, salonRugStamp, diningRugStamp, kitchenBacksplashStamp, kitchenWorktopStamp, banquetWoodStamp, banquetFabricStamp, cafeWoodStamp, cafeFurnitureStamp, cafeStoneStamp, cafeWickerStamp, stampOf } from "./finishes";
 import type { BuildingPlan, PlanRoom } from "./plan";
 import type { Building } from "./generator";
 import type { CafeTheme } from "./cafes";
+import { ballroomPainting, banquetPlaceCard } from "./ballroomArt";
 import { type InteriorMaterials, Tris, atticCeiling } from "./rooms3d";
 import type { V2 } from "./roof";
 import dims from "../blender/kit_dims.json";
 import { inRoom, roomAnchor, roomContains } from "./roomGeometry";
 
+const BANQUET = dims.interior.banquetFurniture;
 const BED = dims.interior.bedroomFurniture;
 const SALON = dims.interior.salonFurniture;
 const DINING = dims.interior.diningFurniture;
@@ -32,8 +33,6 @@ const KITCHEN = dims.interior.kitchenFurniture;
 
 /** the parquet that shows round the carpet, and the clearance round the table */
 const RUG_MARGIN = 0.55;
-const TABLE = { width: 1.15, height: 0.77, cloth: 0.32, end: 1.9 };
-const CHAIR = { pitch: 0.62, setback: 0.15 };
 /** bookcases: depth, plinth, shelf pitch (the books' shader repeats at this), board thickness */
 const CASE = { depth: 0.32, plinth: 0.12, pitch: 0.34, board: 0.025, top: 2.6 };
 
@@ -138,50 +137,142 @@ const leg = (top: number): [number, number][] => [
   [0.02, top * 0.55], [0.024, top - 0.03], [0.03, top - 0.01], [0, top],
 ];
 
-/** a banquet chair facing +y of its frame, origin at the centre of its footprint on the floor */
-function banquetChair(wood: Tris, fabric: Tris, m: Matrix4): void {
-  const w = new Part(wood, m), f = new Part(fabric, m);
-  for (const sx of [-1, 1]) {
-    w.lathe(sx * 0.2, 0.2, leg(0.4), 8); // front legs, turned
-    w.box(sx * 0.2 - 0.022, -0.2 - 0.022, 0, sx * 0.2 + 0.022, -0.2 + 0.022, 0.99); // back posts
+/** Closed capsule slab: rounded ends without dense bevel geometry. */
+function banquetSlab(t: Tris, m: Matrix4, length: number, width: number, z0: number, z1: number): void {
+  const r = width / 2, straight = Math.max(0, (length - width) / 2), outline: V2[] = [];
+  for (const side of [1, -1]) for (let i = 0; i <= 12; i++) {
+    const angle = -Math.PI / 2 + i * Math.PI / 12 + (side < 0 ? Math.PI : 0);
+    outline.push([side * straight + r * Math.cos(angle), r * Math.sin(angle)]);
   }
-  w.box(-0.22, -0.22, 0.38, 0.22, 0.22, 0.45); // seat frame
-  w.box(-0.19, -0.2, 0.38, 0.19, -0.18, 0.45);
-  f.box(-0.2, -0.2, 0.45, 0.2, 0.2, 0.5); // cushion, with a smaller dome on it
-  f.box(-0.185, -0.185, 0.5, 0.185, 0.185, 0.54);
-  // the arched top rail, in short bars along a curve
-  const arch = (x: number) => 0.935 + 0.05 * (1 - (x / 0.2) ** 2);
-  for (let i = 0; i < 8; i++) {
-    const xa = -0.2 + (0.4 * i) / 8, xb = -0.2 + (0.4 * (i + 1)) / 8;
-    w.strut(xa, arch(xa), xb, arch(xb), -0.205, 0.05);
-  }
-  w.box(-0.2, -0.225, 0.55, 0.2, -0.185, 0.6); // lower rail
-  f.box(-0.17, -0.215, 0.6, 0.17, -0.195, 0.9); // upholstered back
-  // the cross lattice in front of it
-  w.strut(-0.17, 0.6, 0.17, 0.9, -0.18, 0.02);
-  w.strut(0.17, 0.6, -0.17, 0.9, -0.18, 0.02);
+  const point = (v: V2, z: number) => new Vector3(v[0], v[1], z).applyMatrix4(m);
+  const up = new Vector3(0, 0, 1).transformDirection(m);
+  outline.forEach((a, i) => {
+    const b = outline[(i + 1) % outline.length];
+    const normal = new Vector3(b[1] - a[1], a[0] - b[0], 0).transformDirection(m);
+    t.quad(point(a, z0), point(b, z0), point(b, z1), point(a, z1), normal);
+    t.tri(new Vector3(0, 0, z1).applyMatrix4(m), point(a, z1), point(b, z1), up);
+    t.tri(new Vector3(0, 0, z0).applyMatrix4(m), point(b, z0), point(a, z0), up.clone().negate());
+  });
 }
 
-/** the table: a gold skirt to the floor, pleated, under a white cloth that hangs below the top */
-function banquetTable(linen: Tris, gold: Tris, m: Matrix4, length: number): void {
-  const hl = length / 2, hw = TABLE.width / 2, top = TABLE.height - TABLE.cloth;
-  const g = new Part(gold, m);
-  g.box(-hl + 0.06, -hw + 0.06, 0, hl - 0.06, hw - 0.06, top);
-  // pleats: thin vertical boards, every other one a little proud
-  const strips = (n: number, along: (k: number) => [number, number, number, number]) => {
-    for (let k = 0; k < n; k++) {
-      const [x0, y0, x1, y1] = along(k);
-      const o = k % 2 ? 0.02 : 0.006;
-      g.box(x0 - (x1 === x0 ? o : 0), y0 - (y1 === y0 ? o : 0), 0, x1 + (x1 === x0 ? o : 0), y1 + (y1 === y0 ? o : 0), top);
+function banquetTable(decor: Tris, brass: Tris, m: Matrix4, length: number): void {
+  const B = BANQUET, h = B.tableHeight, p = new Part(decor, m);
+  decor.stamp = banquetWoodStamp();
+  banquetSlab(decor, m, length, B.tableWidth, h - 0.065, h);
+  banquetSlab(decor, m, length - 0.12, B.tableWidth - 0.12, h - 0.17, h - 0.065);
+  for (const x of [-1, 1]) for (const y of [-1, 1]) {
+    p.lathe(x * (length / 2 - B.tableWidth * 0.45), y * B.tableWidth * 0.32, leg(h - 0.13).map(([r, z]) => [r * 1.8, z]), 8);
+    new Part(brass, m).lathe(x * (length / 2 - B.tableWidth * 0.45), y * B.tableWidth * 0.32,
+      [[0.044, 0.04], [0.047, 0.04], [0.047, 0.075], [0.044, 0.075], [0.044, 0.04]], 8);
+  }
+  banquetSlab(brass, m, length + 0.006, B.tableWidth + 0.006, h - 0.062, h - 0.053);
+}
+
+/** Gilt rectangular upholstered back; end chairs have curved arm supports. */
+function banquetChair(brass: Tris, decor: Tris, m: Matrix4, arms = false): void {
+  const B = BANQUET, w = B.chairWidth / 2, d = B.chairDepth / 2, g = new Part(brass, m);
+  for (const x of [-w * 0.85, w * 0.85]) for (const y of [-d * 0.85, d * 0.85]) g.lathe(x, y, leg(B.seatHeight - 0.03), 6);
+  g.box(-w, -d, B.seatHeight - 0.055, w, d, B.seatHeight);
+  for (const x of [-w, w - 0.025]) g.box(x, -d - 0.015, B.seatHeight, x + 0.025, -d + 0.025, B.chairHeight);
+  for (const z of [B.seatHeight + 0.1, B.chairHeight - 0.04]) g.box(-w, -d - 0.018, z, w, -d + 0.03, z + 0.035);
+  decor.stamp = banquetFabricStamp();
+  const pad = new Part(decor, m);
+  pad.box(-w + 0.025, -d + 0.02, B.seatHeight, w - 0.025, d - 0.02, B.seatHeight + 0.055);
+  pad.box(-w + 0.03, -d - 0.012, B.seatHeight + 0.14, w - 0.03, -d + 0.024, B.chairHeight - 0.05);
+  if (arms) for (const sign of [-1, 1]) {
+    const arm = new Part(brass, m.clone().multiply(at(sign * (w + 0.025), 0, 0)).multiply(new Matrix4().makeRotationZ(Math.PI / 2)));
+    arm.strut(-d, B.seatHeight + 0.08, -d * 0.4, B.seatHeight + 0.22, 0, 0.025);
+    arm.strut(-d * 0.4, B.seatHeight + 0.22, d * 0.85, B.seatHeight + 0.23, 0, 0.035);
+    arm.strut(d * 0.85, B.seatHeight + 0.23, d * 0.75, B.seatHeight, 0, 0.025);
+  }
+}
+
+function banquetCard(linen: Tris, brass: Tris, m: Matrix4): void {
+  const B = BANQUET;
+  new Part(linen, m).box(-B.placeCardWidth / 2, -0.018, 0, B.placeCardWidth / 2, 0.018, B.placeCardHeight);
+  new Part(brass, m).box(-B.placeCardWidth / 2 - 0.005, -0.024, 0, B.placeCardWidth / 2 + 0.005, 0.024, 0.008);
+}
+
+function banquetCenterpiece(brass: Tris, decor: Tris, bulb: Tris, m: Matrix4): void {
+  flowerPot(decor, m.clone().multiply(new Matrix4().makeScale(0.75, 0.75, 0.75)));
+  for (const side of [-1, 1]) {
+    const local = m.clone().multiply(at(side * 0.26, 0, 0)), stem = new Part(brass, local);
+    stem.lathe(0, 0, [[0, 0], [0.065, 0], [0.065, 0.025], [0.02, 0.05], [0.015, 0.22], [0.045, 0.23], [0, 0.23]], 8);
+    colour(decor, "#eee4ca"); new Part(decor, local).lathe(0, 0, [[0, 0.23], [0.018, 0.23], [0.018, 0.38], [0, 0.38]], 8);
+    new Part(bulb, local).lathe(0, 0, [[0, 0.38], [0.012, 0.40], [0, 0.425]], 6);
+  }
+}
+
+function banquetChandelier(brass: Tris, crystal: Tris, bulb: Tris, m: Matrix4, suspension: number): void {
+  const B = BANQUET, g = new Part(brass, m), h = B.chandelierHeight;
+  g.lathe(0, 0, [[0, 0.12], [0.07, 0.14], [0.10, 0.25], [0.055, 0.38], [0.08, h * 0.65], [0.025, h], [0, h]], 10);
+  g.lathe(0, 0, [[0, h], [0.012, h], [0.012, suspension], [0, suspension]], 6);
+  g.lathe(0, 0, [[0, suspension - 0.015], [0.12, suspension - 0.015], [0.12, suspension], [0, suspension]], 12);
+  for (const tier of [0, 1]) {
+    const count = tier ? 4 : 8, radius = B.chandelierRadius * (tier ? 0.65 : 1), z = tier ? h * 0.60 : h * 0.32;
+    for (let i = 0; i < count; i++) {
+      const angle = i * Math.PI * 2 / count + tier * 0.4, armM = m.clone().multiply(new Matrix4().makeRotationZ(angle)), arm = new Part(brass, armM);
+      const points: V2[] = [[0.035, z], [radius * 0.3, z - 0.12], [radius * 0.65, z - 0.11], [radius, z], [radius, z + 0.15]];
+      for (let j = 1; j < points.length; j++) arm.strut(points[j - 1][0], points[j - 1][1], points[j][0], points[j][1], 0, 0.023);
+      arm.lathe(radius, 0, [[0, z + 0.14], [0.065, z + 0.14], [0.065, z + 0.16], [0.025, z + 0.18], [0, z + 0.18]], 8);
+      new Part(bulb, armM).lathe(radius, 0, [[0, z + 0.18], [0.019, z + 0.18], [0.019, z + 0.26], [0.026, z + 0.29], [0, z + 0.34]], 8);
+      for (const u of [0.6, 0.95]) new Part(crystal, armM).lathe(radius * u, 0,
+        [[0, z - 0.27], [0.030, z - 0.20], [0.020, z - 0.14], [0, z - 0.11]], 4);
     }
-  };
-  const nx = Math.floor((length - 0.12) / 0.1), ny = Math.floor((TABLE.width - 0.12) / 0.1);
-  const sx = (length - 0.12) / nx, sy = (TABLE.width - 0.12) / ny;
-  strips(nx, k => [-hl + 0.06 + k * sx, -hw + 0.06, -hl + 0.06 + (k + 0.8) * sx, -hw + 0.06]);
-  strips(nx, k => [-hl + 0.06 + k * sx, hw - 0.06, -hl + 0.06 + (k + 0.8) * sx, hw - 0.06]);
-  strips(ny, k => [-hl + 0.06, -hw + 0.06 + k * sy, -hl + 0.06, -hw + 0.06 + (k + 0.8) * sy]);
-  strips(ny, k => [hl - 0.06, -hw + 0.06 + k * sy, hl - 0.06, -hw + 0.06 + (k + 0.8) * sy]);
-  new Part(linen, m).box(-hl, -hw, top, hl, hw, TABLE.height);
+  }
+  new Part(crystal, m).lathe(0, 0, [[0, 0], [0.075, 0.08], [0.065, 0.15], [0, 0.19]], 6);
+}
+
+function banquetConsole(decor: Tris, brass: Tris, m: Matrix4): void {
+  const B = BANQUET, p = new Part(decor, m), w = B.consoleWidth / 2, d = B.consoleDepth, h = B.consoleHeight;
+  decor.stamp = banquetWoodStamp();
+  p.box(-w, 0, h - 0.055, w, d, h);
+  p.box(-w + 0.025, 0.025, h - 0.16, w - 0.025, d - 0.025, h - 0.055);
+  for (const x of [-w + 0.07, w - 0.07]) for (const y of [0.06, d - 0.06]) p.lathe(x, y, leg(h - 0.1), 8);
+  new Part(brass, m).box(-w, d, h - 0.055, w, d + 0.01, h - 0.043);
+  new Part(brass, m).lathe(0, d + 0.018, [[0, h - 0.12], [0.016, h - 0.12], [0.016, h - 0.09], [0, h - 0.09]], 6);
+}
+
+function banquetLamp(brass: Tris, crystal: Tris, bulb: Tris, m: Matrix4): number {
+  const B = BANQUET, p = new Part(brass, m), h = B.lampHeight;
+  p.lathe(0, 0, [[0, 0], [0.10, 0], [0.10, 0.025], [0.055, 0.045], [0, 0.045]], 12);
+  new Part(crystal, m).lathe(0, 0, [[0, 0.045], [0.045, 0.045], [0.035, h * 0.54], [0.045, h * 0.57], [0, h * 0.57]], 8);
+  // Closed lampshade with a thin inner surface; faint emissive glow.
+  new Part(bulb, m).lathe(0, 0, [[B.lampShadeRadius, h * 0.55], [B.lampShadeRadius * 0.52, h],
+    [B.lampShadeRadius * 0.52 - 0.007, h], [B.lampShadeRadius - 0.007, h * 0.55], [B.lampShadeRadius, h * 0.55]], 16);
+  return h * 0.70;
+}
+
+function banquetCabinet(decor: Tris, brass: Tris, linen: Tris, glass: Tris, m: Matrix4): void {
+  const B = BANQUET, w = B.cabinetWidth / 2, d = B.cabinetDepth, h = B.cabinetHeight, p = new Part(decor, m);
+  decor.stamp = banquetWoodStamp();
+  p.box(-w, 0, 0.08, w, 0.025, h);
+  for (const x of [-w, w - 0.03]) p.box(x, 0, 0, x + 0.03, d, h);
+  p.box(-w, 0, 0, w, d, 0.15); p.box(-w - 0.025, 0, h - 0.05, w + 0.025, d + 0.02, h);
+  for (let i = 1; i <= 4; i++) p.box(-w, 0, i * h / 5, w, d, i * h / 5 + 0.018);
+  for (const x of [-w, -0.015, w - 0.03]) p.box(x, d, 0.15, x + 0.03, d + 0.025, h - 0.05);
+  for (const z of [0.15, h - 0.09]) p.box(-w, d, z, w, d + 0.025, z + 0.04);
+  const gp = new Part(glass, m);
+  for (const side of [-1, 1]) {
+    const x0 = side < 0 ? -w + 0.03 : 0.015, x1 = side < 0 ? -0.015 : w - 0.03;
+    gp.card(x0, 0.19, x1, h - 0.09, d + 0.008);
+    new Part(brass, m).box(side * 0.035 - 0.008, d + 0.025, 0.98, side * 0.035 + 0.008, d + 0.045, 1.10);
+  }
+  // Only three small crockery displays; no populated grid of shelves.
+  for (let i = 1; i <= 3; i++) {
+    const z = i * h / 5 + 0.018, p = new Part(linen, m);
+    p.lathe(0, d * 0.6, [[0, z], [0.07, z], [0.085, z + 0.045], [0.085, z + 0.05], [0.02, z + 0.015], [0, z + 0.015]], 10);
+  }
+}
+
+function banquetPictureFrame(brass: Tris, m: Matrix4, width: number, height: number, bottom: number): void {
+  const f = BANQUET.frameWidth, w = width / 2, p = new Part(brass, m);
+  for (const x of [-w, w - f]) p.box(x, 0.01, bottom, x + f, 0.07, bottom + height);
+  for (const z of [bottom, bottom + height - f]) p.box(-w, 0.01, z, w, 0.07, z + f);
+  for (const side of [-1, 1]) for (const z of [bottom + f / 2, bottom + height - f / 2]) {
+    const detail = m.clone().multiply(at(side * (w - f / 2), 0.071, z)).multiply(new Matrix4().makeRotationX(Math.PI / 2));
+    new Part(brass, detail).lathe(0, 0, [[0, -0.006], [f * 0.6, -0.006], [f * 0.6, 0.006], [0, 0.006]], 8);
+  }
 }
 
 // ------------------------------------------------------------------ study
@@ -1286,30 +1377,151 @@ export function buildCafeTerrace(plan: BuildingPlan, b: Building, mats: Interior
   return { group, reserved, tables: reserved.length, rooms };
 }
 
+export interface BallroomInfo {
+  roomId: string | null; furnished: boolean; chairs: number; chandeliers: number; consoles: number; cabinets: number; picture: boolean;
+}
+
+function ballroomSet(plan: BuildingPlan, room: PlanRoom, group: Group, linen: Tris, brass: Tris, decor: Tris,
+  crystal: Tris, bulb: Tris, glass: Tris, sources: FurnitureLight[]): BallroomInfo {
+  const B = BANQUET, info: BallroomInfo = { roomId: room.id, furnished: false, chairs: 0, chandeliers: 0, consoles: 0, cabinets: 0, picture: false };
+  const poly = (m: Matrix4, rect: SalonRect): V2[] => [[rect[0], rect[1]], [rect[2], rect[1]], [rect[2], rect[3]], [rect[0], rect[3]]].map(([x, y]) => {
+    const p = new Vector3(x, y, 0).applyMatrix4(m); return [p.x, p.y];
+  });
+  const openings: V2[][] = [];
+  const reserve = (c: V2, d: V2, width: number, depth: number) => {
+    let n: V2 = [-d[1], d[0]];
+    if (!inRoom(room.polygon, [c[0] + n[0] * 0.2, c[1] + n[1] * 0.2])) n = [-n[0], -n[1]];
+    const m = new Matrix4().makeBasis(new Vector3(...d, 0), new Vector3(...n, 0), new Vector3(0, 0, 1)).setPosition(...c, room.floorZ);
+    openings.push(poly(m, [-width / 2 - 0.12, -0.1, width / 2 + 0.12, depth]));
+  };
+  for (const door of room.doors) {
+    const w = plan.walls[door.wall], length = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
+    const d: V2 = [(w.b[0] - w.a[0]) / length, (w.b[1] - w.a[1]) / length];
+    reserve([w.a[0] + d[0] * door.at, w.a[1] + d[1] * door.at], d, door.width, B.doorClear);
+  }
+  for (const i of room.windows) { const w = plan.windows[i]; reserve(w.at, w.dir, w.width, B.windowClear); }
+  const fits = (p: V2[], blocked: V2[][]) => roomContains(room.polygon, p) && ![...openings, ...blocked].some(o => overlaps(p, o));
+  const [x0, y0, x1, y1] = room.rect, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  const halfDepth = B.tableWidth / 2 + B.chairOffset + B.chairDepth / 2 + B.pullClear;
+  let placement: { m: Matrix4; length: number; footprint: V2[] } | null = null;
+  const rotations = x1 - x0 >= y1 - y0 ? [0, Math.PI / 2] : [Math.PI / 2, 0];
+  for (const rotation of rotations) {
+    const span = rotation ? y1 - y0 : x1 - x0, maximum = Math.min(B.tableMaxLength, span - B.endClear * 2);
+    const lengths: number[] = [];
+    for (let length = maximum; length >= B.tableMinLength - 0.001; length -= B.searchStep * 2) lengths.push(length);
+    if (maximum >= B.tableMinLength) lengths.push(B.tableMinLength);
+    for (const length of [...new Set(lengths)]) {
+      const offsets: V2[] = [[0, 0], [0, -B.searchStep], [0, B.searchStep], [-B.searchStep, 0], [B.searchStep, 0], [0, -B.searchStep * 2], [0, B.searchStep * 2]];
+      for (const [dx, dy] of offsets) {
+        const m = at(cx + dx, cy + dy, room.floorZ, rotation);
+        const footprint = poly(m, [-length / 2 - B.chairOffset - B.chairDepth / 2 - B.pullClear, -halfDepth,
+          length / 2 + B.chairOffset + B.chairDepth / 2 + B.pullClear, halfDepth]);
+        if (fits(footprint, [])) { placement = { m, length, footprint }; break; }
+      }
+      if (placement) break;
+    }
+    if (placement) break;
+  }
+  if (!placement) return info;
+  const { m, length } = placement, occupied = [placement.footprint];
+  banquetTable(decor, brass, m, length);
+  const local = (x: number, y: number, z = 0, turn = 0) => m.clone().multiply(at(x, y, z, turn));
+  const seats = Math.max(2, Math.floor((length - B.tableWidth * 0.55) / B.chairPitch));
+  for (let i = 0; i < seats; i++) for (const side of [-1, 1]) {
+    const x = (i - (seats - 1) / 2) * B.chairPitch;
+    banquetChair(brass, decor, local(x, side * (B.tableWidth / 2 + B.chairOffset), 0, side > 0 ? Math.PI : 0));
+    const card = local(x, side * B.tableWidth * 0.30, B.tableHeight, side < 0 ? Math.PI : 0);
+    banquetCard(linen, brass, card); group.add(banquetPlaceCard(card, B.placeCardWidth, B.placeCardHeight));
+  }
+  for (const side of [-1, 1]) {
+    banquetChair(brass, decor, local(side * (length / 2 + B.chairOffset), 0, 0, side > 0 ? Math.PI / 2 : -Math.PI / 2), true);
+    const card = local(side * (length / 2 - 0.18), 0, B.tableHeight, side > 0 ? -Math.PI / 2 : Math.PI / 2);
+    banquetCard(linen, brass, card); group.add(banquetPlaceCard(card, B.placeCardWidth, B.placeCardHeight));
+  }
+  info.chairs = seats * 2 + 2;
+  const arrangements = Math.max(1, Math.floor(length / B.centerpiecePitch));
+  for (let i = 0; i < arrangements; i++) banquetCenterpiece(brass, decor, bulb,
+    local((i - (arrangements - 1) / 2) * B.centerpiecePitch, 0, B.tableHeight));
+  const height = room.ceilingZ - room.floorZ;
+  const bottom = Math.min(B.chandelierBottom, height - B.chandelierHeight - B.chandelierTopGap);
+  if (bottom >= B.chandelierMinBottom) {
+    const count = length >= B.twoLightsMinLength ? 2 : 1;
+    for (let i = 0; i < count; i++) {
+      const x = count === 2 ? (i ? 1 : -1) * length / 6 : 0, chandelierM = local(x, 0, bottom);
+      banquetChandelier(brass, crystal, bulb, chandelierM, height - bottom - B.chandelierTopGap);
+      sources.push({ position: new Vector3(0, 0, B.chandelierHeight * 0.45).applyMatrix4(chandelierM), intensity: B.chandelierIntensity, distance: B.chandelierRange });
+    }
+    info.chandeliers = count;
+  }
+  const edges = freeStretches(plan, room).sort((a, b) => (b.s1 - b.s0) - (a.s1 - a.s0));
+  const wallFrame = (f: typeof edges[number], s: number) => new Matrix4().makeBasis(new Vector3(...f.d, 0), new Vector3(...f.n, 0), new Vector3(0, 0, 1))
+    .setPosition(f.a[0] + f.d[0] * s + f.n[0] * B.wallGap, f.a[1] + f.d[1] * s + f.n[1] * B.wallGap, room.floorZ);
+  const consoleAt = (wall: Matrix4): boolean => {
+    const footprint = poly(wall, [-B.consoleWidth / 2 - 0.03, 0, B.consoleWidth / 2 + 0.03, B.consoleDepth + B.wallFurnitureClear]);
+    if (!fits(footprint, occupied)) return false;
+    banquetConsole(decor, brass, wall); occupied.push(footprint); info.consoles++;
+    const lm = wall.clone().multiply(at(0, B.consoleDepth / 2, B.consoleHeight));
+    const z = banquetLamp(brass, crystal, bulb, lm);
+    sources.push({ position: new Vector3(0, 0, z).applyMatrix4(lm), intensity: B.consoleIntensity, distance: B.consoleRange });
+    return true;
+  };
+  let pictureBlock: V2[] | null = null;
+  for (const edge of edges) {
+    const width = Math.min(B.pictureWidth, edge.s1 - edge.s0 - 0.16), pictureHeight = Math.min(B.pictureHeight, height - B.pictureBottom - 0.35);
+    if (width < B.pictureMinWidth || pictureHeight < B.pictureMinHeight) continue;
+    const wall = wallFrame(edge, (edge.s0 + edge.s1) / 2);
+    banquetPictureFrame(brass, wall, width, pictureHeight, B.pictureBottom);
+    group.add(ballroomPainting(wall, width, pictureHeight, B.pictureBottom, B.frameWidth));
+    pictureBlock = poly(wall, [-width / 2, 0, width / 2, 0.10]); info.picture = true;
+    if (edge.s1 - edge.s0 >= B.consoleWidth + 0.12) consoleAt(wall);
+    break;
+  }
+  for (const edge of edges) {
+    if (info.consoles >= 2) break;
+    if (edge.s1 - edge.s0 < B.consoleWidth + 0.12) continue;
+    for (let s = edge.s0 + B.consoleWidth / 2 + 0.06; s <= edge.s1 - B.consoleWidth / 2 - 0.06; s += B.searchStep) {
+      if (consoleAt(wallFrame(edge, s))) break;
+    }
+  }
+  if (height >= B.cabinetHeight + 0.15) for (const edge of edges) {
+    if (info.cabinets >= 2) break;
+    for (let s = edge.s0 + B.cabinetWidth / 2 + 0.06; s <= edge.s1 - B.cabinetWidth / 2 - 0.06; s += B.searchStep) {
+      const wall = wallFrame(edge, s), footprint = poly(wall, [-B.cabinetWidth / 2 - 0.04, 0, B.cabinetWidth / 2 + 0.04, B.cabinetDepth + B.wallFurnitureClear]);
+      if (!fits(footprint, occupied) || (pictureBlock && overlaps(footprint, pictureBlock))) continue;
+      banquetCabinet(decor, brass, linen, glass, wall); occupied.push(footprint); info.cabinets++; break;
+    }
+  }
+  info.furnished = true;
+  return info;
+}
+
+export interface FurnitureLight { position: Vector3; intensity: number; distance: number }
 export interface FurnitureInfo {
   lamps: Vector3[];
+  lightSources: FurnitureLight[];
 }
 
 export interface FurnitureItem { name: string; zh: string; category: string; triangles: number; group: Group }
 
 /** Catalogue recipes call the same component builders as furnished rooms. */
 export function buildFurnitureItems(mats: InteriorMaterials): FurnitureItem[] {
-  type Parts = { wood: Tris; linen: Tris; fabric: Tris; gold: Tris; dark: Tris; brass: Tris; leather: Tris; shade: Tris; books: Tris; art: Tris; rug: Tris };
+  type Parts = { wood: Tris; linen: Tris; fabric: Tris; gold: Tris; dark: Tris; brass: Tris; leather: Tris; shade: Tris; books: Tris; art: Tris; rug: Tris; crystal: Tris; bulb: Tris; glass: Tris };
   const items: FurnitureItem[] = [], m = new Matrix4();
   const room = { floorZ: 0, ceilingZ: 3 } as PlanRoom;
   const add = (category: string, name: string, zh: string, build: (p: Parts) => void, extra?: () => Mesh) => {
     const p: Parts = { wood: new Tris(), linen: new Tris(), fabric: new Tris(), gold: new Tris(), dark: new Tris(),
-      brass: new Tris(), leather: new Tris(), shade: new Tris(), books: new Tris(), art: new Tris(), rug: new Tris() };
+      brass: new Tris(), leather: new Tris(), shade: new Tris(), books: new Tris(), art: new Tris(), rug: new Tris(), crystal: new Tris(), bulb: new Tris(), glass: new Tris() };
     build(p);
     const group = new Group(); group.name = name;
     let triangles = 0;
     const entries: [Tris, Material][] = [[p.wood, mats.furnWood], [p.linen, mats.furnLinen], [p.fabric, mats.furnFabric],
       [p.gold, mats.furnGold], [p.dark, mats.furnDark], [p.brass, mats.furnBrass], [p.leather, mats.furnLeather],
-      [p.shade, mats.furnShade], [p.books, mats.finishWall], [p.art, mats.finishWall], [p.rug, mats.finishFloor]];
+      [p.shade, mats.furnShade], [p.books, mats.finishWall], [p.art, mats.finishWall], [p.rug, mats.finishFloor],
+      [p.crystal, mats.furnCrystal], [p.bulb, mats.furnBulb], [p.glass, mats.furnGlass]];
     for (const [tris, material] of entries) if (tris.pos.length) {
       const mesh = new Mesh(tris.geometry(), material);
       triangles += (mesh.geometry.index?.count ?? mesh.geometry.getAttribute("position").count) / 3;
-      mesh.castShadow = tris !== p.rug && tris !== p.books && tris !== p.art && tris !== p.shade;
+      mesh.castShadow = tris !== p.rug && tris !== p.books && tris !== p.art && tris !== p.shade && tris !== p.bulb && tris !== p.glass;
       mesh.receiveShadow = true; group.add(mesh);
     }
     if (extra) { const mesh = extra(); triangles += (mesh.geometry.index?.count ?? mesh.geometry.getAttribute("position").count) / 3; group.add(mesh); }
@@ -1322,8 +1534,17 @@ export function buildFurnitureItems(mats: InteriorMaterials): FurnitureItem[] {
         : diningRugStamp(-width / 2, depth / 2, 0, width, depth, 0, 3);
     new Part(p.rug, m).box(-width / 2, -depth / 2, 0, width / 2, depth / 2, 0.018);
   };
-  add("宴會廳", "Banquet table", "宴會長桌", p => banquetTable(p.linen, p.gold, m, DINING.tableLength * 2));
-  add("宴會廳", "Banquet chair", "宴會餐椅", p => banquetChair(p.wood, p.fabric, m));
+  add("宴會廳", "Banquet table", "宴會長桌", p => banquetTable(p.art, p.brass, m, DINING.tableLength * 2));
+  add("宴會廳", "Banquet chair", "宴會餐椅", p => banquetChair(p.brass, p.art, m));
+  add("宴會廳", "Banquet armchair", "宴會桌頭扶手椅", p => banquetChair(p.brass, p.art, m, true));
+  add("宴會廳", "Banquet place card", "宴會餐牌", p => banquetCard(p.linen, p.brass, m), () => banquetPlaceCard(m, BANQUET.placeCardWidth, BANQUET.placeCardHeight));
+  add("宴會廳", "Banquet centerpiece", "宴會花盆燭台擺設", p => banquetCenterpiece(p.brass, p.art, p.bulb, m));
+  add("宴會廳", "Gilt chandelier", "金色水晶吊燈", p => banquetChandelier(p.brass, p.crystal, p.bulb, m, BANQUET.chandelierHeight + 0.40));
+  add("宴會廳", "Peacock painting", "巨幅孔雀花卉掛畫", p => banquetPictureFrame(p.brass, m, BANQUET.pictureWidth, BANQUET.pictureHeight, 0),
+    () => ballroomPainting(m, BANQUET.pictureWidth, BANQUET.pictureHeight, 0, BANQUET.frameWidth));
+  add("宴會廳", "Banquet console", "宴會廳邊桌", p => banquetConsole(p.art, p.brass, m));
+  add("宴會廳", "Crystal console lamp", "水晶燈座邊桌檯燈", p => { banquetLamp(p.brass, p.crystal, p.bulb, m); });
+  add("宴會廳", "Glass crockery cabinet", "木質玻璃餐具櫃", p => banquetCabinet(p.art, p.brass, p.linen, p.glass, m));
   add("宴會廳", "Banquet rug", "宴會廳地毯", p => rug(p, "ballroom", SALON.rugWidth, SALON.rugDepth));
   add("書房", "Study desk", "書房書桌", p => desk(p.wood, p.dark, m, 1.4, 0.7));
   add("書房", "Reading table", "長型閱讀桌", p => desk(p.wood, p.dark, m, 2.4, 0.85));
@@ -1374,7 +1595,8 @@ export function buildFurnitureItems(mats: InteriorMaterials): FurnitureItem[] {
 /** Ballroom, studies and bedrooms, merged by material. */
 export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMaterials, look: Look): Group {
   const group = new Group();
-  const lamps: Vector3[] = [];
+  const lamps: Vector3[] = [], lightSources: FurnitureLight[] = [];
+  const banquetCrystal = new Tris(), banquetBulb = new Tris(), banquetGlass = new Tris();
   const wood = new Tris(), fabric = new Tris(), linen = new Tris(), gold = new Tris(), rug = new Tris();
   const dark = new Tris(), brass = new Tris(), leather = new Tris(), shade = new Tris(), books = new Tris();
   const salonRug = new Tris(), salonArt = new Tris();
@@ -1384,7 +1606,7 @@ export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMa
   if (room) {
     const xs = room.polygon.map(p => p[0]), ys = room.polygon.map(p => p[1]);
     const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, z = room.floorZ;
+    const z = room.floorZ;
 
     // the carpet, in the real look only (the diagram colours and the white model keep the bare floor)
     if (look === "real" && x1 - x0 > 2 * RUG_MARGIN + 1 && y1 - y0 > 2 * RUG_MARGIN + 1) {
@@ -1395,19 +1617,7 @@ export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMa
       rug.quad(v(rx0, ry0), v(rx1, ry0), v(rx1, ry1), v(rx0, ry1), new Vector3(0, 0, 1));
     }
 
-    // a table along the room, an end clear of the walls, with chairs round it
-    const length = Math.max(2.4, x1 - x0 - 2 * TABLE.end);
-    banquetTable(linen, gold, at(cx, cy, z), length);
-    const half = TABLE.width / 2 + CHAIR.setback + 0.2;
-    const n = Math.floor((length - 0.4) / CHAIR.pitch);
-    for (let k = 0; k < n; k++) {
-      const x = cx - ((n - 1) * CHAIR.pitch) / 2 + k * CHAIR.pitch;
-      banquetChair(wood, fabric, at(x, cy - half, z)); // faces +y, towards the table
-      banquetChair(wood, fabric, at(x, cy + half, z, Math.PI));
-    }
-    const end = length / 2 + CHAIR.setback + 0.2;
-    banquetChair(wood, fabric, at(cx - end, cy, z, -Math.PI / 2));
-    banquetChair(wood, fabric, at(cx + end, cy, z, Math.PI / 2));
+    group.userData.ballroom = ballroomSet(plan, room, group, linen, brass, diningDecor, banquetCrystal, banquetBulb, banquetGlass, lightSources);
   }
 
   const attic = plan.levels[plan.levels.length - 1];
@@ -1585,14 +1795,15 @@ export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMa
     [dark, mats.furnDark], [brass, mats.furnBrass], [leather, mats.furnLeather], [shade, mats.furnShade], [books, mats.finishWall],
     [salonRug, mats.finishFloor], [salonArt, mats.finishWall],
     [diningRug, mats.finishFloor], [diningDecor, mats.finishWall],
+    [banquetCrystal, mats.furnCrystal], [banquetBulb, mats.furnBulb], [banquetGlass, mats.furnGlass],
   ];
   for (const [t, m] of parts) {
     if (!t.pos.length) continue;
     const mesh = new Mesh(t.geometry(), m);
-    mesh.castShadow = t !== rug && t !== salonRug && t !== diningRug && t !== salonArt && t !== books && t !== shade;
+    mesh.castShadow = t !== rug && t !== salonRug && t !== diningRug && t !== salonArt && t !== books && t !== shade && t !== banquetBulb && t !== banquetGlass;
     mesh.receiveShadow = true;
     group.add(mesh);
   }
-  group.userData.furniture = { lamps } satisfies FurnitureInfo;
+  group.userData.furniture = { lamps, lightSources } satisfies FurnitureInfo;
   return group;
 }

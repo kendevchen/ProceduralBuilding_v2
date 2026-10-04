@@ -61,6 +61,23 @@
       "walkOffset": 0.5, "soffit": 0.12, "rail": 0.9
     },
     "ballroom": { "minBays": 2, "maxBays": 4 },
+    "banquetFurniture": {
+      "_doc": "Banquet refit: metres; table long axis x, wall furniture +y into room. Lights reuse fixed pool.",
+      "tableWidth": 1.15, "tableHeight": 0.77, "tableMinLength": 2.2, "tableMaxLength": 8.0,
+      "endClear": 1.05, "chairPitch": 0.68, "chairOffset": 0.42, "chairWidth": 0.48,
+      "chairDepth": 0.48, "chairHeight": 1.04, "seatHeight": 0.46, "pullClear": 0.28,
+      "doorClear": 0.90, "windowClear": 0.28, "searchStep": 0.20,
+      "consoleWidth": 1.45, "consoleDepth": 0.36, "consoleHeight": 0.79,
+      "cabinetWidth": 0.76, "cabinetDepth": 0.34, "cabinetHeight": 2.10,
+      "wallGap": 0.025, "wallFurnitureClear": 0.22,
+      "pictureWidth": 1.85, "pictureHeight": 2.65, "pictureBottom": 1.0,
+      "pictureMinWidth": 0.85, "pictureMinHeight": 1.35, "frameWidth": 0.065,
+      "chandelierRadius": 0.57, "chandelierHeight": 0.95, "chandelierBottom": 3.1,
+      "chandelierMinBottom": 2.35, "chandelierTopGap": 0.15, "twoLightsMinLength": 3.2,
+      "chandelierIntensity": 3.0, "chandelierRange": 5.5, "consoleIntensity": 3.5, "consoleRange": 3.2,
+      "lampHeight": 0.55, "lampShadeRadius": 0.19, "centerpiecePitch": 2.0,
+      "placeCardWidth": 0.13, "placeCardHeight": 0.085
+    },
     "twoFlatsBays": 7,
     "serviceStair": { "bays": 6, "depth": 13.0 },
     "kitchenFurniture": {

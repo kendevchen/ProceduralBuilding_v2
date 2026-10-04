@@ -5,7 +5,7 @@ import { type Camera, Raycaster, Vector2 } from "three";
 import { ROOM_INFO } from "./plan";
 import { RoomEdits, editableRoom, roomTypesForLevel, mergeReason, type EditableRoomType, type EditedPlan } from "./roomEdits";
 import type { RoomLabels } from "./roomLabels";
-import type { SalonInfo, DiningInfo, KitchenInfo, CafeInfo } from "./furniture";
+import type { SalonInfo, DiningInfo, KitchenInfo, CafeInfo, BallroomInfo } from "./furniture";
 
 interface Host {
   canvas: HTMLCanvasElement;
@@ -26,6 +26,7 @@ export class RoomEditor {
   private dining: DiningInfo | null = null;
   private kitchen: KitchenInfo | null = null;
   private cafe: CafeInfo | null = null;
+  private ballroom: BallroomInfo | null = null;
   private ray = new Raycaster();
   private consumed = new WeakSet<Event>();
   private pointers = new Set<number>();
@@ -81,12 +82,13 @@ export class RoomEditor {
     return labels.pick(this.ray);
   }
 
-  update(result: EditedPlan | null, salon: SalonInfo | null = null, dining: DiningInfo | null = null, kitchen: KitchenInfo | null = null, cafe: CafeInfo | null = null): void {
+  update(result: EditedPlan | null, salon: SalonInfo | null = null, dining: DiningInfo | null = null, kitchen: KitchenInfo | null = null, cafe: CafeInfo | null = null, ballroom: BallroomInfo | null = null): void {
     this.result = result;
     this.salon = salon;
     this.dining = dining;
     this.kitchen = kitchen;
     this.cafe = cafe;
+    this.ballroom = ballroom;
     this.ids = [];
     if (result) for (const keys of this.selection) {
       const entry = [...result.members].find(([, values]) => values.length === keys.length && values.every((v, i) => v === keys[i]));
@@ -132,6 +134,11 @@ export class RoomEditor {
     if (rooms.length === 1) {
       const room = rooms[0];
       info(`${result!.plan.levels[room.level].name} · ${room.name} · ${room.area.toFixed(1)} m²`);
+      if (room.type === "ballroom" && this.ballroom?.roomId === room.id) {
+        const b = this.ballroom;
+        info(b.furnished ? `宴會廳：深木長桌、${b.chairs} 張金框餐椅、餐牌與花盆燭台、${b.chandeliers} 盞吊燈${b.picture ? "、巨幅孔雀掛畫" : ""}、${b.consoles} 張邊桌與檯燈、${b.cabinets} 座玻璃餐具櫃。`
+          : "目前宴會廳的門窗與通道配置無法容納新長桌及完整拉椅空間。");
+      }
       if (room.type === "shop") {
         const cafe = this.cafe?.rooms[room.id];
         if (cafe) {

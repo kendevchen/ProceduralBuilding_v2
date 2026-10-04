@@ -1,5 +1,5 @@
 /**
- * The study lamps' light (INTERIOR_SPEC.md §6.8). A point light costs every lit
+ * Interior lamps' light (INTERIOR_SPEC.md §6.8). A point light costs every lit
  * pixel of every material, and the number of lights changes the shaders, so a
  * building with many studies cannot give each lamp one. A small fixed pool of
  * lights is moved each frame to the lamps nearest to where the camera looks, and
@@ -9,11 +9,12 @@
 import { type Object3D, PointLight, Vector3 } from "three";
 
 export const LAMP_POOL = 4;
+export interface LampSource { position: Vector3; intensity: number; distance: number }
 
 export class LampLights {
   private lights: PointLight[] = [];
   /** the lamps' places in world space */
-  private lamps: Vector3[] = [];
+  private lamps: LampSource[] = [];
   /** the lamps are lit only while the building is cut open */
   on = false;
 
@@ -26,18 +27,18 @@ export class LampLights {
     }
   }
 
-  setLamps(world: Vector3[]): void {
+  setLamps(world: LampSource[]): void {
     this.lamps = world;
   }
 
   /** point the pool at the lamps nearest to `focus` */
   update(focus: Vector3): void {
     const near = this.on
-      ? [...this.lamps].sort((a, b) => a.distanceToSquared(focus) - b.distanceToSquared(focus)).slice(0, LAMP_POOL)
+      ? [...this.lamps].sort((a, b) => a.position.distanceToSquared(focus) - b.position.distanceToSquared(focus)).slice(0, LAMP_POOL)
       : [];
     this.lights.forEach((l, i) => {
-      if (near[i]) l.position.copy(near[i]);
-      l.intensity = near[i] ? 9 : 0;
+      if (near[i]) { l.position.copy(near[i].position); l.distance = near[i].distance; }
+      l.intensity = near[i]?.intensity ?? 0;
     });
   }
 }

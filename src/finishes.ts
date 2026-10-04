@@ -22,7 +22,7 @@ export type Stamp = [number, number, number, number, number, number, number, num
 
 const P = {
   plain: 0, herringbone: 1, boards: 2, hexMixed: 3, hexSparse: 4, marble: 5, carpet: 6, salonRug: 7, diningRug: 8, kitchenMarbleTiles: 9,
-  paint: 10, wallpaper: 11, boiserie: 12, tiles: 13, books: 14, bedroomPanels: 15, diningPanels: 16, blackMarble: 17, kitchenWorktop: 18, cafeFloor: 19, cafePanels: 20, cafeWood: 21, cafeStone: 22, cafeWicker: 23, cafeFurnitureWood: 24,
+  paint: 10, wallpaper: 11, boiserie: 12, tiles: 13, books: 14, bedroomPanels: 15, diningPanels: 16, blackMarble: 17, kitchenWorktop: 18, cafeFloor: 19, cafePanels: 20, cafeWood: 21, cafeStone: 22, cafeWicker: 23, cafeFurnitureWood: 24, banquetPanels: 25, banquetWood: 26, banquetFabric: 27,
 } as const;
 type Pattern = (typeof P)[keyof typeof P];
 
@@ -49,7 +49,7 @@ const FLOORS: Record<RoomType, Finish> = {
 const WALLS: Record<RoomType, Finish> = {
   salon: { pattern: P.boiserie, a: "#ebe3d1", b: "#c9bea6" },
   dining: { pattern: P.boiserie, a: "#dde2d4", b: "#b9c0ad" },
-  ballroom: { pattern: P.boiserie, a: "#f0e8d6", b: "#c49a45" },
+  ballroom: { pattern: P.banquetPanels, a: "#d6ddd3", b: "#c3a04c" },
   vestibule: { pattern: P.boiserie, a: "#e2d6be", b: "#bfae8c" },
   study: { pattern: P.boiserie, a: "#5d6e57", b: "#3f4c3b" },
   bedroom: { pattern: P.wallpaper, a: "#dcc9c1", b: "#b08f86" },
@@ -83,6 +83,9 @@ export function kitchenBacksplashStamp(floorZ: number, ceilingZ: number): Stamp 
 export function kitchenWorktopStamp(): Stamp {
   return stamp(P.kitchenWorktop, rgb("#e7e2d7"), rgb("#b9b7b0"));
 }
+
+export function banquetWoodStamp(): Stamp { return stamp(P.banquetWood, rgb("#493027"), rgb("#271b17")); }
+export function banquetFabricStamp(): Stamp { return stamp(P.banquetFabric, rgb("#a7b9b8"), rgb("#d8dbca")); }
 
 export function cafeWoodStamp(floorZ = 0, ceilingZ = 3): Stamp {
   return stamp(P.cafeWood, rgb("#9b6b3d"), rgb("#604127"), floorZ, ceilingZ);
@@ -473,6 +476,29 @@ float finRough = 0.85;
       if (h > top - 0.22) col = mix(A, B, 0.35 + 0.4 * finLine(abs(h - top + 0.12), 0.012));
       if (pat == 15 && h > top - 0.22) col = vec3(0.86, 0.83, 0.73) * (0.97 + 0.06 * finLine(abs(h - top + 0.12), 0.012));
       finRough = 0.6;
+    } else if (pat == 25) {
+      float panel = max(finPanel(u, h, 0.2, 0.9), finPanel(u, h, 1.15, top - 0.48));
+      if (panel >= 0.0) {
+        float gilt = max(finLine(abs(panel - 0.035), 0.005), finLine(abs(panel - 0.065), 0.002));
+        col = mix(col, B, gilt);
+      }
+      if (h > 0.96 && h < 1.005) col = B;
+      if (h > top - 0.34) {
+        float band = max(finLine(abs(h - top + 0.08), 0.012), finLine(abs(h - top + 0.30), 0.006));
+        vec2 q = vec2(fract(u / 0.25) - 0.5, (h - top + 0.19) / 0.22);
+        float ornament = finLine(abs(length(q * vec2(0.7, 1.0)) - 0.25), 0.03);
+        col = mix(col, B, max(band, ornament * 0.55));
+      }
+      finRough = 0.65;
+    } else if (pat == 26) {
+      vec2 grainUV = abs(N.y) > 0.5 ? vFinPos.xz : vec2(u, h);
+      col = mix(A, B, 0.18 + 0.25 * finNoise(grainUV * vec2(2.0, 45.0)));
+      finRough = 0.30;
+    } else if (pat == 27) {
+      vec2 q = fract(vec2(u, h) / 0.095) - 0.5;
+      float leaf = finLine(abs(length(q * vec2(0.8, 1.3)) - 0.25), 0.025);
+      col = mix(A, B, leaf * 0.18) * (0.97 + 0.06 * finNoise(vec2(u, h) * 100.0));
+      finRough = 0.88;
     } else if (pat == 20) {
       float panel = max(finPanel(u, h, 0.18, 0.82), finPanel(u, h, 1.08, top - 0.28));
       if (panel >= 0.0) col = mix(col, B, finLine(abs(panel - 0.03), 0.006));
@@ -517,7 +543,7 @@ float finRough = 0.85;
       } else col = B * (0.97 + 0.05 * finNoise(vec2(u, h) * 4.0));
     }
     // skirting board
-    if (h < 0.13 && pat != 13 && pat != 14 && pat != 17 && pat != 18 && pat != 22 && pat != 23 && pat != 24) col = (pat == 12 || pat == 15) ? mix(A, B, 0.5) : B * 0.95;
+    if (h < 0.13 && pat != 13 && pat != 14 && pat != 17 && pat != 18 && pat != 22 && pat != 23 && pat != 24 && pat != 26 && pat != 27) col = (pat == 12 || pat == 15) ? mix(A, B, 0.5) : B * 0.95;
     if (h < 0.13 && pat == 16) col = vec3(0.82, 0.80, 0.74) * 0.95;
   }
   diffuseColor.rgb = col;

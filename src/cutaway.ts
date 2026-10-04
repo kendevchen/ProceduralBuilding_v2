@@ -63,6 +63,9 @@ export class Cutaway {
       furnLeather: this.cut(white("furn_leather", "#5b2c1d", 0.6)),
       // a lamp shade glows: warm, lit from inside (the lamp's own point light is lampLights.ts)
       furnShade: this.cut(new MeshStandardMaterial({ name: "furn_shade", color: "#f4e8cf", emissive: "#ffcf8a", emissiveIntensity: 1.1, roughness: 0.9 })),
+      furnBulb: this.cut(new MeshStandardMaterial({ name: "banquet_bulb", color: "#fff2d8", emissive: "#ffdca2", emissiveIntensity: 0.45, roughness: 0.55 })),
+      furnCrystal: this.cut(white("banquet_crystal", "#e0e8e5", 0.16, 0.12)),
+      furnGlass: this.cut(new MeshStandardMaterial({ name: "cabinet_glass", color: "#bfcfc9", transparent: true, opacity: 0.16, depthWrite: false, roughness: 0.2 })),
       finishWall: this.cut(finishMaterial("wall")),
       finishFloor: this.cut(finishMaterial("floor")),
     };
