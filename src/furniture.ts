@@ -1154,7 +1154,19 @@ function cafePlacement(plan: BuildingPlan, r: PlanRoom): CafePlacement | null {
     const d: V2 = [(wall.b[0] - wall.a[0]) / len, (wall.b[1] - wall.a[1]) / len];
     reserve([wall.a[0] + d[0] * door.at, wall.a[1] + d[1] * door.at], d, door.width, C.doorClear);
   }
-  for (const wi of r.windows) { const win = plan.windows[wi]; reserve(win.at, win.dir, win.kind === "shop" ? C.terraceEntryWidth : win.width, win.kind === "shop" ? C.doorClear : C.windowClear); }
+  for (const wi of r.windows) {
+    const win = plan.windows[wi], shift = win.kind === "shop" ? (win.width - C.terraceEntryWidth) / 2 : 0;
+    reserve([win.at[0] + win.dir[0] * shift, win.at[1] + win.dir[1] * shift], win.dir,
+      win.kind === "shop" ? C.terraceEntryWidth : win.width, win.kind === "shop" ? C.doorClear : C.windowClear);
+  }
+  const front = r.windows.map(i => plan.windows[i]).find(w => w.kind === "shop")!;
+  let inward: V2 = [-front.dir[1], front.dir[0]];
+  if (!inRoom(r.polygon, [front.at[0] + inward[0] * 0.2, front.at[1] + inward[1] * 0.2])) inward = [-inward[0], -inward[1]];
+  const seatingFrame = new Matrix4().makeBasis(new Vector3(...front.dir, 0), new Vector3(...inward, 0), new Vector3(0, 0, 1)).setPosition(...front.at, r.floorZ);
+  const inverseSeating = seatingFrame.clone().invert();
+  const localRoom = r.polygon.map(([x, y]) => new Vector3(x, y, r.floorZ).applyMatrix4(inverseSeating));
+  const x0 = Math.min(...localRoom.map(p => p.x)), x1 = Math.max(...localRoom.map(p => p.x));
+  const y0 = Math.min(...localRoom.map(p => p.y)), y1 = Math.max(...localRoom.map(p => p.y));
   const frame = (f: ReturnType<typeof freeStretches>[number], s: number) => new Matrix4().makeBasis(new Vector3(...f.d, 0), new Vector3(...f.n, 0), new Vector3(0, 0, 1))
     .setPosition(f.a[0] + f.d[0] * s + f.n[0] * C.wallGap, f.a[1] + f.d[1] * s + f.n[1] * C.wallGap, r.floorZ);
   const fits = (polygon: V2[], occupied: V2[][]) => roomContains(r.polygon, polygon) && ![...openings, ...occupied].some(o => overlaps(polygon, o));
@@ -1168,20 +1180,23 @@ function cafePlacement(plan: BuildingPlan, r: PlanRoom): CafePlacement | null {
     // Reserve the rear service aisle, the side entrance and the customer side.
     const barBlock = poly(wall, [-length / 2 - 0.04, 0, length / 2 + C.barEntryClear, C.barWorkClear + C.barDepth + C.barFrontClear]);
     if (!fits(barBlock, [])) continue;
-    let tables: Matrix4[] = [], chairs: Matrix4[] = [], occupied = [barBlock];
-    const [x0, y0, x1, y1] = r.rect;
-    // One chair per table; compare four directions to use narrow wall-side spaces.
-    for (const rotation of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) {
-      const candidateTables: Matrix4[] = [], candidateChairs: Matrix4[] = [], candidateOccupied = [barBlock];
-      const long = C.chairOffset + C.chairDepth / 2 + C.tableClear;
-      const short = C.tableDiameter / 2 + C.tableClear;
-      for (let y = y0 + short; y <= y1 - short; y += C.searchStep) for (let x = x0 + short; x <= x1 - short; x += C.searchStep) {
-        const m = at(x, y, r.floorZ, rotation), footprint = poly(m, [-short, -short, long, short]);
-        if (!fits(footprint, candidateOccupied)) continue;
-        candidateTables.push(m); candidateChairs.push(m.clone().multiply(at(C.chairOffset, 0, 0, Math.PI / 2)));
-        candidateOccupied.push(footprint);
+    const tables: Matrix4[] = [], chairs: Matrix4[] = [], occupied = [barBlock];
+    // Follow the sketch: two wall-side rows, with each chair before/after its table.
+    const long = C.chairOffset + C.chairDepth / 2 + C.tableClear;
+    const short = C.tableDiameter / 2 + C.tableClear;
+    for (const x of [x0 + short, x1 - short]) {
+      let rowTables: Matrix4[] = [], rowChairs: Matrix4[] = [], rowBlocks: V2[][] = [];
+      for (const rotation of [Math.PI / 2, -Math.PI / 2]) {
+        const candidateTables: Matrix4[] = [], candidateChairs: Matrix4[] = [], candidateBlocks: V2[][] = [];
+        for (let y = y0 + short; y <= y1 - short; y += C.searchStep) {
+          const m = seatingFrame.clone().multiply(at(x, y, 0, rotation)), footprint = poly(m, [-short, -short, long, short]);
+          if (!fits(footprint, [...occupied, ...candidateBlocks])) continue;
+          candidateTables.push(m); candidateChairs.push(m.clone().multiply(at(C.chairOffset, 0, 0, Math.PI / 2)));
+          candidateBlocks.push(footprint);
+        }
+        if (candidateTables.length > rowTables.length) { rowTables = candidateTables; rowChairs = candidateChairs; rowBlocks = candidateBlocks; }
       }
-      if (candidateTables.length > tables.length) { tables = candidateTables; chairs = candidateChairs; occupied = candidateOccupied; }
+      tables.push(...rowTables); chairs.push(...rowChairs); occupied.push(...rowBlocks);
     }
     const stools: Matrix4[] = [];
     for (let x = -length / 2 + C.stoolPitch / 2; x < length / 2 - 0.1; x += C.stoolPitch) {
@@ -1233,16 +1248,17 @@ export function buildCafeTerrace(plan: BuildingPlan, b: Building, mats: Interior
     if (w.kind !== "shop" || side.kind !== "street" || w.bay < 0) continue;
     const bay = side.bays[w.bay], centre = side.x0 + dims.bay * (w.bay + 0.5);
     if (!bay) continue;
-    // A single row parallel to the storefront; chairs sit left/right of each table.
-    for (const sign of [-1, 1]) {
-      const x = centre + sign * C.terraceSideOffset, y = -C.terraceOffset;
+    // Three tables across the frontage, chairs towards the facade/street.
+    // Leave the right-hand end open for entry instead of splitting the row.
+    for (let i = 0; i < C.terraceTableCount; i++) {
+      const x = centre - dims.bay / 2 + C.terraceHalfWidth + C.terraceEndClear + i * C.terraceTablePitch, y = -C.terraceOffset;
       if (x - C.terraceHalfWidth < side.x0 || x + C.terraceHalfWidth > side.x0 + side.bays.length * dims.bay) continue;
       const m = side.frame.clone().multiply(at(x, y, dims.street.top));
       const polygon: V2[] = [[-C.terraceHalfWidth, -C.terraceHalfDepth], [C.terraceHalfWidth, -C.terraceHalfDepth],
         [C.terraceHalfWidth, C.terraceHalfDepth], [-C.terraceHalfWidth, C.terraceHalfDepth]].map(([u, v]) => { const p = new Vector3(u, v, 0).applyMatrix4(m); return [p.x, p.y]; });
       if (reserved.some(p => overlaps(polygon, p))) continue;
       reserved.push(polygon); cafeTable(linen, wood, dark, decor, m, true);
-      for (const s of [-1, 1]) cafeChair(linen, wood, brass, decor, m.clone().multiply(at(s * C.outdoorChairOffset, 0, 0, s * Math.PI / 2)), true);
+      for (const s of [-1, 1]) cafeChair(linen, wood, brass, decor, m.clone().multiply(at(0, s * C.outdoorChairOffset, 0, s > 0 ? Math.PI : 0)), true);
     }
   }
   for (const [tris, material] of [[linen, mats.furnLinen], [wood, mats.furnWood], [brass, mats.furnBrass], [dark, mats.furnDark], [decor, mats.finishWall]] as [Tris, Material][]) {
