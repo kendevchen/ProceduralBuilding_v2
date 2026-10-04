@@ -136,7 +136,7 @@ export class RoomEditor {
           ? `客廳家具${this.salon.scales[room.id] < 1 ? "（依空間採緊湊尺寸）" : ""}：沙發、桌組、壁爐書櫃與掛畫。`
           : "目前客廳的輪廓、門窗或淨高無法安全容納完整家具組。");
         else if (room.type === "dining") info(this.dining?.room === room.id
-          ? this.dining.furnished ? `餐廳樣板：長方形餐桌、${this.dining.chairs} 張餐椅、地毯、餐邊櫃與兩盆花。` : this.dining.reason!
+          ? this.dining.furnished ? `餐廳樣板：長桌、${this.dining.chairs} 張餐椅、地毯、餐邊櫃、掛畫與兩盆花${this.dining.displayCabinets ? `，搭配 ${this.dining.displayCabinets} 座餐具高櫃` : ""}。` : this.dining.reason!
           : "目前只有二樓右後餐廳配置家具樣板，其餘餐廳待下一階段套用。");
         else info(room.type === "bedroom" || room.type === "study" ? "更換後同步更新家具、牆面與地板。" : "此房型尚無家具，會套用對應牆面與地板。");
       } else info("此空間連動樓梯、入口或建築結構，保留原始用途。");
