@@ -16,7 +16,7 @@
  * Z-up space, like rooms3d.ts.
  */
 import { Color, Group, type Material, Matrix4, Mesh, Vector3 } from "three";
-import { type Look, type Stamp, booksStamp, carpetStamp, salonRugStamp, diningRugStamp, kitchenBacksplashStamp, stampOf } from "./finishes";
+import { type Look, type Stamp, booksStamp, carpetStamp, salonRugStamp, diningRugStamp, kitchenBacksplashStamp, kitchenWorktopStamp, stampOf } from "./finishes";
 import type { BuildingPlan, PlanRoom } from "./plan";
 import type { Building } from "./generator";
 import { type InteriorMaterials, Tris, atticCeiling } from "./rooms3d";
@@ -854,8 +854,7 @@ interface KitchenPlacement {
 }
 
 function kitchenStone(t: Tris): void {
-  const a = new Color("#e7e2d7").toArray(), b = new Color("#bcb7ab").toArray();
-  t.stamp = [5, ...a, ...b, 0, 3] as Stamp;
+  t.stamp = kitchenWorktopStamp();
 }
 
 function kitchenHandle(brass: Tris, m: Matrix4, x: number, y: number, z: number): void {
@@ -1290,7 +1289,9 @@ export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMa
     colour(diningDecor, "#ddd7c9");
     if (look === "real") diningDecor.stamp = kitchenBacksplashStamp(r.floorZ, r.ceilingZ);
     else if (look === "diagram") diningDecor.stamp = stampOf(look, r, "wall");
-    new Part(diningDecor, m).box(left, 0, K.height, right, 0.012, Math.max(K.hoodBottom + K.hoodHeight, K.upperBottom + K.upperHeight));
+    const backsplash = new Part(diningDecor, m);
+    backsplash.box(left, 0, K.height, right, 0.012, K.upperBottom);
+    if (K.hoodBottom > K.upperBottom) backsplash.box(-K.hoodWidth / 2, 0, K.upperBottom, K.hoodWidth / 2, 0.012, K.hoodBottom);
     const islandY = K.depth + K.frontProjection + aisle + K.islandDepth / 2 + K.frontProjection;
     kitchenIsland(linen, brass, dark, diningDecor, m.clone().multiply(at(0, islandY, 0)));
     for (const display of displays) crockeryCabinet(linen, brass, diningDecor, display.m, 0, display.width);

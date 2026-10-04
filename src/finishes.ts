@@ -22,7 +22,7 @@ export type Stamp = [number, number, number, number, number, number, number, num
 
 const P = {
   plain: 0, herringbone: 1, boards: 2, hexMixed: 3, hexSparse: 4, marble: 5, carpet: 6, salonRug: 7, diningRug: 8, kitchenMarbleTiles: 9,
-  paint: 10, wallpaper: 11, boiserie: 12, tiles: 13, books: 14, bedroomPanels: 15, diningPanels: 16, blackMarble: 17,
+  paint: 10, wallpaper: 11, boiserie: 12, tiles: 13, books: 14, bedroomPanels: 15, diningPanels: 16, blackMarble: 17, kitchenWorktop: 18,
 } as const;
 type Pattern = (typeof P)[keyof typeof P];
 
@@ -77,6 +77,11 @@ export const PLAIN: Stamp = stamp(P.plain, rgb(PLAIN_COLOR), rgb(PLAIN_COLOR));
 /** Continuous black marble behind the kitchen cabinets and extractor. */
 export function kitchenBacksplashStamp(floorZ: number, ceilingZ: number): Stamp {
   return stamp(P.blackMarble, rgb("#191d23"), rgb("#dce0e4"), floorZ, ceilingZ);
+}
+
+/** A continuous pale slab, with fine veins and no alternating tile colours. */
+export function kitchenWorktopStamp(): Stamp {
+  return stamp(P.kitchenWorktop, rgb("#e7e2d7"), rgb("#b9b7b0"));
 }
 
 /** the stamp of a carpet: it carries its corner (world x, z) and its size instead of colours */
@@ -433,6 +438,10 @@ float finRough = 0.85;
       if (h > top - 0.22) col = mix(A, B, 0.35 + 0.4 * finLine(abs(h - top + 0.12), 0.012));
       if (pat == 15 && h > top - 0.22) col = vec3(0.86, 0.83, 0.73) * (0.97 + 0.06 * finLine(abs(h - top + 0.12), 0.012));
       finRough = 0.6;
+    } else if (pat == 18) {
+      vec2 slabUV = abs(N.y) > 0.5 ? vFinPos.xz : vec2(u, vFinPos.y);
+      col = finKitchenStone(slabUV * 3.0, A, B, 0.22);
+      finRough = 0.28;
     } else if (pat == 17) {
       col = finKitchenStone(vec2(u, h), A, B, 0.85);
       finRough = 0.24;
@@ -452,7 +461,7 @@ float finRough = 0.85;
       } else col = B * (0.97 + 0.05 * finNoise(vec2(u, h) * 4.0));
     }
     // skirting board
-    if (h < 0.13 && pat != 13 && pat != 14 && pat != 17) col = (pat == 12 || pat == 15) ? mix(A, B, 0.5) : B * 0.95;
+    if (h < 0.13 && pat != 13 && pat != 14 && pat != 17 && pat != 18) col = (pat == 12 || pat == 15) ? mix(A, B, 0.5) : B * 0.95;
     if (h < 0.13 && pat == 16) col = vec3(0.82, 0.80, 0.74) * 0.95;
   }
   diffuseColor.rgb = col;
