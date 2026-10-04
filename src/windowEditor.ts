@@ -44,6 +44,7 @@ export interface WindowEditorHost {
   /** the section plane while the building is cut open, else null */
   clip(): Plane | null;
   rebuild(): void;
+  ignorePointer?(event: PointerEvent): boolean;
 }
 
 export class WindowEditor {
@@ -63,6 +64,7 @@ export class WindowEditor {
     host.canvas.addEventListener("pointerup", e => {
       const d = this.down;
       this.down = null;
+      if (this.host.ignorePointer?.(e)) return;
       // a click: the camera did not move with it
       if (d && e.button === 0 && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 5) this.pick(e);
     });

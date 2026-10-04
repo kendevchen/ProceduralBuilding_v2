@@ -14,6 +14,7 @@
  */
 import { BufferGeometry, Float32BufferAttribute, Group, type Material, Matrix4, Mesh, ShapeUtils, Vector2, Vector3 } from "three";
 import dims from "../blender/kit_dims.json";
+import { inRoom, roomEdgeSpans } from "./roomGeometry";
 import type { Building } from "./generator";
 import type { Kit } from "./kit";
 import { type Look, type Stamp, stampAttributes, stampOf } from "./finishes";
@@ -252,9 +253,8 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
       // finished: room by room along the edge (the walls between them hide the joins)
       for (const r of plan.rooms) {
         if (r.level !== lv.index && !(r.levels === 2 && r.level === lv.index - 1)) continue;
-        const on = onEdge(r.polygon, e);
-        if (on.length < 2) continue;
-        lining(e, i, lv.index, Math.max(0, Math.min(...on) - 0.06), Math.min(e.len, Math.max(...on) + 0.06), z0, z1, r);
+        for (const [lo, hi] of roomEdgeSpans(r.polygon, e.a, e.dir, e.len))
+          lining(e, i, lv.index, Math.max(0, lo - 0.06), Math.min(e.len, hi + 0.06), z0, z1, r);
       }
     });
   }
@@ -268,8 +268,9 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
     const left = (id: string | null) => {
       const r = id ? rooms.get(id) : undefined;
       if (!r) return false;
-      const c = centroid(r.polygon);
-      return (w.b[0] - w.a[0]) * (c[1] - w.a[1]) - (w.b[1] - w.a[1]) * (c[0] - w.a[0]) > 0;
+      const dx = w.b[0] - w.a[0], dy = w.b[1] - w.a[1], len = Math.hypot(dx, dy);
+      const off = Math.max(...Object.values(I.walls)) / 2 + 0.001;
+      return inRoom(r.polygon, [(w.a[0] + w.b[0]) / 2 - dy / len * off, (w.a[1] + w.b[1]) / 2 + dx / len * off]);
     };
     const [p, q] = w.rooms;
     return left(p) ? [p, q] : [q, p];

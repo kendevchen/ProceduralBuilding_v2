@@ -1,6 +1,6 @@
 # STATE：專案現況（新對話先讀這份，其他按需要讀）
 
-更新：2026-10-04。分支 `interior-floors`（預覽 `/dev/`）；正式站 `main` 是 `v2.0-exterior`，還沒有室內功能。
+更新：2026-10-04。目前開發分支 `feature/room-editor`；`interior-floors_codex` 保留臥室家具版本，原 `interior-floors` 保留既有 `/dev/` 預覽；正式站 `main` 是 `v2.0-exterior`，還沒有室內功能。
 
 ## 1. 已完成
 
@@ -11,6 +11,7 @@
 | 室內呈現 | 寫實材質／圖解／白模；房間名稱標籤 |
 | 家具 | 宴會廳（桌椅、地毯）、書房（書櫃、書桌、椅子、書、會發光的檯燈）；各樓層臥室（雙人床、床頭櫃、褶紋檯燈）；面積達 11 m² 的臥室用灰綠護牆板，小臥室維持壁紙 |
 | 介面 | 「顯示內部」按鈕（不開面板）、「剖切」面板、點窗戶個別設定（含老虎窗） |
+| 房間編輯 | 點名稱改房型；Shift／手機長按多選兩間後合併；保護結構牆、凹多邊形房間、復原／重做、平面改變後核對重套 |
 | 外觀 | 外牆材質切換（奧斯曼／巴黎淺色石灰岩）、人行道與路樹、大玻璃老虎窗 |
 
 預設：一樓用途「混合」；每層臨街的左邊轉角是書房（房間 6 間以上、非頂樓）；閣樓最左邊也是書房，用大玻璃落地老虎窗；一樓左轉角窗的窗簾「拉開、程度 1」。
@@ -19,6 +20,7 @@
 
 - **I5**：平面資料匯出（JSON）、家具規範。客廳、餐廳、廚房等還沒有家具。
 - **暫緩**：剖面「展開」（左右兩塊往兩側拉開）。
+- 房間編輯目前保存在頁面記憶體，重整會清除；未製作家具的房型只切換材質。GUI 點選與手機長按尚待實際瀏覽器驗收（本次沒有可連線的瀏覽器）。
 - 閣樓書房的門受斜頂影響偏矮；3F 與 5F 不放書房（規則）；大玻璃老虎窗的露台沒做。
 - 臥室家具擴展到各樓層，閣樓檢查斜頂淨高；開間改動造成多門狹窄房時改用單側床頭櫃。預設 5×3、9×5、10×8 和 9×5 的 2／6 上層配置，臥室皆有家具；其他參數若無法安全擺放，房間 ID 記於 `userData.bedrooms.unfurnished`。外觀與剖切仍待畫面確認。
 - 手機寬度沒有重新測；10×8 的大建築重建約 94 ms，接近 100 ms 預算。
@@ -26,7 +28,7 @@
 
 ## 3. 規矩
 
-- 做完一件事就 commit；**推送要等使用者說**（使用者說「commit」就是推送到 `interior-floors`）。推送到 `main` 會部署正式站，一定先問。
+- 做完一件事就本機 commit；**推送要等使用者說**。房間編輯功能使用 `feature/room-editor`；保留 `interior-floors` 與 `interior-floors_codex`。推送到 `main` 會部署正式站，一定先問。
 - 不 commit `.claude/settings.json`。
 - 尺寸只改 `blender/kit_dims.json`；零件全由 `blender/kitlib/` 產生，不手改 `.blend`。
 - 素材全部自製，不用下載模型；使用者給的參考圖只取比例與款式。
@@ -41,6 +43,7 @@
 |---|---|
 | `npm run dev` | 開發伺服器（5176） |
 | `npm run build` | 建置 |
+| `npm run check:rooms` | 房間編輯回歸；加 `-- --plans` 執行完整平面矩陣 |
 | `npm run kit` | 重建零件、匯出 `public/assets/kit.glb` 與 manifest |
 | `npm run tex` | 烘焙貼圖 |
 | `npm run ao` | 烘焙 AO（約 10 分鐘；改了零件形狀就要） |
@@ -53,6 +56,7 @@
 | 加／改家具 | INTERIOR_SPEC 6.8 | `src/furniture.ts`、`src/lampLights.ts` |
 | 房間的地板與牆面 | INTERIOR_SPEC 6.7 | `src/finishes.ts` |
 | 房間種類、門、樓梯間大小（平面規則） | INTERIOR_SPEC 5 | `src/plan.ts` |
+| 點房間名稱、改房型、合併與復原 | INTERIOR_SPEC 5.9 | `src/roomEditor.ts`、`src/roomEdits.ts`、`src/roomGeometry.ts`、`src/roomLabels.ts`；`src/main.ts` 的 `rebuild` |
 | 樓梯 | INTERIOR_SPEC 7 | `src/stairs.ts`、`plan.ts` 的 `layoutStair` |
 | 剖切、工具列、顯示內部 | INTERIOR_SPEC 2 | `src/cutaway.ts`、`src/toolbar.ts`、`src/main.ts`（`applyCut`） |
 | 室內牆、閣樓、外牆內面 | INTERIOR_SPEC 6.1–6.5 | `src/rooms3d.ts` |

@@ -28,6 +28,8 @@ import { LampLights } from "./lampLights";
 import { buildStairs } from "./stairs";
 import { StreetLife } from "./streetlife";
 import { WindowEditor } from "./windowEditor";
+import { RoomEdits } from "./roomEdits";
+import { RoomEditor } from "./roomEditor";
 import type { Look } from "./finishes";
 import { Toolbar } from "./toolbar";
 
@@ -67,6 +69,7 @@ const root = new Group();
 root.rotation.x = -Math.PI / 2;
 scene.add(root);
 const params = defaultParams();
+const roomEdits = new RoomEdits();
 const view = { gallery: false };
 /** the study lamps' light (lampLights.ts) */
 const lampLights = new LampLights(scene);
@@ -128,6 +131,7 @@ function frameGallery(width: number, front: number): void {
 function rebuild(frame = false): void {
   if (!kit || !materials) return;
   interior = roomBoxes = null;
+  labels?.dispose();
   labels = null;
   street.group.visible = false;
   cutShown = false; // every new group starts with the plain materials
@@ -135,11 +139,13 @@ function rebuild(frame = false): void {
     const gal = buildGallery(kit, buildingStyle(params));
     show(gal.group, new Vector3(0, gal.height / 2, 0), Math.hypot(gal.width, gal.depth, gal.height) / 2);
     windows.update(null, null);
+    roomEditor.update(null);
     if (frame) frameGallery(gal.width, gal.depth / 2);
     return;
   }
   const b = generateBuilding(params, kit);
-  const plan = planBuilding(b, params);
+  const edited = roomEdits.apply(planBuilding(b, params));
+  const plan = edited.plan;
   lastPlan = plan;
   interiorView.check = plan.issues.length ? `${plan.issues.length} 個問題` : "OK";
   if (plan.issues.length) console.warn(`plan: ${plan.issues.length} issues`, plan.issues);
@@ -149,6 +155,7 @@ function rebuild(frame = false): void {
     g.position.set(-b.width / 2, -b.length / 2, 0);
     show(g, new Vector3(0, plan.levels[interiorView.level].floorZ, 0), Math.hypot(b.width, b.length) / 2 + 2);
     windows.update(null, null);
+    roomEditor.update(null);
     return;
   }
   const walls = partyWalls(b.footprint, b.edgeKinds, b.roofBase);
@@ -193,6 +200,7 @@ function rebuild(frame = false): void {
   labels = new RoomLabels(plan, interiorView.area);
   g.add(labels.group);
   applyCut(true);
+  roomEditor.update(edited);
 }
 
 /** the plane's place (world space) for the slider */
@@ -228,6 +236,7 @@ function applyCut(force = false): void {
   // the plane in the building's own (Blender) coordinates, for the room names
   const own = cut.mode === "horizontal" ? at : cut.axis === "across" ? at + site.width / 2 : site.length / 2 - at;
   labels?.update(on && interiorView.labels, cut.mode, cut.axis, own, cut.flip);
+  labels?.setClip(on ? cutaway.plane : null);
 }
 
 /** name of the floor a height (m) is in, for the horizontal cut */
@@ -351,11 +360,17 @@ function syncLevels(plan: BuildingPlan): void {
 }
 
 /** click a window to set its facade details on its own (windowEditor.ts) */
+const roomEditor = new RoomEditor({
+  canvas: renderer.domElement, camera, gui, edits: roomEdits,
+  labels: () => labels,
+  rebuild: () => rebuild(),
+});
 const windows = new WindowEditor({
   canvas: renderer.domElement, camera, gui, params,
   shown: () => (view.gallery || interiorView.plan ? null : shown),
   clip: () => (cutShown ? cutaway.plane : null),
   rebuild: () => rebuild(),
+  ignorePointer: e => roomEditor.consumedEvent(e),
 });
 
 // ---- the section panel and the bottom toolbar ----
@@ -482,6 +497,7 @@ if (import.meta.env.DEV) {
     __app: {
       camera, controls, params, view, interiorView, rebuild, scene, renderer, env, planCheckAll,
       cut, cutaway, toolbar, applyCut, frameHome, bounds, site, street, windows,
+      roomEdits, roomEditor,
       get plan() { return lastPlan; },
       get kit() { return kit; },
     },

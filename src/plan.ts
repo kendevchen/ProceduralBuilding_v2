@@ -1214,7 +1214,7 @@ function layoutStair(kind: PlanStair["kind"], poly: V2[], doorEdge: number, leve
 const KIND_NAME: Record<PlanWindow["kind"], string> = { window: "窗", door: "大門", shop: "店面", dormer: "老虎窗" };
 
 /** the rules of INTERIOR_SPEC.md §12; returns the problems found */
-export function checkPlan(plan: BuildingPlan): string[] {
+export function checkPlan(plan: BuildingPlan, checkUses = true): string[] {
   const issues: string[] = [];
   const name = (i: number) => plan.levels[i]?.name ?? `L${i}`;
   const M = I.minRoom;
@@ -1282,7 +1282,7 @@ export function checkPlan(plan: BuildingPlan): string[] {
     const k = `${r.level}|${r.apartment}`;
     flats.set(k, [...(flats.get(k) ?? []), r]);
   }
-  for (const [k, rs] of flats) {
+  for (const [k, rs] of checkUses ? flats : []) {
     const rooms = rs.filter(r => r.type !== "corridor");
     if (rooms.length < 4) continue;
     const missing = (["salon", "kitchen", "wc", "bedroom"] as RoomType[]).filter(t => !rooms.some(r => r.type === t));

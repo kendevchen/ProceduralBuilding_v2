@@ -22,6 +22,7 @@ import type { Building } from "./generator";
 import { type InteriorMaterials, Tris, atticCeiling } from "./rooms3d";
 import type { V2 } from "./roof";
 import dims from "../blender/kit_dims.json";
+import { inRoom, roomAnchor, roomContains } from "./roomGeometry";
 
 const BED = dims.interior.bedroomFurniture;
 
@@ -345,19 +346,15 @@ function bedroomPlacement(plan: BuildingPlan, b: Building, room: PlanRoom): { m:
   const depth = B.bedLength + B.duvetHeight / 2;
   const attic = plan.levels[plan.levels.length - 1];
   const ceilingAt = room.level === attic.index ? atticCeiling(b, attic.ceilingZ) : () => room.ceilingZ;
-  const inside = (p: V2) => room.polygon.every((a, i) => {
-    const b = room.polygon[(i + 1) % room.polygon.length];
-    return (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]) >= -1e-6;
-  });
   const arrangements: { scale: number; sides: BedSide[] }[] = [
     { scale: 1, sides: [-1, 1] }, { scale: 0.9, sides: [-1, 1] },
     { scale: 1, sides: [-1] }, { scale: 1, sides: [1] },
     { scale: 0.9, sides: [-1] }, { scale: 0.9, sides: [1] },
   ];
   for (const { scale, sides } of arrangements) {
-  const left = sides.includes(-1) ? half : B.bedWidth / 2 + B.duvetHeight / 2;
-  const right = sides.includes(1) ? half : B.bedWidth / 2 + B.duvetHeight / 2;
-  for (const f of freeStretches(plan, room).sort((a, b) => (b.s1 - b.s0) - (a.s1 - a.s0))) {
+    const left = sides.includes(-1) ? half : B.bedWidth / 2 + B.duvetHeight / 2;
+    const right = sides.includes(1) ? half : B.bedWidth / 2 + B.duvetHeight / 2;
+    for (const f of freeStretches(plan, room).sort((a, b) => (b.s1 - b.s0) - (a.s1 - a.s0))) {
       const lo = f.s0 + left * scale, hi = f.s1 - right * scale;
       const candidates = [(lo + hi) / 2];
       for (let s = lo; s <= hi; s += B.searchStep) candidates.push(s);
@@ -366,8 +363,12 @@ function bedroomPlacement(plan: BuildingPlan, b: Building, room: PlanRoom): { m:
         const m = new Matrix4().makeBasis(new Vector3(...f.d, 0).multiplyScalar(scale), new Vector3(...f.n, 0).multiplyScalar(scale), new Vector3(0, 0, 1))
           .setPosition(f.a[0] + f.d[0] * s + f.n[0] * B.wallGap, f.a[1] + f.d[1] * s + f.n[1] * B.wallGap, room.floorZ);
         const world = (x: number, y: number) => { const p = new Vector3(x, y, 0).applyMatrix4(m); return [p.x, p.y] as V2; };
-        if (![-left, right].every(x => [0, depth].every(y => inside(world(x, y))))) continue;
-        if (![-B.bedWidth / 2, B.bedWidth / 2].every(x => inside(world(x, depth + B.footClear / scale)))) continue;
+        const fitsRect = (x0: number, y0: number, x1: number, y1: number) =>
+          roomContains(room.polygon, [world(x0, y0), world(x1, y0), world(x1, y1), world(x0, y1)]);
+        if (!fitsRect(-B.bedWidth / 2 - B.duvetHeight / 2, 0, B.bedWidth / 2 + B.duvetHeight / 2, depth + B.footClear / scale)) continue;
+        if (!sides.every(side => side < 0
+          ? fitsRect(-left, 0, -B.bedWidth / 2 - B.sideGap, B.nightDepth)
+          : fitsRect(B.bedWidth / 2 + B.sideGap, 0, right, B.nightDepth))) continue;
         const lampTop = B.nightHeight + B.frameThickness + B.lampHeight;
         if (!sides.every(side => [0, B.nightDepth].every(y => ceilingAt(world(side * half, y)) - room.floorZ > lampTop + B.rounding))) continue;
         if (![-B.bedWidth / 2, B.bedWidth / 2].every(x => ceilingAt(world(x, B.headDepth)) - room.floorZ > B.headHeight + B.rounding)) continue;
@@ -378,8 +379,7 @@ function bedroomPlacement(plan: BuildingPlan, b: Building, room: PlanRoom): { m:
           if (len < 1e-6) return true;
           let nx = -dy / len, ny = dx / len;
           const centre: V2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-          const roomCentre = room.polygon.reduce((p, q) => [p[0] + q[0] / room.polygon.length, p[1] + q[1] / room.polygon.length] as V2, [0, 0] as V2);
-          if ((roomCentre[0] - centre[0]) * nx + (roomCentre[1] - centre[1]) * ny < 0) { nx = -nx; ny = -ny; }
+          if (!inRoom(room.polygon, [centre[0] + nx * clearance / 2, centre[1] + ny * clearance / 2])) { nx = -nx; ny = -ny; }
           const reserved = [a, b, [b[0] + nx * clearance, b[1] + ny * clearance], [a[0] + nx * clearance, a[1] + ny * clearance]]
             .map(p => new Vector3(p[0], p[1], room.floorZ).applyMatrix4(inv));
           const furniture = [
@@ -476,9 +476,11 @@ export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMa
     // Under the slope they are cut into units of about a metre, each as high as its place allows.
     books.stamp = booksStamp(z + CASE.plinth);
     for (const f of freeStretches(plan, r)) {
-      const units = r.level === attic.index ? Math.ceil((f.s1 - f.s0) / 1.05) : 1;
+      const units = r.level === attic.index || r.polygon.length > 4 ? Math.ceil((f.s1 - f.s0) / 1.05) : 1;
       for (let k = 0; k < units; k++) {
         const u = { ...f, s0: f.s0 + ((f.s1 - f.s0) * k) / units, s1: f.s0 + ((f.s1 - f.s0) * (k + 1)) / units };
+        const corner = (s: number, d: number): V2 => [u.a[0] + u.d[0] * s + u.n[0] * d, u.a[1] + u.d[1] * s + u.n[1] * d];
+        if (!roomContains(r.polygon, [corner(u.s0, 0), corner(u.s1, 0), corner(u.s1, CASE.depth + 0.04), corner(u.s0, CASE.depth + 0.04)])) continue;
         let room = Infinity;
         for (const s of [u.s0, u.s1]) for (const dpt of [0.05, CASE.depth]) {
           room = Math.min(room, up([u.a[0] + u.d[0] * s + u.n[0] * dpt, u.a[1] + u.d[1] * s + u.n[1] * dpt]));
@@ -491,10 +493,10 @@ export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMa
     const roomW = x1 - x0 - 2 * CASE.depth, roomD = y1 - y0 - 2 * CASE.depth;
     const alongX = roomW >= roomD;
     const long = alongX ? roomW : roomD, short = alongX ? roomD : roomW;
-    const big = long >= 3.8 && short >= 2.6;
-    const length = big ? Math.min(2.4, long - 1.4) : Math.min(1.4, long - 1.4), dep = big ? 0.85 : 0.7;
+    let big = long >= 3.8 && short >= 2.6;
+    let length = big ? Math.min(2.4, long - 1.4) : Math.min(1.4, long - 1.4), dep = big ? 0.85 : 0.7;
     if (length < 1.0 || short < dep + 1.1) continue;
-    const turn = alongX ? 0 : Math.PI / 2;
+    let turn = alongX ? 0 : Math.PI / 2;
     // where it stands: the middle if it can, else the nearest place with the headroom for the chair and
     // the lamp, and clear of the doors
     const doors: V2[] = r.doors.map(dr => {
@@ -504,6 +506,11 @@ export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMa
     const fits = (px: number, py: number) => {
       const m = at(px, py, 0, turn);
       const inv = m.clone().invert();
+      const footprint = [[-length / 2, -dep / 2 - 0.5], [length / 2, -dep / 2 - 0.5],
+        [length / 2, dep / 2 + 0.5], [-length / 2, dep / 2 + 0.5]].map(([x, y]) => {
+          const p = new Vector3(x, y, 0).applyMatrix4(m); return [p.x, p.y] as V2;
+        });
+      if (!roomContains(r.polygon, footprint)) return false;
       for (const sx of [-1, 0, 1]) for (const sy of [-1, 1]) {
         const p = new Vector3(sx * length / 2, sy * (dep / 2 + 0.4), 0).applyMatrix4(m);
         if (p.x < x0 + CASE.depth || p.x > x1 - CASE.depth || p.y < y0 + CASE.depth || p.y > y1 - CASE.depth) return false;
@@ -514,14 +521,21 @@ export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMa
         return Math.abs(l.x) > length / 2 + 0.7 || Math.abs(l.y) > dep / 2 + 0.85;
       });
     };
-    const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+    const [mx, my] = roomAnchor(r.polygon)!;
     let spot: V2 | null = null;
-    for (let step = 0; step <= 12 && !spot; step++) {
-      const ring: V2[] = [];
-      for (let ix = -step; ix <= step; ix++) for (let iy = -step; iy <= step; iy++) {
-        if (Math.max(Math.abs(ix), Math.abs(iy)) === step) ring.push([mx + ix * 0.2, my + iy * 0.2]);
+    const initial = { big, length, dep, turn };
+    const options = [initial, { ...initial, turn: initial.turn + Math.PI / 2 }];
+    if (big) options.push({ big: false, length: 1.4, dep: 0.7, turn: initial.turn }, { big: false, length: 1.4, dep: 0.7, turn: initial.turn + Math.PI / 2 });
+    for (const option of options) {
+      ({ big, length, dep, turn } = option);
+      for (let step = 0; step <= Math.ceil(Math.max(roomW, roomD) / 0.4) && !spot; step++) {
+        const ring: V2[] = [];
+        for (let ix = -step; ix <= step; ix++) for (let iy = -step; iy <= step; iy++) {
+          if (Math.max(Math.abs(ix), Math.abs(iy)) === step) ring.push([mx + ix * 0.2, my + iy * 0.2]);
+        }
+        spot = ring.sort((p, q) => Math.hypot(p[0] - mx, p[1] - my) - Math.hypot(q[0] - mx, q[1] - my)).find(p => fits(p[0], p[1])) ?? null;
       }
-      spot = ring.sort((p, q) => Math.hypot(p[0] - mx, p[1] - my) - Math.hypot(q[0] - mx, q[1] - my)).find(p => fits(p[0], p[1])) ?? null;
+      if (spot) break;
     }
     if (!spot) continue;
     const [cx, cy] = spot;
