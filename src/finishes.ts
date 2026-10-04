@@ -113,7 +113,7 @@ export function stampOf(look: Look, room: PlanRoom | null, surface: "wall" | "fl
     const v = c.toArray() as [number, number, number];
     return stamp(surface === "wall" ? P.paint : P.plain, v, v, room.floorZ, room.ceilingZ);
   }
-  const f = surface === "floor" && room.type === "kitchen" && room.level === 1
+  const f = surface === "floor" && room.type === "kitchen"
     ? { pattern: P.kitchenMarbleTiles, a: "#e3e2e8", b: "#242830" }
     : surface === "wall" && room.type === "dining"
     ? { pattern: P.diningPanels, a: "#b4becb", b: "#c79e48" }
