@@ -600,11 +600,17 @@ function salonSet(linen: Tris, wood: Tris, brass: Tris, dark: Tris, books: Tris,
 }
 
 // ------------------------------------------------------------------ rear-right dining sample
-export interface DiningInfo { room: string | null; furnished: boolean; chairs: number; displayCabinets: number; reason: string | null }
+export interface DiningInfo {
+  furnished: string[];
+  rooms: Record<string, { chairs: number; displayCabinets: number }>;
+  unfurnished: string[];
+}
 interface DiningPlacement { m: Matrix4; chairs: 4 | 6; length: number; cabinets: (-1 | 1)[] }
 
-function diningPlacement(plan: BuildingPlan, r: PlanRoom): DiningPlacement | null {
+function diningPlacement(plan: BuildingPlan, b: Building, r: PlanRoom): DiningPlacement | null {
   const D = DINING;
+  const attic = plan.levels[plan.levels.length - 1];
+  const ceilingAt = r.level === attic.index ? atticCeiling(b, attic.ceilingZ) : () => r.ceilingZ;
   let best: DiningPlacement | null = null, bestScore = -1;
   const openings: V2[][] = [];
   const reserve = (at: V2, dir: V2, width: number, clearance: number) => {
@@ -653,15 +659,18 @@ function diningPlacement(plan: BuildingPlan, r: PlanRoom): DiningPlacement | nul
           return [rect[0] + dx, rect[1] + dy, rect[2] + dx, rect[3] + dy] as SalonRect;
         });
         if (pulled.some(rect => !roomContains(r.polygon, poly(rect)) || openings.some(o => overlaps(poly(rect), o)))) continue;
+        const heightFits = (rect: SalonRect, height: number) => poly(rect).every(p => ceilingAt(p) - r.floorZ + 1e-6 >= height + 0.05);
+        if (!heightFits(rects[0], D.cabinetHeight + D.flowerHeight + 0.03) ||
+          !heightFits(rects[1], D.tableHeight + D.flowerHeight + 0.06) ||
+          rects.slice(2).some(rect => !heightFits(rect, D.chairHeight + 0.03))) continue;
         const cabinets = ([-1, 1] as const).filter(side => {
-          if (r.ceilingZ - r.floorZ < SALON.caseHeight + 0.05) return false;
           const start = side < 0 ? -D.cabinetWidth / 2 - D.displayGap - SALON.caseWidth : D.cabinetWidth / 2 + D.displayGap;
           const rect: SalonRect = [start - 0.025, 0, start + SALON.caseWidth + 0.025, SALON.caseDepth + 0.04];
           // The entire cabinet must sit on this same uninterrupted wall span.
           const along0 = s + rect[0] * scale, along1 = s + rect[2] * scale;
-          return along0 >= f.s0 && along1 <= f.s1 && roomContains(r.polygon, poly(rect)) && !openings.some(o => overlaps(poly(rect), o));
+          return along0 >= f.s0 && along1 <= f.s1 && roomContains(r.polygon, poly(rect)) && !openings.some(o => overlaps(poly(rect), o)) && heightFits(rect, SALON.caseHeight);
         });
-        if (r.ceilingZ - r.floorZ < D.pictureBottom + D.pictureHeight + 0.05) continue;
+        if (!heightFits([-D.pictureWidth / 2, 0.025, D.pictureWidth / 2, 0.081], D.pictureBottom + D.pictureHeight)) continue;
         const score = chairs * 10 + cabinets.length;
         if (score > bestScore) { best = { m, chairs, length, cabinets }; bestScore = score; }
         if (chairs === 6 && cabinets.length === 2) return best;
@@ -957,15 +966,14 @@ export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMa
   }
   group.userData.salons = salonInfo;
 
-  const diningRoom = plan.rooms.find(r => r.diningPrototype && r.type === "dining");
-  const diningInfo: DiningInfo = { room: diningRoom?.id ?? null, furnished: false, chairs: 0, displayCabinets: 0, reason: null };
-  if (diningRoom) {
-    const placement = diningPlacement(plan, diningRoom);
+  const diningInfo: DiningInfo = { furnished: [], rooms: {}, unfurnished: [] };
+  for (const diningRoom of plan.rooms.filter(r => r.type === "dining")) {
+    const placement = diningPlacement(plan, b, diningRoom);
     if (placement) {
       diningSet(linen, wood, brass, diningDecor, salonArt, diningRug, plan, diningRoom, placement, look);
-      diningInfo.furnished = true; diningInfo.chairs = placement.chairs;
-      diningInfo.displayCabinets = placement.cabinets.length;
-    } else diningInfo.reason = "此餐廳的門窗與輪廓無法安全容納餐桌、拉椅空間及餐邊櫃。";
+      diningInfo.furnished.push(diningRoom.id);
+      diningInfo.rooms[diningRoom.id] = { chairs: placement.chairs, displayCabinets: placement.cabinets.length };
+    } else diningInfo.unfurnished.push(diningRoom.id);
   }
   group.userData.dining = diningInfo;
 

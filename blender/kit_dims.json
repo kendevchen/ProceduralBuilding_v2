@@ -64,7 +64,7 @@
     "twoFlatsBays": 7,
     "serviceStair": { "bays": 6, "depth": 13.0 },
     "diningFurniture": {
-      "_doc": "Rear-right 2F dining sample. Metres; cabinet at y=0, table long axis x.",
+      "_doc": "Dining furniture on all floors. Metres; cabinet at y=0, table long axis x.",
       "tableLength": 1.8, "tableWidth": 0.85, "tableHeight": 0.76,
       "clothDrop": 0.28, "tableY": 1.95,
       "chairWidth": 0.48, "chairDepth": 0.50, "chairHeight": 1.04, "seatHeight": 0.46,
