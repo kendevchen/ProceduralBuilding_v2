@@ -21,6 +21,7 @@ export type Look = "real" | "diagram" | "white";
 export type Stamp = [number, number, number, number, number, number, number, number, number];
 
 const P = {
+  doorOak: 31, whiteMarble: 32,
   plain: 0, herringbone: 1, boards: 2, hexMixed: 3, hexSparse: 4, marble: 5, carpet: 6, salonRug: 7, diningRug: 8, kitchenMarbleTiles: 9,
   paint: 10, wallpaper: 11, boiserie: 12, tiles: 13, books: 14, bedroomPanels: 15, diningPanels: 16, blackMarble: 17, kitchenWorktop: 18, cafeFloor: 19, cafePanels: 20, cafeWood: 21, cafeStone: 22, cafeWicker: 23, cafeFurnitureWood: 24, banquetPanels: 25, banquetWood: 26, banquetFabric: 27, atticBooks: 28, atticFabric: 29, atticGlass: 30,
 } as const;
@@ -42,7 +43,7 @@ const FLOORS: Record<RoomType, Finish> = {
   kitchen: { pattern: P.hexMixed, a: "#a8553a", b: "#924630" },
   wc: { pattern: P.hexSparse, a: "#e9e6df", b: "#2f2f33" },
   vestibule: { pattern: P.marble, a: "#e6e1d6", b: "#33302d" },
-  stair: { pattern: P.marble, a: "#e6e1d6", b: "#33302d" },
+  stair: { pattern: P.whiteMarble, a: "#f4f3f0", b: "#a9adb1" },
   shop: { pattern: P.marble, a: "#ddd5c4", b: "#8c3c2e" },
 };
 
@@ -73,6 +74,18 @@ function stamp(pattern: Pattern, a: [number, number, number], b: [number, number
 }
 
 export const PLAIN: Stamp = stamp(P.plain, rgb(PLAIN_COLOR), rgb(PLAIN_COLOR));
+
+export function doorOakStamp(horizontal = false): Stamp {
+  return stamp(P.doorOak, rgb("#dcc39c"), rgb("#b89970"), horizontal ? 1 : 0);
+}
+
+export function thresholdWoodStamp(): Stamp {
+  return stamp(P.boards, rgb("#a07a52"), rgb("#755638"));
+}
+
+export function stairMarbleStamp(): Stamp {
+  return stamp(P.whiteMarble, rgb("#f4f3f0"), rgb("#a9adb1"));
+}
 
 /** Continuous black marble behind the kitchen cabinets and extractor. */
 export function kitchenBacksplashStamp(floorZ: number, ceilingZ: number): Stamp {
@@ -551,6 +564,16 @@ float finRough = 0.85;
       vec2 q = fract(wickerUV * 85.0);
       float strand = max(finLine(abs(q.x - 0.5), 0.15), finLine(abs(q.y - 0.5), 0.15));
       col = mix(B, A, strand); finRough = 0.85;
+    } else if (pat == 31) {
+      // Vertical grain on jambs, horizontal grain across the lintel.
+      vec2 grainUV = abs(N.y) > 0.5 ? vFinPos.xz : vec2(u, vFinPos.y);
+      if (vFinZ.x > 0.5) grainUV = grainUV.yx;
+      float grain = finFbm(grainUV * vec2(45.0, 1.8));
+      col = mix(A, B, grain * 0.38); finRough = 0.65;
+    } else if (pat == 32) {
+      vec2 stoneUV = abs(N.y) > 0.5 ? vFinPos.xz : vec2(u, vFinPos.y);
+      col = finKitchenStone(stoneUV * 0.7, A, B, 0.32);
+      finRough = 0.26;
     } else if (pat == 18) {
       vec2 slabUV = abs(N.y) > 0.5 ? vFinPos.xz : vec2(u, vFinPos.y);
       col = finKitchenStone(slabUV * 3.0, A, B, 0.22);
@@ -592,7 +615,7 @@ float finRough = 0.85;
       } else col = B * (0.97 + 0.05 * finNoise(vec2(u, h) * 4.0));
     }
     // skirting board
-    if (h < 0.13 && pat != 13 && pat != 14 && pat != 17 && pat != 18 && pat != 22 && pat != 23 && pat != 24 && pat != 26 && pat != 27 && pat != 28 && pat != 29 && pat != 30) col = (pat == 12 || pat == 15) ? mix(A, B, 0.5) : B * 0.95;
+    if (h < 0.13 && pat < 31 && pat != 13 && pat != 14 && pat != 17 && pat != 18 && pat != 22 && pat != 23 && pat != 24 && pat != 26 && pat != 27 && pat != 28 && pat != 29 && pat != 30) col = (pat == 12 || pat == 15) ? mix(A, B, 0.5) : B * 0.95;
     if (h < 0.13 && pat == 16) col = vec3(0.82, 0.80, 0.74) * 0.95;
   }
   diffuseColor.rgb = col;

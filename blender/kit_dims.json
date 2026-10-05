@@ -50,6 +50,7 @@
     "corridor": 1.25,
     "walls": { "spine": 0.25, "cage": 0.25, "partition": 0.1 },
     "doors": { "single": [0.9, 2.2], "double": [1.4, 2.6], "landing": [1.0, 2.3], "hall": [1.6, 2.8] },
+    "doorTrim": { "width": 0.065, "projection": 0.018, "lining": 0.018, "floorLift": 0.004, "overlap": 0.002 },
     "bands": { "front": 5.6, "back": 4.4, "minFront": 3.8, "minBack": 3.0, "minCore": 2.0, "maxCore": 6.5, "double": 9.0, "core": 14.4, "endCell": 2.0 },
     "flatWindows": 3,
     "wcSplit": { "area": 9.0, "width": 1.5 },

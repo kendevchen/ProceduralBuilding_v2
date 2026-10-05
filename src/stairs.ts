@@ -19,6 +19,7 @@ import dims from "../blender/kit_dims.json";
 import type { BuildingPlan, PlanStair, StairFlight } from "./plan";
 import { type InteriorMaterials, Tris } from "./rooms3d";
 import type { V2 } from "./roof";
+import { type Look, stairMarbleStamp, stampOf } from "./finishes";
 
 const S = dims.interior.stair;
 /** keeps the stairs off the cage's walls */
@@ -385,7 +386,7 @@ function newel(t: Tris, at: V2, z0: number, z1: number) {
 }
 
 /** the stairs of a plan (white model), shown with the rest of the interior while the building is cut */
-export function buildStairs(plan: BuildingPlan, mats: InteriorMaterials, lace: Material, laceDepth: Material): Group {
+export function buildStairs(plan: BuildingPlan, mats: InteriorMaterials, lace: Material, laceDepth: Material, look: Look = "white"): Group {
   const solid = new Tris(), carpet = new Tris(), iron = new Tris(), wood = new Tris();
   const ribbon = { pos: [] as number[], uv: [] as number[] };
   const levels = plan.levels;
@@ -393,6 +394,8 @@ export function buildStairs(plan: BuildingPlan, mats: InteriorMaterials, lace: M
   const slab = (k: number) => levels[k].floorZ - levels[k - 1].ceilingZ;
 
   for (const s of plan.stairs) {
+    solid.stamp = look === "real" ? stairMarbleStamp()
+      : stampOf(look, plan.rooms.find(r => r.type === "stair" && r.level === s.from) ?? null, "floor");
     const w = new Well(s);
     const main = s.kind === "main";
     const flights = s.layout.flights;
@@ -438,7 +441,7 @@ export function buildStairs(plan: BuildingPlan, mats: InteriorMaterials, lace: M
   }
 
   const group = new Group();
-  const parts: [Tris, Material][] = [[solid, mats.stair], [carpet, mats.carpet], [iron, mats.iron], [wood, mats.wood]];
+  const parts: [Tris, Material][] = [[solid, look === "white" ? mats.stair : mats.finishWall], [carpet, mats.carpet], [iron, mats.iron], [wood, mats.wood]];
   for (const [t, m] of parts) {
     if (!t.pos.length) continue;
     const mesh = new Mesh(t.geometry(), m);

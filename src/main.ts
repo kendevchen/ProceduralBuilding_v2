@@ -191,7 +191,7 @@ function rebuild(frame = false): void {
   g.add(curtains);
   interior = buildRooms3d(plan, b, kit, cutaway.interior, interiorView.look);
   // the stairs' railing: the kit's first lace pattern (欄杆與圓環)
-  interior.add(buildStairs(plan, cutaway.interior, cutaway.cut(materials.lace(0)), materials.laceDepth(0)));
+  interior.add(buildStairs(plan, cutaway.interior, cutaway.cut(materials.lace(0)), materials.laceDepth(0), interiorView.look));
   const furniture = buildFurniture(plan, b, cutaway.interior, interiorView.look);
   interior.add(furniture);
   // the lamps' places in world space: Blender (x, y, z) -> (x - W/2, z, L/2 - y)

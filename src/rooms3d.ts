@@ -17,7 +17,7 @@ import dims from "../blender/kit_dims.json";
 import { inRoom, roomEdgeSpans } from "./roomGeometry";
 import type { Building } from "./generator";
 import type { Kit } from "./kit";
-import { type Look, type Stamp, stampAttributes, stampOf } from "./finishes";
+import { type Look, type Stamp, doorOakStamp, thresholdWoodStamp, stampAttributes, stampOf } from "./finishes";
 import { type BuildingPlan, type PlanRoom, type PlanWall, type PlanWindow, edgeAt } from "./plan";
 import { type V2, insetEdges } from "./roof";
 
@@ -137,6 +137,41 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
   const levels = plan.levels;
   const attic = levels[levels.length - 1];
   const rooms = new Map(plan.rooms.map(r => [r.id, r]));
+  const frames = new Tris();
+  let doorCount = 0;
+  const detailDoor = (w: PlanWall, d0: number, d1: number, h: number) => {
+    const z = levels[w.level].floorZ, D = I.doorTrim;
+    const len = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
+    const dir = new Vector3((w.b[0] - w.a[0]) / len, (w.b[1] - w.a[1]) / len, 0);
+    const normal = new Vector3(-dir.y, dir.x, 0);
+    const at = (s: number, off: number, height: number) => v3(w.a, height).addScaledVector(dir, s).addScaledVector(normal, off);
+    const box = (a: number, b: number, lo: number, hi: number) => {
+      const e = w.thickness / 2 + D.projection;
+      const p = [at(a, -e, lo), at(b, -e, lo), at(b, e, lo), at(a, e, lo)];
+      const q = p.map(v => v.clone().setZ(hi));
+      frames.quad(p[0], p[1], p[2], p[3], DOWN);
+      frames.quad(q[0], q[1], q[2], q[3], UP);
+      const ns = [normal.clone().negate(), dir, normal, dir.clone().negate()];
+      for (let i = 0; i < 4; i++) {
+        const j = (i + 1) % 4;
+        frames.quad(p[i], p[j], q[j], q[i], ns[i]);
+      }
+    };
+    const room = w.rooms.map(id => rooms.get(id ?? "")).find(r => r?.type === "corridor")
+      ?? rooms.get(w.rooms[0] ?? "") ?? null;
+    frames.stamp = look === "real" ? doorOakStamp() : stampOf(look, room, "wall");
+    box(d0 - D.width, d0 + D.lining, z, h - D.lining);
+    box(d1 - D.lining, d1 + D.width, z, h - D.lining);
+    if (look === "real") frames.stamp = doorOakStamp(true);
+    box(d0 - D.width, d1 + D.width, h - D.lining, h + D.width);
+    if (finished) {
+      finishFloors.stamp = look === "real" ? thresholdWoodStamp() : stampOf(look, room, "floor");
+      const e = w.thickness / 2 + D.overlap;
+      finishFloors.quad(at(d0, -e, z + D.floorLift), at(d1, -e, z + D.floorLift),
+        at(d1, e, z + D.floorLift), at(d0, e, z + D.floorLift), UP);
+    }
+    doorCount++;
+  };
   const ballroom = plan.rooms.find(r => r.type === "ballroom");
   const inner = plan.inner;
 
@@ -304,7 +339,7 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
     const voidWall = w.rooms[1] === null;
     const L = () => paint(rooms.get(l ?? "") ?? null), R = () => paint(rooms.get(r ?? "") ?? null);
     const rim = () => paint(null), slab = () => section;
-    if (!voidWall) wallSolid(L, R, rim, w, lv.floorZ, () => lv.ceilingZ, lv.floorZ, lv.ceilingZ - 0.02, true);
+    if (!voidWall) wallSolid(L, R, rim, w, lv.floorZ, () => lv.ceilingZ, lv.floorZ, lv.ceilingZ - 0.02, true, detailDoor);
     const lo = openAbove(l, k), ro = openAbove(r, k);
     if (lo || ro) {
       wallSolid(lo ? L : slab, ro ? R : slab, slab, { ...w, openings: [] },
@@ -406,7 +441,7 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
     const top = (s: number) => under([w.a[0] + ((w.b[0] - w.a[0]) * s) / len, w.a[1] + ((w.b[1] - w.a[1]) * s) / len]);
     const [l, r] = sidesOf(w);
     wallSolid(() => paint(rooms.get(l ?? "") ?? null), () => paint(rooms.get(r ?? "") ?? null), () => paint(null),
-      w, attic.floorZ, top, attic.floorZ, zc - 0.02, false);
+      w, attic.floorZ, top, attic.floorZ, zc - 0.02, false, detailDoor);
   }
   paint(null);
 
@@ -427,13 +462,15 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
 
   const group = new Group();
   const parts: [Tris, Material][] = [[walls, finished ? mats.finishWall : mats.wall], [floors, mats.floor], [ceilings, mats.ceiling],
-    [section, mats.section], [finishFloors, mats.finishFloor]];
+    [section, mats.section], [finishFloors, mats.finishFloor], [frames, finished ? mats.finishWall : mats.wall]];
   for (const [t, m] of parts) {
     if (!t.pos.length) continue;
     const mesh = new Mesh(t.geometry(), m);
+    if (t === frames) mesh.name = "interior_door_frames";
     mesh.castShadow = mesh.receiveShadow = true;
     group.add(mesh);
   }
+  group.userData.doorTrim = { count: doorCount, triangles: frames.pos.length / 9 };
   return group;
 }
 
@@ -491,7 +528,8 @@ function inConvex(poly: V2[], p: V2): boolean {
  * `right` the other, `rims` the ends, door jambs and sloping tops.
  */
 function wallSolid(left: () => Tris, right: () => Tris, rims: () => Tris, w: PlanWall, z0: number, top: (s: number) => number,
-  floorZ: number, doorTop: number, flatTop: boolean) {
+  floorZ: number, doorTop: number, flatTop: boolean,
+  detailDoor?: (w: PlanWall, d0: number, d1: number, h: number) => void) {
   const len = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
   const dir: V2 = [(w.b[0] - w.a[0]) / len, (w.b[1] - w.a[1]) / len];
   const n: V2 = [-dir[1], dir[0]];
@@ -505,6 +543,7 @@ function wallSolid(left: () => Tris, right: () => Tris, rims: () => Tris, w: Pla
     const lowest = Math.min(top(Math.max(0, Math.min(len, d0))), top(Math.max(0, Math.min(len, d1))), top(Math.max(0, Math.min(len, o.at))));
     const h = Math.min(floorZ + o.height, doorTop, lowest - 0.1);
     if (h <= z0 + 0.5 || d1 <= d0) continue;
+    detailDoor?.(w, d0, d1, h);
     prof.push([d0, z0], [d0, h], [d1, h], [d1, z0]);
   }
   prof.push([s1, z0]);
