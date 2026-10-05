@@ -5,7 +5,7 @@
  */
 import {
   ACESFilmicToneMapping, Box3, Clock, GridHelper, Group, type InstancedMesh, Mesh, MeshStandardMaterial,
-  PerspectiveCamera, PlaneGeometry, SRGBColorSpace, Scene, type Sprite, Vector3, WebGLRenderer,
+  PerspectiveCamera, PlaneGeometry, Raycaster, SRGBColorSpace, Scene, type Sprite, Vector2, Vector3, WebGLRenderer,
 } from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import GUI from "lil-gui";
@@ -35,6 +35,8 @@ import { RoomEdits } from "./roomEdits";
 import { RoomEditor } from "./roomEditor";
 import type { Look } from "./finishes";
 import { Toolbar } from "./toolbar";
+import { UnfoldView, type UnfoldFocus } from "./unfold";
+import dims from "../blender/kit_dims.json";
 
 const renderer = new WebGLRenderer({ antialias: true, powerPreference: "high-performance", logarithmicDepthBuffer: true });
 const DEFAULT_PIXEL_RATIO = Math.min(devicePixelRatio, 1.25);
@@ -101,6 +103,65 @@ let cutShown = false;
 let interior: Group | null = null;
 let roomBoxes: Mesh | null = null;
 let labels: RoomLabels | null = null;
+const unfold = { selected: false, amount: 1, depth: dims.interior.unfold.frontDepth, focus: "all" as UnfoldFocus };
+let unfoldView: UnfoldView | null = null;
+let unfoldCurrent = 0;
+let unfoldMotion: { from: number; to: number; elapsed: number } | null = null;
+let cameraMotion: { from: Vector3; targetFrom: Vector3; to: Vector3; targetTo: Vector3; elapsed: number } | null = null;
+let beforeUnfold: { position: Vector3; target: Vector3 } | null = null;
+let lampSources: Parameters<LampLights["setLamps"]>[0] = [];
+const unfoldActive = () => unfold.selected && cut.on && !view.gallery && !view.furnitureGallery && !interiorView.plan;
+controls.addEventListener("start", () => { cameraMotion = null; });
+
+function releaseUnfold(): void {
+  if (!unfoldView) return;
+  if (labels && shown) shown.add(labels.group);
+  unfoldView.dispose(); unfoldView = null;
+  if (shown) shown.visible = true;
+  lampLights.setLamps(lampSources);
+  env.frame({ center: new Vector3(0, bounds.max.y / 2, 0), radius: Math.hypot(site.width, site.length, bounds.max.y) / 2 });
+}
+
+function updateUnfold(): void {
+  if (!unfoldView) return;
+  unfoldView.update(unfoldCurrent, unfold.depth, unfold.focus);
+  labels?.updateUnfold(interiorView.labels, r => unfoldView!.placement(r));
+  lampLights.setLamps(unfoldView.lamps(lampSources));
+}
+
+function setUnfoldAmount(amount: number): void {
+  unfold.amount = amount;
+  if (amount === 0) unfold.focus = "all";
+  unfoldMotion = { from: unfoldCurrent, to: amount, elapsed: 0 };
+  applyCut();
+  frameUnfold();
+}
+
+function focusUnfold(focus: UnfoldFocus): void {
+  unfold.focus = focus;
+  if (focus !== "all" && unfold.amount < 0.05) setUnfoldAmount(1);
+  applyCut(); frameUnfold();
+}
+
+/** Frame every retained corner with a restrained, slightly elevated perspective. */
+function frameUnfold(): void {
+  if (!unfoldView) return;
+  unfoldView.update(unfold.amount, unfold.depth, unfold.focus);
+  const box = unfoldView.bounds();
+  updateUnfold();
+  if (box.isEmpty()) return;
+  const target = box.getCenter(new Vector3());
+  const el = dims.interior.unfold.elevation * Math.PI / 180;
+  const forward = new Vector3(0, Math.sin(el), Math.cos(el)), up = new Vector3(0, Math.cos(el), -Math.sin(el));
+  const tanV = Math.tan(camera.fov * Math.PI / 360) * 0.83, tanH = tanV * camera.aspect;
+  let distance = 0;
+  for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
+    const p = new Vector3(x, y, z).sub(target), depth = p.dot(forward);
+    distance = Math.max(distance, Math.abs(p.x) / tanH + depth, Math.abs(p.dot(up)) / tanV + depth);
+  }
+  cameraMotion = { from: camera.position.clone(), targetFrom: controls.target.clone(), to: target.clone().addScaledVector(forward, distance), targetTo: target, elapsed: 0 };
+  env.frame({ center: target, radius: box.getSize(new Vector3()).length() / 2 });
+}
 
 function show(g: Group, center: Vector3, radius: number): void {
   if (shown) {
@@ -134,6 +195,8 @@ function frameGallery(width: number, front: number): void {
 
 function rebuild(frame = false): void {
   if (!kit || !materials) return;
+  releaseUnfold();
+  cameraMotion = null;
   interior = roomBoxes = null;
   labels?.dispose();
   labels = null;
@@ -197,13 +260,15 @@ function rebuild(frame = false): void {
   // the lamps' places in world space: Blender (x, y, z) -> (x - W/2, z, L/2 - y)
   const furnitureInfo = furniture.userData.furniture as FurnitureInfo;
   const worldLight = (p: Vector3) => new Vector3(p.x - b.width / 2, p.z, b.length / 2 - p.y);
-  lampLights.setLamps([
+  lampSources = [
     ...furnitureInfo.lamps.map(p => ({ position: worldLight(p), intensity: 9, distance: 4.2 })),
     ...furnitureInfo.lightSources.map(source => ({ ...source, position: worldLight(source.position) })),
-  ]);
+  ];
+  lampLights.setLamps(lampSources);
   g.add(interior);
   g.position.set(-b.width / 2, -b.length / 2, 0); // footprint centred on the origin
   const terrace = buildCafeTerrace(plan, b, cutaway.galleryInterior, street.params);
+  terrace.group.userData.unfoldSkip = true;
   const cafeInfo = furniture.userData.cafe as CafeInfo;
   for (const [id, count] of Object.entries(terrace.rooms)) {
     const cafe = cafeInfo.rooms[id];
@@ -224,6 +289,7 @@ function rebuild(frame = false): void {
   labels = new RoomLabels(plan, interiorView.area);
   g.add(labels.group);
   applyCut(true);
+  if (unfoldActive()) frameUnfold();
   roomEditor.update(edited, furniture.userData.salons as SalonInfo, furniture.userData.dining as DiningInfo, furniture.userData.kitchens as KitchenInfo, cafeInfo, furniture.userData.ballroom as BallroomInfo ?? null, furniture.userData.attic as AtticInfo ?? null);
 }
 
@@ -242,6 +308,34 @@ function cutPosition(): { at: number } {
  * plane past the building leaves it whole, with the interior still in place (the toggle hides it).
  */
 function applyCut(force = false): void {
+  if (unfoldActive() && shown && lastPlan) {
+    if (!unfoldView) {
+      // Enable the real interior before copying render objects; atlas rooms are explicitly skipped.
+      if (interior) interior.visible = true;
+      if (roomBoxes) roomBoxes.visible = false;
+      windows.update(null, null);
+      unfoldView = new UnfoldView(shown, lastPlan, cutaway);
+      root.add(unfoldView.group);
+      if (labels) unfoldView.group.add(labels.group);
+    }
+    shown.visible = false; street.group.visible = false;
+    cutShown = true; lampLights.on = true;
+    unfold.depth = Math.min(unfold.depth, site.length * dims.interior.unfold.maxDepthRatio);
+    updateUnfold();
+    toolbar.show("unfold", cut.axis, cut.t, cut.flip);
+    toolbar.showUnfold(unfold.amount, unfold.depth, site.length * dims.interior.unfold.maxDepthRatio, unfold.focus);
+    toolbar.setInterior(true); toolbar.setLevel("");
+    return;
+  }
+  if (unfoldView) {
+    releaseUnfold(); force = true;
+    street.group.visible = !view.gallery && !view.furnitureGallery && !interiorView.plan;
+    if (kit && shown) windows.update(generateBuilding(params, kit), shown);
+    if (beforeUnfold) {
+      cameraMotion = { from: camera.position.clone(), targetFrom: controls.target.clone(), to: beforeUnfold.position, targetTo: beforeUnfold.target, elapsed: 0 };
+      beforeUnfold = null;
+    }
+  }
   // the interior is on show whenever the toggle is on, also with the plane past the building (nothing cut away,
   // the real rooms behind the windows); the toggle hides it
   const { at } = cutPosition();
@@ -254,7 +348,7 @@ function applyCut(force = false): void {
     lampLights.on = on;
   }
   cutaway.place(cut.mode, cut.axis, at, cut.flip);
-  toolbar.show(cut.mode, cut.axis, cut.t, cut.flip);
+  toolbar.show(unfold.selected ? "unfold" : cut.mode, cut.axis, cut.t, cut.flip);
   toolbar.setInterior(on);
   toolbar.setLevel(on && cut.mode === "horizontal" ? levelAt(at) : "");
   // the plane in the building's own (Blender) coordinates, for the room names
@@ -273,6 +367,7 @@ function levelAt(z: number): string {
 
 /** the default view, framing the whole building (in the narrower of the two fields of view) */
 function frameHome(): void {
+  if (unfoldActive()) { frameUnfold(); return; }
   if ((view.gallery || view.furnitureGallery) && overviewSize) {
     frameGallery(overviewSize.width, overviewSize.depth / 2);
     if (view.furnitureGallery) camera.position.z *= -1;
@@ -404,7 +499,7 @@ const roomEditor = new RoomEditor({
 });
 const windows = new WindowEditor({
   canvas: renderer.domElement, camera, gui, params,
-  shown: () => (view.gallery || view.furnitureGallery || interiorView.plan ? null : shown),
+  shown: () => (unfoldActive() || view.gallery || view.furnitureGallery || interiorView.plan ? null : shown),
   clip: () => (cutShown ? cutaway.plane : null),
   rebuild: () => rebuild(),
   ignorePointer: e => roomEditor.consumedEvent(e),
@@ -414,25 +509,53 @@ const windows = new WindowEditor({
 let saveNext = false;
 const toolbar = new Toolbar({
   interior: on => {
+    if (on && unfold.selected) {
+      beforeUnfold = { position: camera.position.clone(), target: controls.target.clone() };
+      unfoldCurrent = 0; unfoldMotion = { from: 0, to: unfold.amount, elapsed: 0 };
+    }
     cut.on = on;
     if (on) gui.close();
     applyCut();
+    if (unfoldActive()) frameUnfold();
   },
   rotate: on => {
     controls.autoRotate = on;
     controls.autoRotateSpeed = 0.8;
   },
   cut: on => {
+    if (on && unfold.selected && !cut.on) {
+      beforeUnfold = { position: camera.position.clone(), target: controls.target.clone() };
+      unfoldCurrent = 0; unfoldMotion = { from: 0, to: unfold.amount, elapsed: 0 };
+    }
     cut.on = on;
     if (on) gui.close(); // out of the panel's way; the person can open it again
     applyCut();
+    if (unfoldActive()) frameUnfold();
   },
   home: () => frameHome(),
   save: () => (saveNext = true),
   mode: m => {
-    cut.mode = m;
+    const entering = m === "unfold" && !unfold.selected;
+    unfold.selected = m === "unfold";
+    cut.sweep = false; toolbar.setSweep(false);
+    if (m !== "unfold") { cut.mode = m; unfoldMotion = null; cameraMotion = null; }
+    else {
+      cut.on = true;
+      if (entering) {
+        controls.autoRotate = false; toolbar.setRotate(false);
+        beforeUnfold = { position: camera.position.clone(), target: controls.target.clone() };
+        unfoldCurrent = 0; unfoldMotion = { from: 0, to: unfold.amount, elapsed: 0 };
+      }
+    }
+    applyCut();
+    if (m === "unfold") frameUnfold();
+  },
+  unfoldAmount: setUnfoldAmount,
+  unfoldDepth: t => {
+    unfold.depth = t * site.length * dims.interior.unfold.maxDepthRatio;
     applyCut();
   },
+  unfoldFocus: focusUnfold,
   axis: a => {
     cut.axis = a;
     applyCut();
@@ -449,13 +572,30 @@ const toolbar = new Toolbar({
 });
 toolbar.show(cut.mode, cut.axis, cut.t, cut.flip);
 
+// A click focuses a retained slice; dragging remains orbit control and room-label clicks keep editing.
+let unfoldPress: { x: number; y: number; id: number } | null = null;
+renderer.domElement.addEventListener("pointerdown", e => {
+  if (unfoldPress) { unfoldPress = null; return; }
+  if (unfoldActive() && e.isPrimary && e.button === 0) unfoldPress = { x: e.clientX, y: e.clientY, id: e.pointerId };
+});
+renderer.domElement.addEventListener("pointercancel", () => { unfoldPress = null; });
+renderer.domElement.addEventListener("pointerup", e => {
+  const p = unfoldPress; unfoldPress = null;
+  if (!p || p.id !== e.pointerId || !unfoldView || !unfoldActive() || roomEditor.consumedEvent(e) || Math.hypot(p.x - e.clientX, p.y - e.clientY) > 5) return;
+  const rect = renderer.domElement.getBoundingClientRect(), ray = new Raycaster();
+  camera.updateWorldMatrix(true, false);
+  ray.setFromCamera(new Vector2((e.clientX - rect.left) / rect.width * 2 - 1, 1 - (e.clientY - rect.top) / rect.height * 2), camera);
+  const focus = unfoldView.pick(ray);
+  if (focus) focusUnfold(focus);
+});
+
 /** download the frame just rendered as a PNG (called right after rendering, while the canvas still holds it) */
 function savePicture(): void {
   renderer.domElement.toBlob(blob => {
     if (!blob) return;
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `building-${params.seed}${cut.on ? `-${cut.mode === "horizontal" ? "水平" : "縱剖"}` : ""}.png`;
+    a.download = `building-${params.seed}${cut.on ? `-${unfold.selected ? "展開" : cut.mode === "horizontal" ? "水平" : "縱剖"}` : ""}.png`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }, "image/png");
@@ -535,6 +675,8 @@ if (import.meta.env.DEV) {
       camera, controls, params, view, interiorView, rebuild, scene, renderer, env, planCheckAll,
       cut, cutaway, toolbar, applyCut, frameHome, bounds, site, street, windows,
       roomEdits, roomEditor,
+      unfold, focusUnfold, setUnfoldAmount,
+      get unfoldView() { return unfoldView; },
       get plan() { return lastPlan; },
       get kit() { return kit; },
     },
@@ -560,13 +702,28 @@ addEventListener("resize", () => {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
   post.setSize(innerWidth, innerHeight);
+  if (unfoldActive()) frameUnfold();
 });
 
 const clock = new Clock();
 const SWEEP_SECONDS = 14; // one way
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1);
-  if (cut.on && cut.sweep) {
+  if (unfoldActive() && unfoldMotion) {
+    unfoldMotion.elapsed += dt;
+    const t = Math.min(1, unfoldMotion.elapsed / dims.interior.unfold.seconds), smooth = t * t * (3 - 2 * t);
+    unfoldCurrent = unfoldMotion.from + (unfoldMotion.to - unfoldMotion.from) * smooth;
+    updateUnfold();
+    if (t === 1) unfoldMotion = null;
+  }
+  if (cameraMotion) {
+    cameraMotion.elapsed += dt;
+    const t = Math.min(1, cameraMotion.elapsed / dims.interior.unfold.seconds), smooth = t * t * (3 - 2 * t);
+    camera.position.lerpVectors(cameraMotion.from, cameraMotion.to, smooth);
+    controls.target.lerpVectors(cameraMotion.targetFrom, cameraMotion.targetTo, smooth);
+    if (t === 1) cameraMotion = null;
+  }
+  if (cut.on && cut.sweep && !unfold.selected) {
     // back and forth, short of the ends (all gone / all there)
     cut.t += (cut.dir * dt) / SWEEP_SECONDS;
     if (cut.t > 0.98) [cut.t, cut.dir] = [0.98, -1];

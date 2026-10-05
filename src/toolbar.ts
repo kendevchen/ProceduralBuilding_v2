@@ -6,6 +6,8 @@
  * Plain DOM; main.ts owns the state and gets the user's actions through the callbacks.
  */
 import type { CutAxis, CutMode } from "./cutaway";
+import type { UnfoldFocus } from "./unfold";
+export type SectionMode = CutMode | "unfold";
 
 export interface ToolbarActions {
   /** show or hide the interior (the cut) at the slider's place, whether or not the panel is open */
@@ -14,7 +16,10 @@ export interface ToolbarActions {
   cut(on: boolean): void;
   home(): void;
   save(): void;
-  mode(m: CutMode): void;
+  mode(m: SectionMode): void;
+  unfoldAmount(t: number): void;
+  unfoldDepth(t: number): void;
+  unfoldFocus(focus: UnfoldFocus): void;
   axis(a: CutAxis): void;
   /** vertical cuts: keep the other side of the plane */
   flip(on: boolean): void;
@@ -64,6 +69,15 @@ const CSS = /* css */ `
   background: transparent; color: #e0e0e0; font: inherit; font-size: 14px; cursor: pointer; }
 .cut .btn.on { border-color: #d9824f; background: rgba(217, 130, 79, 0.22); }
 .cut .btn[hidden] { display: none; }
+.cut [hidden] { display: none !important; }
+.cut { box-sizing: border-box; max-height: calc(100dvh - 100px); overflow-y: auto; }
+.cut .head { flex-wrap: wrap; }
+.cut .seg button { padding: 7px 10px; }
+.cut .unfold label { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+.cut .unfold input { min-width: 0; }
+.cut .unfold output { min-width: 3.8em; text-align: right; font-variant-numeric: tabular-nums; }
+.cut .focus { flex-wrap: wrap; gap: 6px; }
+.cut .hint { color: #b5b5b5; font-size: 12px; margin: 12px 0 0; }
 .credit { bottom: 76px !important; }
 body:has(.cut:not([hidden])) .credit { display: none; }
 @media (max-width: 560px) {
@@ -96,7 +110,10 @@ export class Toolbar {
   private hi: HTMLSpanElement;
   private levelLabel: HTMLSpanElement;
   private buttons: Record<string, HTMLButtonElement> = {};
-  private modeButtons: Record<CutMode, HTMLButtonElement>;
+  private modeButtons: Record<SectionMode, HTMLButtonElement>;
+  private unfoldPanel: HTMLDivElement;
+  private amountSlider: HTMLInputElement;
+  private depthSlider: HTMLInputElement;
   private axisButton: HTMLButtonElement;
   private flipButton: HTMLButtonElement;
   private sweepButton: HTMLButtonElement;
@@ -140,10 +157,16 @@ export class Toolbar {
     this.panel.innerHTML = `
       <div class="head">
         <span class="dot"></span><span class="title">剖開建築</span>
-        <div class="seg"><button data-mode="vertical">縱剖</button><button data-mode="horizontal">水平</button></div>
+        <div class="seg"><button data-mode="vertical">縱剖</button><button data-mode="horizontal">水平</button><button data-mode="unfold">展開</button></div>
         <button class="close" title="關閉">✕</button>
       </div>
-      <div class="row"><span class="end lo"></span><input type="range" min="0" max="1000" step="1"><span class="end hi"></span></div>
+      <div class="row cut-position"><span class="end lo"></span><input aria-label="剖切位置" type="range" min="0" max="1000" step="1"><span class="end hi"></span></div>
+      <div class="unfold" hidden>
+        <label>展開程度<input aria-label="展開程度" class="amount" type="range" min="0" max="1000" step="1"><output class="amount-value"></output></label>
+        <label>正面開口<input aria-label="正面開口深度" class="depth" type="range" min="0" max="1000" step="1"><output class="depth-value"></output></label>
+        <div class="row focus"><button class="btn" data-focus="all">全覽</button><button class="btn" data-focus="left">左段</button><button class="btn" data-focus="center">中段</button><button class="btn" data-focus="right">右段</button><button class="btn presentation">展示視角</button></div>
+        <p class="hint">點建築可聚焦單段；拖曳旋轉。展開程度 0% 為完整建築。</p>
+      </div>
       <div class="row">
         <span class="legend">橘色為實體切面<span class="level"></span></span>
         <button class="btn axis">換方向</button>
@@ -156,11 +179,18 @@ export class Toolbar {
     this.lo = q<HTMLSpanElement>(".lo");
     this.hi = q<HTMLSpanElement>(".hi");
     this.levelLabel = q<HTMLSpanElement>(".level");
-    this.modeButtons = { vertical: q<HTMLButtonElement>('[data-mode="vertical"]'), horizontal: q<HTMLButtonElement>('[data-mode="horizontal"]') };
+    this.modeButtons = { vertical: q<HTMLButtonElement>('[data-mode="vertical"]'), horizontal: q<HTMLButtonElement>('[data-mode="horizontal"]'), unfold: q<HTMLButtonElement>('[data-mode="unfold"]') };
+    this.unfoldPanel = q<HTMLDivElement>(".unfold");
+    this.amountSlider = q<HTMLInputElement>(".amount");
+    this.depthSlider = q<HTMLInputElement>(".depth");
+    this.amountSlider.oninput = () => actions.unfoldAmount(Number(this.amountSlider.value) / 1000);
+    this.depthSlider.oninput = () => actions.unfoldDepth(Number(this.depthSlider.value) / 1000);
+    for (const b of this.panel.querySelectorAll<HTMLButtonElement>("[data-focus]")) b.onclick = () => actions.unfoldFocus(b.dataset.focus as UnfoldFocus);
+    q<HTMLButtonElement>(".presentation").onclick = () => actions.home();
     this.axisButton = q<HTMLButtonElement>(".axis");
     this.flipButton = q<HTMLButtonElement>(".flip");
     this.sweepButton = q<HTMLButtonElement>(".sweep");
-    for (const m of ["vertical", "horizontal"] as CutMode[]) this.modeButtons[m].onclick = () => actions.mode(m);
+    for (const m of ["vertical", "horizontal", "unfold"] as SectionMode[]) this.modeButtons[m].onclick = () => actions.mode(m);
     q<HTMLButtonElement>(".close").onclick = () => this.setOpen(false, true);
     // dragging the slider takes over from the sweep
     this.slider.onpointerdown = () => (this.dragging = true);
@@ -194,8 +224,11 @@ export class Toolbar {
   }
 
   /** show the cut's mode, axis and position */
-  show(mode: CutMode, axis: CutAxis, t: number, flip = false): void {
-    for (const m of ["vertical", "horizontal"] as CutMode[]) this.modeButtons[m].classList.toggle("on", m === mode);
+  show(mode: SectionMode, axis: CutAxis, t: number, flip = false): void {
+    for (const m of ["vertical", "horizontal", "unfold"] as SectionMode[]) this.modeButtons[m].classList.toggle("on", m === mode);
+    this.unfoldPanel.hidden = mode !== "unfold";
+    (this.slider.parentElement as HTMLElement).hidden = mode === "unfold";
+    this.sweepButton.hidden = mode === "unfold";
     const ends = ENDS[mode === "horizontal" ? "horizontal" : axis];
     this.lo.textContent = ends[0];
     this.hi.textContent = ends[1];
@@ -204,6 +237,14 @@ export class Toolbar {
     this.axisButton.dataset.axis = axis;
     this.axisButton.textContent = axis === "across" ? "換成前後剖" : "換成左右剖";
     if (!this.dragging) this.slider.value = String(Math.round(t * 1000));
+  }
+
+  showUnfold(amount: number, depth: number, maxDepth: number, focus: UnfoldFocus): void {
+    this.amountSlider.value = String(Math.round(amount * 1000));
+    this.depthSlider.value = String(Math.round(depth / maxDepth * 1000));
+    this.panel.querySelector(".amount-value")!.textContent = `${Math.round(amount * 100)}%`;
+    this.panel.querySelector(".depth-value")!.textContent = `${depth.toFixed(1)} m`;
+    for (const b of this.panel.querySelectorAll<HTMLButtonElement>("[data-focus]")) b.classList.toggle("on", b.dataset.focus === focus);
   }
 
   /** whether the interior is on show: the button lights up */
@@ -221,6 +262,8 @@ export class Toolbar {
     this.sweepButton.classList.toggle("on", on);
     this.sweepButton.textContent = on ? "停止掃描" : "自動掃描";
   }
+
+  setRotate(on: boolean): void { this.buttons.rotate.classList.toggle("on", on); }
 
   /** the cut makes no sense in the kit overview */
   enableCut(on: boolean): void {
