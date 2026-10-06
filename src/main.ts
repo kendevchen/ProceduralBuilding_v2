@@ -616,9 +616,9 @@ fBuilding.add(city, "clearance", 0, 20, 0.5).name("每棟間距 m").onChange(() 
   syncDormantPositions(oldPositions);
 });
 fBuilding.add(params, "groundUse", { "住宅": "residential", "混合": "mixed", "店面": "shops" }).name("一樓用途").onChange(update);
-fBuilding.add(params, "baysX", 2, 20, 1).name("正面開間數").onChange(update);
-fBuilding.add(params, "baysY", 2, 20, 1).name("側面開間數").onChange(update);
-fBuilding.add(params, "floors", 1, 20, 1).name("上層數").onChange(update);
+fBuilding.add(params, "baysX", 2, 10, 1).name("正面開間數").onChange(update);
+fBuilding.add(params, "baysY", 2, 8, 1).name("側面開間數").onChange(update);
+fBuilding.add(params, "floors", 1, 6, 1).name("上層數").onChange(update);
 fBuilding.add(params, "profile", { "奧斯曼（往上遞減）": "haussmann", "均一": "uniform" }).name("樓高配置").onChange(update);
 fBuilding.add(params, "dormerEvery", { "每個開間": 1, "隔一個開間": 2 }).name("老虎窗").onChange(update);
 fBuilding.add(params, "seed", 1, 999, 1).name("隨機種子").onChange(update);

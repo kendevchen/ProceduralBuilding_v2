@@ -67,7 +67,7 @@ try {
   assert.ok(world.sub(shader.uniforms.uBuildingOrigin.value).distanceTo(new Vector3(2, 1, 3)) < 1e-8, 'stamps stay local after world translation');
   const params = defaultParams(), kit = { key: (c, v) => `${c}/${v}`, info: () => undefined };
   const plan = planBuilding(generateBuilding(params, kit), params);
-  for (const overrides of [{ baysX: 20 }, { baysY: 20 }, { floors: 20 }, { baysX: 20, baysY: 20, floors: 20 }]) {
+  for (const overrides of [{ baysX: 10 }, { baysY: 8 }, { floors: 6 }, { baysX: 10, baysY: 8, floors: 6 }]) {
     const large = { ...params, ...overrides }, building = generateBuilding(large, kit), planned = planBuilding(building, large);
     assert.equal(planned.levels.length, large.floors + 2);
     assert.equal(planned.issues.length, 0, `large plan: ${JSON.stringify(overrides)}`);
@@ -92,5 +92,5 @@ try {
   const origin = unfolded(new Vector3()), shifted = unfolded(new Vector3(35, 0, -4));
   assert.ok(shifted.view.bounds().getCenter(new Vector3()).sub(origin.view.bounds().getCenter(new Vector3())).distanceTo(new Vector3(35, 0, -4)) < 1e-6);
   for (const item of [origin, shifted]) { item.view.dispose(); item.mesh.geometry.dispose(); item.mesh.material.dispose(); }
-  console.log('PASS: 2D four-direction placement, gap/reflow, preview agreement, 20x20x20 plans, independent edits/uniforms, building-relative shader stamps, translated unfold');
+  console.log('PASS: 2D four-direction placement, gap/reflow, preview agreement, 10x8x6 plans, independent edits/uniforms, building-relative shader stamps, translated unfold');
 } finally { await server.close(); }
