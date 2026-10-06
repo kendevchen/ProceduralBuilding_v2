@@ -89,6 +89,14 @@ try {
     const terrace = new Group(); terrace.userData.unfoldSkip = true; terrace.add(new Mesh(geometry, base)); source.add(terrace);
     const view = new UnfoldView(source, plan, cutaway); root.add(view.group);
     assert.equal(cutaway.color.value.getHex(), 0x000000, 'section faces are black');
+    for (const amount of [0, 0.01, 0.1, 0.5, 1]) {
+      view.update(amount, 0.8, 'all');
+      assert.equal(view.front, 0.8, 'opening depth stays fixed throughout unfolding, including 0%');
+      for (const part of view.parts) {
+        const front = new Vector3(plan.width / 2, 0.8, 1).applyMatrix4(part.group.matrixWorld);
+        assert.ok(Math.abs(part.planes[2].distanceToPoint(front)) < 1e-6, 'front plane follows only opening depth');
+      }
+    }
     for (const amount of [0, 0.1, 0.5, 1]) {
       view.update(amount, 0, 'all');
       for (const part of view.parts) {
