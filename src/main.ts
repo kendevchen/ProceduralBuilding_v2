@@ -150,9 +150,10 @@ function bindBuildingEditors(): void {
     data?.ballroom ?? null, data?.attic ?? null);
 }
 
-function selectBuilding(id: string): void {
+function selectBuilding(id: string, animate = false): void {
   const next = city.buildings.find(b => b.id === id);
   if (!next || id === city.activeId || !materials || view.gallery || view.furnitureGallery || interiorView.plan) return;
+  const cameraFrom = camera.position.clone(), targetFrom = controls.target.clone();
   const previous = city.active, saved = captureBuilding();
   previous.state = saved;
   roomEditor.clearSelection(); windows.update(null, null);
@@ -209,6 +210,13 @@ function selectBuilding(id: string): void {
   gui.controllersRecursive().forEach(c => c.updateDisplay());
   citySelection.building = id; cityController.updateDisplay();
   toolbar.setSweep(cut.sweep); updateCityUI();
+  if (animate) {
+    // Resolve state restoration/reflow first, then travel from the current view.
+    // Both ends receive the same translation, preserving viewing direction/distance.
+    const to = camera.position.clone(), targetTo = controls.target.clone();
+    camera.position.copy(cameraFrom); controls.target.copy(targetFrom);
+    cameraMotion = { from: cameraFrom, targetFrom, to, targetTo, elapsed: 0 };
+  }
 }
 
 function addBuilding(side: "left" | "right"): void {
@@ -772,7 +780,7 @@ renderer.domElement.addEventListener("pointerup", e => {
   const picked = doors.sort((a, b) => a.distance - b.distance)[0]; if (!picked) return;
   const foreground = ray.intersectObjects(targets, false)[0];
   if (foreground && foreground.distance < picked.distance - 0.25) return;
-  cityEvents.add(e); selectBuilding(picked.id);
+  cityEvents.add(e); selectBuilding(picked.id, true);
 }, true);
 
 // ---- the section panel and the bottom toolbar ----
@@ -859,7 +867,7 @@ renderer.domElement.addEventListener("pointerdown", e => {
 renderer.domElement.addEventListener("pointercancel", () => { unfoldPress = null; });
 renderer.domElement.addEventListener("pointerup", e => {
   const p = unfoldPress; unfoldPress = null;
-  if (!p || p.id !== e.pointerId || !unfoldView || !unfoldActive() || roomEditor.consumedEvent(e) || Math.hypot(p.x - e.clientX, p.y - e.clientY) > 5) return;
+  if (!p || p.id !== e.pointerId || !unfoldView || !unfoldActive() || roomEditor.consumedEvent(e) || cityEvents.has(e) || Math.hypot(p.x - e.clientX, p.y - e.clientY) > 5) return;
   const rect = renderer.domElement.getBoundingClientRect(), ray = new Raycaster();
   camera.updateWorldMatrix(true, false);
   ray.setFromCamera(new Vector2((e.clientX - rect.left) / rect.width * 2 - 1, 1 - (e.clientY - rect.top) / rect.height * 2), camera);
