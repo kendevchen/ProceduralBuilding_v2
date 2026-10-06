@@ -106,6 +106,7 @@ let labels: RoomLabels | null = null;
 const unfold = { selected: false, amount: 1, depth: dims.interior.unfold.frontDepth, focus: "all" as UnfoldFocus };
 let unfoldView: UnfoldView | null = null;
 let unfoldCurrent = 0;
+let unfoldSpacing: number | null = null;
 let unfoldMotion: { from: number; to: number; elapsed: number } | null = null;
 let cameraMotion: { from: Vector3; targetFrom: Vector3; to: Vector3; targetTo: Vector3; elapsed: number } | null = null;
 let beforeUnfold: { position: Vector3; target: Vector3 } | null = null;
@@ -133,7 +134,8 @@ function setUnfoldAmount(amount: number): void {
   cameraMotion = null;
   unfold.amount = amount;
   if (amount === 0) unfold.focus = "all";
-  unfoldMotion = { from: unfoldCurrent, to: amount, elapsed: 0 };
+  unfoldMotion = null;
+  unfoldCurrent = amount;
   applyCut();
 }
 
@@ -315,6 +317,10 @@ function applyCut(force = false): void {
       if (roomBoxes) roomBoxes.visible = false;
       windows.update(null, null);
       unfoldView = new UnfoldView(shown, lastPlan, cutaway);
+      if (unfoldSpacing !== null) {
+        const [min, max] = unfoldView.spacingRange;
+        unfoldView.setSpacing(min + (max - min) * unfoldSpacing);
+      }
       root.add(unfoldView.group);
       if (labels) unfoldView.group.add(labels.group);
     }
@@ -324,6 +330,7 @@ function applyCut(force = false): void {
     updateUnfold();
     toolbar.show("unfold", cut.axis, cut.t, cut.flip);
     toolbar.showUnfold(unfold.amount, unfold.depth, site.length * dims.interior.unfold.maxDepthRatio, unfold.focus);
+    toolbar.showUnfoldSpacing(unfoldView.spacing, unfoldView.spacingRange);
     toolbar.setInterior(true); toolbar.setLevel("");
     return;
   }
@@ -551,6 +558,14 @@ const toolbar = new Toolbar({
     if (m === "unfold") frameUnfold();
   },
   unfoldAmount: setUnfoldAmount,
+  unfoldSpacing: t => {
+    if (!unfoldView) return;
+    cameraMotion = null;
+    unfoldSpacing = t;
+    const [min, max] = unfoldView.spacingRange;
+    unfoldView.setSpacing(min + (max - min) * t);
+    applyCut();
+  },
   unfoldDepth: t => {
     unfold.depth = t * site.length * dims.interior.unfold.maxDepthRatio;
     applyCut();

@@ -19,6 +19,7 @@ export interface ToolbarActions {
   mode(m: SectionMode): void;
   unfoldAmount(t: number): void;
   unfoldDepth(t: number): void;
+  unfoldSpacing(t: number): void;
   unfoldFocus(focus: UnfoldFocus): void;
   axis(a: CutAxis): void;
   /** vertical cuts: keep the other side of the plane */
@@ -164,11 +165,11 @@ export class Toolbar {
       <div class="unfold" hidden>
         <label>展開程度<input aria-label="展開程度" class="amount" type="range" min="0" max="1000" step="1"><output class="amount-value"></output></label>
         <label>正面開口<input aria-label="正面開口深度" class="depth" type="range" min="0" max="1000" step="1"><output class="depth-value"></output></label>
+        <label>縱剖線間距<input aria-label="縱剖線間距" class="spacing" type="range" min="0" max="1000" step="1"><output class="spacing-value"></output></label>
         <div class="row focus"><button class="btn" data-focus="all">全覽</button><button class="btn" data-focus="left">左段</button><button class="btn" data-focus="center">中段</button><button class="btn" data-focus="right">右段</button><button class="btn presentation">展示視角</button></div>
-        <p class="hint">點建築可聚焦單段；拖曳旋轉。展開程度 0% 為完整建築。</p>
       </div>
       <div class="row">
-        <span class="legend">黑色為實體切面<span class="level"></span></span>
+        <span class="level"></span>
         <button class="btn axis">換方向</button>
         <button class="btn flip" title="保留切面的另一側">反向</button>
         <button class="btn sweep">自動掃描</button>
@@ -185,6 +186,8 @@ export class Toolbar {
     this.depthSlider = q<HTMLInputElement>(".depth");
     this.amountSlider.oninput = () => actions.unfoldAmount(Number(this.amountSlider.value) / 1000);
     this.depthSlider.oninput = () => actions.unfoldDepth(Number(this.depthSlider.value) / 1000);
+    const spacing = q<HTMLInputElement>(".spacing");
+    spacing.oninput = () => actions.unfoldSpacing(Number(spacing.value) / 1000);
     for (const b of this.panel.querySelectorAll<HTMLButtonElement>("[data-focus]")) b.onclick = () => actions.unfoldFocus(b.dataset.focus as UnfoldFocus);
     q<HTMLButtonElement>(".presentation").onclick = () => actions.home();
     this.axisButton = q<HTMLButtonElement>(".axis");
@@ -229,6 +232,7 @@ export class Toolbar {
     this.unfoldPanel.hidden = mode !== "unfold";
     (this.slider.parentElement as HTMLElement).hidden = mode === "unfold";
     this.sweepButton.hidden = mode === "unfold";
+    this.levelLabel.parentElement!.style.display = mode === "unfold" ? "none" : "";
     const ends = ENDS[mode === "horizontal" ? "horizontal" : axis];
     this.lo.textContent = ends[0];
     this.hi.textContent = ends[1];
@@ -245,6 +249,11 @@ export class Toolbar {
     this.panel.querySelector(".amount-value")!.textContent = `${Math.round(amount * 100)}%`;
     this.panel.querySelector(".depth-value")!.textContent = `${depth.toFixed(1)} m`;
     for (const b of this.panel.querySelectorAll<HTMLButtonElement>("[data-focus]")) b.classList.toggle("on", b.dataset.focus === focus);
+  }
+
+  showUnfoldSpacing(distance: number, [min, max]: [number, number]): void {
+    this.panel.querySelector<HTMLInputElement>(".spacing")!.value = String(Math.round((distance - min) / Math.max(1e-6, max - min) * 1000));
+    this.panel.querySelector(".spacing-value")!.textContent = `${distance.toFixed(1)} m`;
   }
 
   /** whether the interior is on show: the button lights up */

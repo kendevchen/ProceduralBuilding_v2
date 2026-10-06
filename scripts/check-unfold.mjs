@@ -119,7 +119,10 @@ try {
       }
       mesh.geometry.addEventListener('dispose', () => ownedDisposed++);
     }
-    if (cases === 0) assert.ok(submitted < unpruned * 0.45, 'real furnished building avoids near-threefold submission');
+    if (cases === 0) {
+      assert.ok(submitted < unpruned * 0.8, 'adjustable envelopes still reduce full three-copy submission');
+      console.log(`Adjustable section submission: ${(100 * submitted / unpruned).toFixed(1)}% of unpruned copies`);
+    }
     let disposed = 0;
     for (const g of sourceGeometries) g.addEventListener('dispose', () => disposed++);
     for (const amount of [0, 0.1, 0.5, 1]) for (const depth of [0.8, building.length * 0.6]) {
@@ -203,6 +206,17 @@ try {
       for (const pattern of new Set(patterns.array)) {
         assert.ok(pattern < 10 || pattern === 19 || pattern === 32, `floor shader supports stamp ${pattern}`);
       }
+    }
+    const initialSpacing = view.spacing, centerX = (view.cuts[0] + view.cuts[1]) / 2;
+    const geometriesBeforeSpacing = view.parts.flatMap(p => p.group.children.map(m => m.geometry));
+    for (const distance of [view.spacingRange[0], view.spacingRange[1], initialSpacing]) {
+      view.setSpacing(distance); view.update(1, 0.8, 'all');
+      assert.ok(Math.abs(view.spacing - distance) < 1e-6);
+      assert.ok(Math.abs((view.cuts[0] + view.cuts[1]) / 2 - centerX) < 1e-6, 'spacing keeps the original midpoint');
+      assert.equal(view.parts[0].hi, view.parts[1].lo);
+      assert.equal(view.parts[1].hi, view.parts[2].lo);
+      assert.deepEqual(view.parts.flatMap(p => p.group.children.map(m => m.geometry)), geometriesBeforeSpacing, 'slider does not allocate geometries');
+      assert.ok(!view.bounds().isEmpty());
     }
     view.dispose(); assert.equal(disposed, 0, 'disposing view must not dispose source geometry');
     assert.equal(ownedDisposed, 0, 'mode changes preserve source-owned index caches and shared GPU buffers');

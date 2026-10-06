@@ -73,6 +73,8 @@ export class UnfoldView {
   focus: UnfoldFocus = "all";
   private sourceWorld = new Matrix4();
   private sourceBounds: Box3;
+  private cutCenter: number;
+  readonly spacingRange: [number, number];
 
   constructor(source: Group, readonly plan: BuildingPlan, private cutaway: Cutaway) {
     this.group.name = "unfold_view";
@@ -81,6 +83,9 @@ export class UnfoldView {
     const inverse = source.matrixWorld.clone().invert();
     this.sourceBounds = new Box3().setFromObject(source).applyMatrix4(inverse);
     this.cuts = unfoldCuts(plan);
+    this.cutCenter = (this.cuts[0] + this.cuts[1]) / 2;
+    const side = plan.width * U.minimumPartRatio;
+    this.spacingRange = [side, Math.max(side, 2 * Math.min(this.cutCenter - side, plan.width - side - this.cutCenter))];
     const edges = [this.sourceBounds.min.x - 1, ...this.cuts, this.sourceBounds.max.x + 1];
     for (let i = 0; i < 3; i++) {
       const group = new Group(); group.name = `unfold_${IDS[i]}`; group.matrixAutoUpdate = false;
@@ -90,13 +95,16 @@ export class UnfoldView {
         materials: new Map(), localBounds: new Box3(),
       };
       this.parts.push(part); this.group.add(group);
+      // Fixed envelopes cover all slider positions without rebuilding buffers.
+      const selectionLo = i === 0 ? edges[0] : this.cutCenter + (i === 1 ? -this.spacingRange[1] : this.spacingRange[0]) / 2;
+      const selectionHi = i === 2 ? edges[3] : this.cutCenter + (i === 0 ? -this.spacingRange[0] : this.spacingRange[1]) / 2;
       source.traverse(object => {
         if (!(object instanceof Mesh) || object.userData.uncut) return;
         for (let parent: Object3D | null = object; parent && parent !== source; parent = parent.parent) if (parent.userData.unfoldSkip) return;
         const local = inverse.clone().multiply(object.matrixWorld);
         if (!object.geometry.boundingBox) object.geometry.computeBoundingBox();
         const bounds = object.geometry.boundingBox!;
-        const intersects = (box: Box3) => box.max.x >= part.lo && box.min.x <= part.hi;
+        const intersects = (box: Box3) => box.max.x >= selectionLo && box.min.x <= selectionHi;
         let mesh: Mesh;
         const material = Array.isArray(object.material) ? object.material.map(m => this.material(part, m)) : this.material(part, object.material);
         if (object instanceof InstancedMesh) {
@@ -120,8 +128,8 @@ export class UnfoldView {
           // Keep the original volume for framing/swing: triangle pruning must
           // not move the camera or alter the presentation's animation.
           part.localBounds.union(box);
-          const geometry = box.min.x >= part.lo && box.max.x <= part.hi
-            ? object.geometry : sectionGeometry(object.geometry, local, part.lo, part.hi);
+          const geometry = box.min.x >= selectionLo && box.max.x <= selectionHi
+            ? object.geometry : sectionGeometry(object.geometry, local, selectionLo, selectionHi);
           if (!geometry) return;
           mesh = new Mesh(geometry, material);
         }
@@ -137,6 +145,19 @@ export class UnfoldView {
       });
     }
     this.group.matrixAutoUpdate = false; this.group.matrix.copy(source.matrix); this.group.matrixWorldNeedsUpdate = true;
+  }
+
+  get spacing(): number { return this.cuts[1] - this.cuts[0]; }
+
+  setSpacing(distance: number): void {
+    const span = Math.max(this.spacingRange[0], Math.min(this.spacingRange[1], distance));
+    this.cuts[0] = this.cutCenter - span / 2; this.cuts[1] = this.cutCenter + span / 2;
+    for (let i = 0; i < this.parts.length; i++) {
+      const p = this.parts[i];
+      p.lo = i === 0 ? this.sourceBounds.min.x - 1 : this.cuts[i - 1];
+      p.hi = i === 2 ? this.sourceBounds.max.x + 1 : this.cuts[i];
+      p.pivot = i === 0 ? this.cuts[0] : i === 2 ? this.cuts[1] : this.plan.width / 2;
+    }
   }
 
   private material(part: Part, original: Material, depth = false): Material {
