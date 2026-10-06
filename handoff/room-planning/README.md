@@ -4,8 +4,8 @@
 
 - 檔案：`room-planning-v1-f0ec2b2.tar.gz`
 - 基準：`f0ec2b2aae6e592133ef81fa986f25be2351ac66`（`feature/room-editor`）
-- 用途：下一個模型實作大型建築配置之前，保存原本的房間規劃器及整合程式。GUI 已開放 20×20／20 上層，但規劃核心尚未依大型建築改版。
-- 規劃文件：[大型建築空間配置調整與模型交接計畫](../Guide/大型建築空間配置調整與模型交接計畫.md)。
+- 用途：下一個模型實作大型建築配置之前，保存原本的房間規劃器及整合程式。備份版本 GUI 曾開放 20×20／20 上層；目前已選擇性恢復上限 10／8／6，規劃核心尚未依大型建築改版。
+- 規劃文件：[大型建築空間配置調整與模型交接計畫](./大型建築空間配置調整與模型交接計畫.md)。
 
 ## 內容
 
@@ -26,9 +26,9 @@ SHA-256：
 在專案根目錄執行：
 
 ```sh
-tar -tzf backups/room-planning-v1-f0ec2b2.tar.gz
+tar -tzf handoff/room-planning/room-planning-v1-f0ec2b2.tar.gz
 backup_review_dir=$(mktemp -d /tmp/room-planning-v1.XXXXXX)
-tar -xzf backups/room-planning-v1-f0ec2b2.tar.gz -C "$backup_review_dir"
+tar -xzf handoff/room-planning/room-planning-v1-f0ec2b2.tar.gz -C "$backup_review_dir"
 ```
 
 請解壓到新目錄比較，不要直接覆蓋目前工作區。僅需查看原規劃器時可用：
