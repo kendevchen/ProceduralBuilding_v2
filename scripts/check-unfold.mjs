@@ -88,6 +88,14 @@ try {
     const hidden = new Mesh(geometry, base); hidden.userData.uncut = true; source.add(hidden);
     const terrace = new Group(); terrace.userData.unfoldSkip = true; terrace.add(new Mesh(geometry, base)); source.add(terrace);
     const view = new UnfoldView(source, plan, cutaway); root.add(view.group);
+    assert.equal(cutaway.color.value.getHex(), 0x000000, 'section faces are black');
+    for (const amount of [0, 0.1, 0.5, 1]) {
+      view.update(amount, 0, 'all');
+      for (const part of view.parts) {
+        const facade = new Vector3(plan.width / 2, -0.01, 1).applyMatrix4(part.group.matrixWorld);
+        assert.ok(part.planes[2].distanceToPoint(facade) > 0, 'zero opening retains projecting front facade');
+      }
+    }
     assert.equal(view.parts.length, 3);
     assert.ok(view.cuts[0] > 0 && view.cuts[0] < view.cuts[1] && view.cuts[1] < plan.width);
     for (const cut of view.cuts) for (const stair of plan.stairs) {

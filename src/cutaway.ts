@@ -9,7 +9,7 @@
  * While the building is cut, every building material is swapped for a variant
  * that is clipped and double-sided. On the solid ones (stone, plaster, zinc,
  * the interior's white model) a back face means the camera is looking into the
- * solid through the cut, so it is painted the section orange. That way no
+ * solid through the cut, so it is painted the section black. That way no
  * outline of the cut has to be computed: cornices, slopes and chimneys fill in
  * too. Clipped parts cast no shadows.
  */
@@ -35,7 +35,7 @@ function white(name: string, color: string, roughness = 0.92, metalness = 0): Me
 export class Cutaway {
   readonly plane = new Plane(new Vector3(0, -1, 0), 0);
   /** the section colour */
-  readonly color = { value: new Color("#d9824f") };
+  readonly color = { value: new Color("#000000") };
   readonly interior: InteriorMaterials;
   private cuts = new Map<Material, Material>();
   private variants = new Set<Material>();

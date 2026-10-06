@@ -130,11 +130,11 @@ function updateUnfold(): void {
 }
 
 function setUnfoldAmount(amount: number): void {
+  cameraMotion = null;
   unfold.amount = amount;
   if (amount === 0) unfold.focus = "all";
   unfoldMotion = { from: unfoldCurrent, to: amount, elapsed: 0 };
   applyCut();
-  frameUnfold();
 }
 
 function focusUnfold(focus: UnfoldFocus): void {

@@ -168,7 +168,7 @@ export class Toolbar {
         <p class="hint">點建築可聚焦單段；拖曳旋轉。展開程度 0% 為完整建築。</p>
       </div>
       <div class="row">
-        <span class="legend">橘色為實體切面<span class="level"></span></span>
+        <span class="legend">黑色為實體切面<span class="level"></span></span>
         <button class="btn axis">換方向</button>
         <button class="btn flip" title="保留切面的另一側">反向</button>
         <button class="btn sweep">自動掃描</button>

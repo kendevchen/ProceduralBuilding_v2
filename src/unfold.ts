@@ -156,7 +156,9 @@ export class UnfoldView {
   get front(): number {
     // At zero, the original facade is complete; the front cut opens during the first fifth.
     const t = Math.min(1, this.amount * 5);
-    return this.sourceBounds.min.y - 0.1 + (this.depth - this.sourceBounds.min.y + 0.1) * t;
+    const outside = this.sourceBounds.min.y - 0.1;
+    // Zero means no front cut, including projecting facade ornaments/balconies.
+    return this.depth <= 0 ? outside : outside + (this.depth - outside) * t;
   }
 
   /** Remove the half-walls along the two section seams while open; restore them at zero. */
