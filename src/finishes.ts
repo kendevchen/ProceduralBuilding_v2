@@ -14,6 +14,7 @@
 import { type BufferGeometry, Color, DataTexture, Float32BufferAttribute, LinearFilter, LinearMipmapLinearFilter, MeshStandardMaterial, RedFormat, RepeatWrapping, UnsignedByteType } from "three";
 import { type PlanRoom, ROOM_INFO, type RoomType } from "./plan";
 import dims from "../blender/kit_dims.json";
+import { SOURCE_FRAME_GLSL } from "./shaderVariant";
 
 export type Look = "real" | "diagram" | "white";
 
@@ -182,6 +183,7 @@ export function stampAttributes(g: BufferGeometry, stamps: number[]) {
 // ---------------------------------------------------------------- shader
 
 const VERT_PARS = /* glsl */ `
+${SOURCE_FRAME_GLSL}
 attribute float finPattern;
 attribute vec3 finA;
 attribute vec3 finB;
@@ -199,8 +201,8 @@ vFinPattern = finPattern;
 vFinA = finA;
 vFinB = finB;
 vFinZ = finZ;
-vFinPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
-vFinN = normalize(mat3(modelMatrix) * objectNormal);
+vFinPos = (sourceModelMatrix * vec4(transformed, 1.0)).xyz;
+vFinN = normalize(mat3(sourceModelMatrix) * objectNormal);
 `;
 
 // A single self-made value-noise lattice for every finish material. Hardware

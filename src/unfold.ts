@@ -1,4 +1,4 @@
-/** Three complementary slices, animated in Blender space. Shared geometry stays owned by the source. */
+/** Three complementary slices, animated in Blender space. */
 import { Box3, Color, Group, InstancedMesh, Material, Matrix4, Mesh, type Object3D, Plane, Raycaster, Vector3 } from "three";
 import dims from "../blender/kit_dims.json";
 import type { BuildingPlan, PlanRoom } from "./plan";
@@ -6,6 +6,8 @@ import type { Cutaway } from "./cutaway";
 import type { V2 } from "./roof";
 import { roomAnchor, signedArea } from "./roomGeometry";
 import type { LampSource } from "./lampLights";
+import { sectionGeometry } from "./sectionGeometry";
+import { cloneShaderMaterial } from "./shaderVariant";
 
 const U = dims.interior.unfold;
 const REVEAL = Math.max(...Object.values(dims.interior.walls)) / 2 + U.revealClearance;
@@ -92,7 +94,7 @@ export class UnfoldView {
         if (!(object instanceof Mesh) || object.userData.uncut) return;
         for (let parent: Object3D | null = object; parent && parent !== source; parent = parent.parent) if (parent.userData.unfoldSkip) return;
         const local = inverse.clone().multiply(object.matrixWorld);
-        object.geometry.computeBoundingBox();
+        if (!object.geometry.boundingBox) object.geometry.computeBoundingBox();
         const bounds = object.geometry.boundingBox!;
         const intersects = (box: Box3) => box.max.x >= part.lo && box.min.x <= part.hi;
         let mesh: Mesh;
@@ -115,10 +117,17 @@ export class UnfoldView {
         } else {
           const box = bounds.clone().applyMatrix4(local);
           if (!intersects(box)) return;
+          // Keep the original volume for framing/swing: triangle pruning must
+          // not move the camera or alter the presentation's animation.
           part.localBounds.union(box);
-          mesh = new Mesh(object.geometry, material);
+          const geometry = box.min.x >= part.lo && box.max.x <= part.hi
+            ? object.geometry : sectionGeometry(object.geometry, local, part.lo, part.hi);
+          if (!geometry) return;
+          mesh = new Mesh(geometry, material);
         }
         mesh.name = object.name;
+        // Retain source identity even when geometry is an index view.
+        mesh.userData.unfoldSource = object.uuid;
         mesh.matrixAutoUpdate = false; mesh.matrix.copy(local);
         mesh.castShadow = object.castShadow; mesh.receiveShadow = object.receiveShadow;
         mesh.renderOrder = object.renderOrder;
@@ -132,19 +141,13 @@ export class UnfoldView {
 
   private material(part: Part, original: Material, depth = false): Material {
     const cached = part.materials.get(original); if (cached) return cached;
-    const base = depth ? original : this.cutaway.cut(original), material = base.clone();
-    const defines = (base as Material & { defines?: Record<string, string> }).defines;
-    if (defines) (material as Material & { defines?: Record<string, string> }).defines = { ...defines };
+    const base = depth ? original : this.cutaway.cut(original), material = cloneShaderMaterial(base);
+    const variant = material as Material & { defines: Record<string, unknown> };
+    variant.defines = { ...variant.defines, USE_SOURCE_FRAME: "" };
     material.clippingPlanes = part.planes; material.clipShadows = true;
     material.onBeforeCompile = (shader, renderer) => {
       base.onBeforeCompile(shader, renderer);
-      shader.uniforms.uUnfoldUndo = part.undo;
-      shader.vertexShader = shader.vertexShader.replace("#include <common>", "#include <common>\nuniform mat4 uUnfoldUndo;")
-        .replace("vFinPos = (modelMatrix * vec4(transformed, 1.0)).xyz;", "vFinPos = (uUnfoldUndo * modelMatrix * vec4(transformed, 1.0)).xyz;")
-        .replace("vFinN = normalize(mat3(modelMatrix) * objectNormal);", "vFinN = normalize(mat3(uUnfoldUndo * modelMatrix) * objectNormal);")
-        .replace("triWorld = modelMatrix * triWorld;", "triWorld = uUnfoldUndo * modelMatrix * triWorld;")
-        .replace("triOrigin = modelMatrix * triOrigin;", "triOrigin = uUnfoldUndo * modelMatrix * triOrigin;")
-        .replace("vTriNrm = normalize(mat3(modelMatrix) * triNormal);", "vTriNrm = normalize(mat3(uUnfoldUndo * modelMatrix) * triNormal);");
+      shader.uniforms.uSourceFrame = part.undo;
     };
     material.customProgramCacheKey = () => `${base.customProgramCacheKey()}|unfold`;
     part.materials.set(original, material); return material;
@@ -257,6 +260,7 @@ export class UnfoldView {
       for (const material of p.materials.values()) material.dispose();
       for (const mesh of p.group.children) if (mesh instanceof InstancedMesh) mesh.dispose();
     }
-    // Source meshes own geometry, textures and ordinary materials.
+    // The source owns vertex buffers AND cached index views; they are released
+    // together when the building is replaced, never during a mode switch.
   }
 }

@@ -1,7 +1,7 @@
 /** Three-section geometry, coordinate, ownership and picking regressions, without a browser/port. */
 import assert from 'node:assert/strict';
 import { createServer } from 'vite';
-import { BoxGeometry, Color, Group, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, Raycaster, ShaderLib, Vector3 } from 'three';
+import { BoxGeometry, BufferGeometry, Color, Float32BufferAttribute, Group, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, Raycaster, ShaderLib, Uint8BufferAttribute, Vector3 } from 'three';
 
 const server = await createServer({ server: { middlewareMode: true, ws: false }, appType: 'custom' });
 try {
@@ -11,15 +11,59 @@ try {
   const { planBuilding } = await load('plan');
   const { buildRooms3d } = await load('rooms3d');
   const { buildStairs } = await load('stairs');
+  const { buildFurniture } = await load('furniture');
+  const { sectionGeometry } = await load('sectionGeometry');
   const { Cutaway } = await load('cutaway');
   const { UnfoldView, clipUnfoldPolygon } = await load('unfold');
   const { inRoom, roomAnchor, signedArea } = await load('roomGeometry');
   const { RoomLabels } = await load('roomLabels');
   // Labels' coordinate/selection lifecycle can be checked without rendering a canvas.
   const previousDocument = globalThis.document;
-  const context = new Proxy({ measureText: () => ({ width: 160 }) }, { get: (target, key) => target[key] ?? (() => {}) });
+  const context = new Proxy({ measureText: () => ({ width: 160 }), createLinearGradient: () => ({ addColorStop() {} }) }, { get: (target, key) => target[key] ?? (() => {}) });
   globalThis.document = { createElement: () => ({ getContext: () => context }) };
   const kit = { key: (c, v) => `${c}/${v}`, info: () => undefined };
+  // Fixed slabs retain ALL crossing triangles (including ones whose centroid
+  // is outside); transformed source coordinates and stamps remain byte-exact.
+  for (const indexed of [false, true]) {
+    const g = new BufferGeometry();
+    g.setAttribute('position', new Float32BufferAttribute([
+      -4,0,0, -3,1,0, -2,0,0, // outside
+      -2,0,0, 2,1,0, -2,2,0, // crosses slab, centroid outside
+      0,0,0, 0,1,0, 0,0,1, // touches boundary
+      4,0,0, 5,1,0, 6,0,0, // outside
+    ], 3));
+    g.setAttribute('stamp', new Uint8BufferAttribute(Array.from({ length: 12 }, (_, i) => i), 1, true));
+    if (indexed) g.setIndex([0,1,2,3,4,5,6,7,8,9,10,11,3,5,4]);
+    const before = [...g.getAttribute('position').array], matrix = new Matrix4().makeTranslation(10, 0, 0);
+    const sliced = sectionGeometry(g, matrix, 10, 11);
+    assert.notEqual(sliced, g); assert.ok(sliced);
+    assert.equal((sliced.index?.count ?? sliced.getAttribute('position').count) / 3, indexed ? 3 : 2);
+    assert.equal(sliced.getAttribute('position'), g.getAttribute('position'), 'vertices stay shared without copying');
+    const stamp = sliced.getAttribute('stamp');
+    assert.equal(stamp.normalized, true);
+    assert.equal(stamp, g.getAttribute('stamp'), 'all stamps are byte-identical');
+    assert.deepEqual([...sliced.index.array], indexed ? [3,4,5,6,7,8,3,5,4] : [3,4,5,6,7,8]);
+    assert.equal(sliced.boundingBox.min.x, -2); assert.equal(sliced.boundingBox.max.x, 2);
+    assert.deepEqual([...g.getAttribute('position').array], before, 'source stays immutable');
+    assert.equal(sectionGeometry(g, matrix, -100, 100), g, 'unchanged slab shares source');
+    assert.equal(sectionGeometry(g, matrix, 20, 30), null, 'empty slab emits no mesh');
+    assert.equal(sectionGeometry(g, matrix, 10, 11), sliced, 'same source/slab reuses its index buffer');
+    g.addGroup(0, 3, 0);
+    assert.equal(sectionGeometry(g, matrix, 10, 11), g, 'grouped geometry retains shader fallback');
+    g.clearGroups(); g.setDrawRange(3, 3);
+    assert.equal(sectionGeometry(g, matrix, 10, 11), g, 'partial draw ranges retain fallback');
+    let freed = 0;
+    sliced.addEventListener('dispose', () => freed++);
+    g.dispose(); assert.equal(freed, 1, 'source releases index views even if it was never rendered');
+    g.setDrawRange(0, Infinity);
+    assert.notEqual(sectionGeometry(g, matrix, 10, 11), sliced, 'source disposal also invalidates cache');
+    g.dispose();
+  }
+  const rotated = new BufferGeometry();
+  rotated.setAttribute('position', new Float32BufferAttribute([0,2,0, 1,3,0, 0,3,1], 3));
+  assert.equal(sectionGeometry(rotated, new Matrix4().makeRotationZ(Math.PI / 2), -4, -1), rotated, 'slabs use transformed coordinates');
+  assert.equal(sectionGeometry(rotated, new Matrix4().makeRotationZ(Math.PI / 2), 1, 4), null);
+  rotated.dispose();
   let cases = 0, roomsChecked = 0, sharedFinishNoise;
   for (const overrides of [
     {}, { baysX: 2, baysY: 2 }, { baysX: 3, baysY: 2, floors: 1 },
@@ -33,6 +77,7 @@ try {
     const source = new Group(); source.position.set(-building.width / 2, -building.length / 2, 0); root.add(source);
     source.add(buildRooms3d(plan, building, kit, cutaway.interior, 'real'));
     source.add(buildStairs(plan, cutaway.interior, cutaway.interior.iron, cutaway.interior.iron, 'real'));
+    if (cases === 0) source.add(buildFurniture(plan, building, cutaway.interior, 'real'));
     const geometry = new BoxGeometry(0.3, 0.3, 0.3), base = new MeshStandardMaterial();
     const instances = new InstancedMesh(geometry, base, 3);
     for (let i = 0; i < 3; i++) {
@@ -49,6 +94,24 @@ try {
       assert.ok(cut <= stair.layout.rect[0] - 0.145 + 1e-5 || cut >= stair.layout.rect[2] + 0.145 - 1e-5, 'section opening avoids stair flights');
     }
     const sourceGeometries = new Set(); source.traverse(o => { if (o.isMesh) sourceGeometries.add(o.geometry); });
+    const sourceMeshes = new Map(); source.traverse(o => { if (o.isMesh) sourceMeshes.set(o.uuid, o); });
+    const owned = new Set();
+    let ownedDisposed = 0, submitted = 0, unpruned = 0;
+    for (const part of view.parts) for (const mesh of part.group.children) {
+      const original = sourceMeshes.get(mesh.userData.unfoldSource); assert.ok(original);
+      const triangles = g => (g.index?.count ?? g.getAttribute('position').count) / 3;
+      submitted += triangles(mesh.geometry) * (mesh.isInstancedMesh ? mesh.count : 1);
+      unpruned += triangles(original.geometry) * (mesh.isInstancedMesh ? mesh.count : 1);
+      if (mesh.geometry === original.geometry) continue;
+      owned.add(mesh.geometry);
+      assert.ok(!sourceGeometries.has(mesh.geometry));
+      for (const [name, attribute] of Object.entries(mesh.geometry.attributes)) {
+        assert.equal(attribute, original.geometry.attributes[name], 'view borrows unchanged source attributes');
+        assert.equal(attribute.itemSize, original.geometry.attributes[name].itemSize);
+      }
+      mesh.geometry.addEventListener('dispose', () => ownedDisposed++);
+    }
+    if (cases === 0) assert.ok(submitted < unpruned * 0.45, 'real furnished building avoids near-threefold submission');
     let disposed = 0;
     for (const g of sourceGeometries) g.addEventListener('dispose', () => disposed++);
     for (const amount of [0, 0.1, 0.5, 1]) for (const depth of [0.8, building.length * 0.6]) {
@@ -70,7 +133,7 @@ try {
         const frontRemoved = new Vector3(local.x, view.front - 0.1, 1).applyMatrix4(part.group.matrixWorld);
         assert.ok(part.planes[2].distanceToPoint(frontRemoved) < 0, 'front opening clips in each rotated local frame');
         for (const mesh of part.group.children) {
-          assert.ok(sourceGeometries.has(mesh.geometry), 'geometry is shared');
+          assert.ok(sourceGeometries.has(mesh.geometry) || owned.has(mesh.geometry), 'geometry ownership is explicit');
           assert.notEqual(mesh.material, base, 'clipping uses owned material variants');
         }
       }
@@ -107,7 +170,8 @@ try {
     for (const p of view.parts) for (const material of p.materials.values()) {
       const shader = { uniforms: {}, vertexShader: ShaderLib.standard.vertexShader, fragmentShader: ShaderLib.standard.fragmentShader };
       material.onBeforeCompile(shader, {});
-      assert.equal(shader.uniforms.uUnfoldUndo, p.undo);
+      assert.equal(shader.uniforms.uSourceFrame, p.undo);
+      assert.ok(Object.hasOwn(material.defines, 'USE_SOURCE_FRAME'));
       assert.equal(material.clippingPlanes, p.planes);
       if (shader.uniforms.uFinNoise) {
         const noise = shader.uniforms.uFinNoise.value;
@@ -119,7 +183,8 @@ try {
         assert.ok(Object.hasOwn(material.defines, 'FIN_FLOOR_ONLY'), 'floor specialization survives clipping and unfold clones');
       }
       if (material.name === 'room_finish_wall') {
-        assert.ok(shader.vertexShader.includes('uUnfoldUndo * modelMatrix * vec4(transformed'));
+        assert.ok(shader.vertexShader.includes('sourceModelMatrix * vec4(transformed'));
+        assert.ok(shader.vertexShader.includes('#define sourceModelMatrix (uSourceFrame * modelMatrix)'));
         assert.ok(shader.fragmentShader.includes('!gl_FrontFacing'), 'solid sections stay orange');
       }
     }
@@ -132,9 +197,23 @@ try {
       }
     }
     view.dispose(); assert.equal(disposed, 0, 'disposing view must not dispose source geometry');
+    assert.equal(ownedDisposed, 0, 'mode changes preserve source-owned index caches and shared GPU buffers');
+    assert.ok(!Object.hasOwn(cutaway.interior.finishFloor.defines, 'USE_SOURCE_FRAME'), 'unfold defines never leak back to ordinary cut materials');
+    assert.equal(cutaway.cut(cutaway.interior.finishFloor), cutaway.interior.finishFloor, 'cut variants never stack');
+    if (cases === 0) for (let cycle = 0; cycle < 3; cycle++) {
+      const again = new UnfoldView(source, plan, cutaway); root.add(again.group);
+      again.update(1, 0.8, 'all');
+      for (const part of again.parts) for (const mesh of part.group.children) {
+        assert.ok(sourceGeometries.has(mesh.geometry) || owned.has(mesh.geometry), 'mode switches allocate no new index geometry');
+      }
+      assert.equal(again.parts.reduce((n, p) => n + p.group.children.length, 0), view.parts.reduce((n, p) => n + p.group.children.length, 0));
+      again.dispose();
+      assert.equal(disposed, 0, 'repeated enter/leave keeps source buffers alive');
+    }
     assert.equal(view.group.parent, null);
     assert.equal(JSON.stringify(plan), snapshot, 'presentation must not mutate plan/edit data');
     for (const g of sourceGeometries) g.dispose();
+    assert.equal(ownedDisposed, owned.size, 'source disposal releases every cached index view exactly once');
     instances.dispose(); base.dispose();
     cases++;
     console.log(`PASS ${params.type} ${params.baysX}x${params.baysY}, floors=${params.floors}, cuts=${view.cuts.map(x => x.toFixed(2))}`);
@@ -151,9 +230,11 @@ try {
   const params = defaults(), plan = planBuilding(generateBuilding(params, kit), params), cutaway = new Cutaway();
   const source = new Group(), root = new Group(); root.add(source);
   const wall = new Mesh(new BoxGeometry(plan.width, 0.2, 2), new MeshStandardMaterial());
+  wall.geometry.clearGroups(); // Exercise indexed section views, not the grouped fallback.
   wall.position.set(plan.width / 2, 0, 1); source.add(wall);
   const back = wall.clone(); back.position.y = 4; source.add(back);
   const view = new UnfoldView(source, plan, cutaway); root.add(view.group); view.update(1, 0.8, 'center');
+  assert.ok(view.parts[1].group.children.some(mesh => mesh.geometry !== wall.geometry));
   const ray = new Raycaster(new Vector3(plan.width / 2, -10, 1), new Vector3(0, 1, 0));
   assert.equal(view.pick(ray), 'center');
   view.dispose(); wall.geometry.dispose(); wall.material.dispose();

@@ -15,6 +15,7 @@
  */
 import { Color, DoubleSide, type Material, type Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, Plane, Vector3 } from "three";
 import { finishMaterial } from "./finishes";
+import { cloneShaderMaterial } from "./shaderVariant";
 import type { InteriorMaterials } from "./rooms3d";
 
 export type CutMode = "horizontal" | "vertical";
@@ -85,11 +86,8 @@ export class Cutaway {
     let m = this.cuts.get(base);
     if (m) return m;
     if (this.variants.has(base)) return base;
-    m = base.clone();
+    m = cloneShaderMaterial(base);
     this.variants.add(m);
-    // clone() resets the defines of the standard materials and drops onBeforeCompile
-    const defines = (base as Material & { defines?: Record<string, string> }).defines;
-    if (defines) (m as Material & { defines?: Record<string, string> }).defines = { ...defines };
     const solid = SOLID.has(base.name);
     if (!ONE_SIDED.has(base.name)) m.side = DoubleSide;
     m.clippingPlanes = [this.plane];

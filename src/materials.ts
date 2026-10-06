@@ -20,6 +20,7 @@ import {
   RepeatWrapping, SRGBColorSpace, type Texture, TextureLoader, Vector2, Vector3, DoubleSide,
 } from "three";
 import dims from "../blender/kit_dims.json";
+import { SOURCE_FRAME_GLSL } from "./shaderVariant";
 
 export type TintKey = "stone" | "paint" | "shutter" | "fabric";
 type Pattern = "none" | "ashlar" | "ashlarHeads" | "seams" | "stripes";
@@ -101,6 +102,7 @@ const neutral = {
 // ---------------------------------------------------------------- GLSL
 
 const VERT_PARS = /* glsl */ `
+${SOURCE_FRAME_GLSL}
 varying vec3 vTriPos;
 varying vec3 vTriNrm;
 varying vec2 vPatUv;
@@ -114,14 +116,14 @@ vec4 triOrigin = vec4(0.0, 0.0, 0.0, 1.0);
   triWorld = instanceMatrix * triWorld;
   triOrigin = instanceMatrix * triOrigin;
 #endif
-triWorld = modelMatrix * triWorld;
-triOrigin = modelMatrix * triOrigin;
+triWorld = sourceModelMatrix * triWorld;
+triOrigin = sourceModelMatrix * triOrigin;
 vTriPos = triWorld.xyz;
 vec3 triNormal = objectNormal;
 #ifdef USE_INSTANCING
   triNormal = mat3(instanceMatrix) * triNormal;
 #endif
-vTriNrm = normalize(mat3(modelMatrix) * triNormal);
+vTriNrm = normalize(mat3(sourceModelMatrix) * triNormal);
 vPatUv = uv;
 // random texture offset per instance (UV-mapped surfaces): same for every vertex
 vUvShift = fract(sin(vec2(dot(triOrigin.xyz, vec3(12.9898, 78.233, 37.719)),
