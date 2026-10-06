@@ -103,7 +103,7 @@ let cutShown = false;
 let interior: Group | null = null;
 let roomBoxes: Mesh | null = null;
 let labels: RoomLabels | null = null;
-const unfold = { selected: false, amount: 1, depth: dims.interior.unfold.frontDepth, focus: "all" as UnfoldFocus };
+const unfold = { selected: false, amount: dims.interior.unfold.initialAmount, depth: dims.interior.unfold.frontDepth, focus: "all" as UnfoldFocus };
 let unfoldView: UnfoldView | null = null;
 let unfoldCurrent = 0;
 let unfoldSpacing: number | null = null;
@@ -142,16 +142,25 @@ function setUnfoldAmount(amount: number): void {
 function focusUnfold(focus: UnfoldFocus): void {
   unfold.focus = focus;
   if (focus !== "all" && unfold.amount < 0.05) setUnfoldAmount(1);
-  applyCut(); frameUnfold();
+  applyCut(); frameUnfold(false);
 }
 
 /** Frame every retained corner with a restrained, slightly elevated perspective. */
-function frameUnfold(): void {
+function frameUnfold(usePresentation = true): void {
   if (!unfoldView) return;
   unfoldView.update(unfold.amount, unfold.depth, unfold.focus);
   const box = unfoldView.bounds();
   updateUnfold();
   if (box.isEmpty()) return;
+  if (usePresentation) {
+    const target = new Vector3().fromArray(dims.interior.unfold.presentationTarget);
+    cameraMotion = {
+      from: camera.position.clone(), targetFrom: controls.target.clone(),
+      to: new Vector3().fromArray(dims.interior.unfold.presentationPosition), targetTo: target, elapsed: 0,
+    };
+    env.frame({ center: box.getCenter(new Vector3()), radius: box.getSize(new Vector3()).length() / 2 });
+    return;
+  }
   const target = box.getCenter(new Vector3());
   const el = dims.interior.unfold.elevation * Math.PI / 180;
   const forward = new Vector3(0, Math.sin(el), Math.cos(el)), up = new Vector3(0, Math.cos(el), -Math.sin(el));
