@@ -32,6 +32,19 @@ try {
   b.state.floors = 6; assert.equal(a.state.floors, 4);
   assert.equal(new Set(city.buildings.map(b => b.id)).size, 4);
   assert.ok(city.bounds().containsBox(b.localBounds.clone().translate(b.position)));
+  for (const direction of ['front', 'back', 'right', 'left', 'front']) {
+    const preview = city.candidate(direction, box, 12).position.clone();
+    const entry = city.add(direction, null, box, 12);
+    assert.ok(entry.position.distanceTo(preview) < 1e-8, 'preview matches packed insertion');
+  }
+  city.clearance = 8;
+  const fixed = city.active.position.clone(); city.layout();
+  assert.ok(city.active.position.equals(fixed), 'spacing keeps selected building anchored');
+  for (const left of city.buildings) for (const right of city.buildings) {
+    if (left === right) continue;
+    const a = left.localBounds.clone().translate(left.position), b = right.localBounds.clone().translate(right.position);
+    assert.ok(a.max.x + 8 <= b.min.x + 1e-8 || b.max.x + 8 <= a.min.x + 1e-8 || a.max.z + 8 <= b.min.z + 1e-8 || b.max.z + 8 <= a.min.z + 1e-8, '2D grid respects gap');
+  }
   const stone = new MeshStandardMaterial(); stone.userData.tint = 'stone';
   stone.onBeforeCompile = s => { s.uniforms.uTexMix = { value: 1 }; };
   const zinc = new MeshStandardMaterial();
@@ -54,6 +67,11 @@ try {
   assert.ok(world.sub(shader.uniforms.uBuildingOrigin.value).distanceTo(new Vector3(2, 1, 3)) < 1e-8, 'stamps stay local after world translation');
   const params = defaultParams(), kit = { key: (c, v) => `${c}/${v}`, info: () => undefined };
   const plan = planBuilding(generateBuilding(params, kit), params);
+  for (const overrides of [{ baysX: 20 }, { baysY: 20 }, { floors: 20 }, { baysX: 20, baysY: 20, floors: 20 }]) {
+    const large = { ...params, ...overrides }, building = generateBuilding(large, kit), planned = planBuilding(building, large);
+    assert.equal(planned.levels.length, large.floors + 2);
+    assert.equal(planned.issues.length, 0, `large plan: ${JSON.stringify(overrides)}`);
+  }
   const editsA = new RoomEdits(), editsB = new RoomEdits();
   editsA.apply(plan); editsB.apply(plan);
   const editable = plan.rooms.find(r => r.type === 'bedroom' && r.level > 0);
@@ -74,5 +92,5 @@ try {
   const origin = unfolded(new Vector3()), shifted = unfolded(new Vector3(35, 0, -4));
   assert.ok(shifted.view.bounds().getCenter(new Vector3()).sub(origin.view.bounds().getCenter(new Vector3())).distanceTo(new Vector3(35, 0, -4)) < 1e-6);
   for (const item of [origin, shifted]) { item.view.dispose(); item.mesh.geometry.dispose(); item.mesh.material.dispose(); }
-  console.log('PASS: four-building placement, front alignment, stable identities, independent state/uniforms, shared program keys, building-relative shader stamps, translated unfold');
+  console.log('PASS: 2D four-direction placement, gap/reflow, preview agreement, 20x20x20 plans, independent edits/uniforms, building-relative shader stamps, translated unfold');
 } finally { await server.close(); }

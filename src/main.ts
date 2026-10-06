@@ -37,7 +37,7 @@ import type { Look } from "./finishes";
 import { Toolbar } from "./toolbar";
 import { UnfoldView, type UnfoldFocus } from "./unfold";
 import dims from "../blender/kit_dims.json";
-import { BuildingScene } from "./buildingScene";
+import { BuildingScene, type AddDirection } from "./buildingScene";
 import { bindBuildingOrigin } from "./shaderVariant";
 
 const renderer = new WebGLRenderer({ antialias: true, powerPreference: "high-performance", logarithmicDepthBuffer: true });
@@ -222,11 +222,23 @@ function selectBuilding(id: string, animate = false): void {
   }
 }
 
-function addBuilding(side: "left" | "right"): void {
+function addBuilding(side: AddDirection): void {
   if (!materials || view.gallery || view.furnitureGallery || interiorView.plan || unfoldActive()) return;
   const source = city.active;
+  const oldPositions = new Map(city.buildings.map(entry => [entry.id, entry.position.clone()]));
   const entry = city.add(side, null, source.localBounds, source.length);
-  scene.add(entry.root); refreshCityChoices(); selectBuilding(entry.id);
+  syncDormantPositions(oldPositions);
+  scene.add(entry.root); refreshCityChoices(); selectBuilding(entry.id, true);
+}
+function syncDormantPositions(oldPositions: Map<string, Vector3>): void {
+  for (const entry of city.buildings) {
+    const old = oldPositions.get(entry.id);
+    if (!old || entry.id === city.activeId || !entry.state) continue;
+    const delta = entry.position.clone().sub(old);
+    entry.state.street.group.position.copy(entry.position);
+    entry.state.bounds.min.add(delta); entry.state.bounds.max.add(delta);
+    for (const lamp of entry.state.lamps) lamp.position.add(delta);
+  }
 }
 controls.addEventListener("start", () => { cameraMotion = null; });
 
@@ -561,6 +573,8 @@ function refreshCityChoices(): void {
 }
 gui.add({ left: () => addBuilding("left") }, "left").name("＋ 左側新增建築");
 gui.add({ right: () => addBuilding("right") }, "right").name("＋ 右側新增建築");
+gui.add({ front: () => addBuilding("front") }, "front").name("＋ 前方新增建築");
+gui.add({ back: () => addBuilding("back") }, "back").name("＋ 後方新增建築");
 gui.add({ overview: () => {
   if (view.gallery || view.furnitureGallery || interiorView.plan) return;
   const box = city.bounds(); if (unfoldView) box.union(unfoldView.bounds());
@@ -596,11 +610,15 @@ gui.add(view, "furnitureGallery").name("家具總覽").listen().onChange((on: bo
 const fBuilding = gui.addFolder("🏛 建築 (Building)");
 fBuilding.add(params, "type", { "獨棟": "freestanding", "街角": "corner", "連棟": "row" }).name("建築類型").onChange(update);
 fBuilding.add(params, "cornerStyle", { "直角": "pier", "斜切": "panCoupe" }).name("街角轉角").onChange(update);
-fBuilding.add(params, "depth", 8, 20, 0.5).name("連棟進深 m").onChange(update);
+fBuilding.add(city, "clearance", 0, 20, 0.5).name("每棟間距 m").onChange(() => {
+  const oldPositions = new Map(city.buildings.map(entry => [entry.id, entry.position.clone()]));
+  city.layout();
+  syncDormantPositions(oldPositions);
+});
 fBuilding.add(params, "groundUse", { "住宅": "residential", "混合": "mixed", "店面": "shops" }).name("一樓用途").onChange(update);
-fBuilding.add(params, "baysX", 2, 10, 1).name("正面開間數").onChange(update);
-fBuilding.add(params, "baysY", 2, 8, 1).name("側面開間數").onChange(update);
-fBuilding.add(params, "floors", 1, 6, 1).name("上層數").onChange(update);
+fBuilding.add(params, "baysX", 2, 20, 1).name("正面開間數").onChange(update);
+fBuilding.add(params, "baysY", 2, 20, 1).name("側面開間數").onChange(update);
+fBuilding.add(params, "floors", 1, 20, 1).name("上層數").onChange(update);
 fBuilding.add(params, "profile", { "奧斯曼（往上遞減）": "haussmann", "均一": "uniform" }).name("樓高配置").onChange(update);
 fBuilding.add(params, "dormerEvery", { "每個開間": 1, "隔一個開間": 2 }).name("老虎窗").onChange(update);
 fBuilding.add(params, "seed", 1, 999, 1).name("隨機種子").onChange(update);
@@ -722,7 +740,7 @@ const cityArrows = ([-1, 1] as const).map(step => {
 document.body.append(cityNavigation);
 let cityNavigationWidth = -1;
 const cityPointer = new Vector2(-10000, -10000);
-const cityMarkers = (["left", "right"] as const).map(side => {
+const cityMarkers = (["left", "right", "front", "back"] as const).map(side => {
   const marker = new Group(), spec = dims.street.block;
   const white = new MeshBasicMaterial({ color: 0xffffff, depthTest: false });
   marker.add(new Mesh(new BoxGeometry(spec.markerSize, spec.markerThickness, spec.markerStroke), white));
@@ -731,7 +749,7 @@ const cityMarkers = (["left", "right"] as const).map(side => {
   const preview = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.45, depthWrite: false }));
   preview.visible = false; scene.add(preview);
   const button = document.createElement("button");
-  button.title = `${side === "left" ? "左" : "右"}側新增建築`;
+  button.title = `${{ left: "左側", right: "右側", front: "前方", back: "後方" }[side]}新增建築`;
   button.setAttribute("aria-label", button.title);
   button.style.cssText = "position:fixed;display:none;transform:translate(-50%,-50%);width:54px;height:54px;background:transparent;border:0;cursor:pointer;z-index:6";
   button.addEventListener("pointerdown", e => e.stopPropagation());
@@ -757,9 +775,10 @@ function updateCityUI(): void {
   }
   for (const { side, button, marker, preview } of cityMarkers) {
     if (!enabled || unfoldActive()) { button.style.display = "none"; marker.visible = preview.visible = false; continue; }
-    const edge = side === "left" ? city.buildings[0] : city.buildings.at(-1)!;
-    const x = edge.position.x + (side === "left" ? edge.localBounds.min.x - dims.street.block.markerOffset : edge.localBounds.max.x + dims.street.block.markerOffset);
-    marker.position.set(x, 0.1, edge.position.z + edge.length / 2);
+    const edge = city.active, local = edge.localBounds;
+    const next = city.candidate(side, local, edge.length);
+    const size = local.getSize(new Vector3()), center = local.getCenter(new Vector3());
+    marker.position.copy(next.position).add(center).setY(0.1);
     const p = marker.position.clone().project(camera);
     const px = (p.x + 1) * innerWidth / 2, py = (1 - p.y) * innerHeight / 2;
     const visible = p.z > -1 && p.z < 1 && Math.hypot(cityPointer.x - px, cityPointer.y - py) < 110;
@@ -767,11 +786,8 @@ function updateCityUI(): void {
     marker.visible = visible;
     preview.visible = visible;
     if (visible) {
-      const local = city.active.localBounds, size = local.getSize(new Vector3()), center = local.getCenter(new Vector3());
-      const nextX = side === "left" ? edge.position.x + edge.localBounds.min.x - city.clearance - local.max.x
-        : edge.position.x + edge.localBounds.max.x + city.clearance - local.min.x;
       preview.scale.set(size.x, dims.street.block.markerThickness, size.z);
-      preview.position.set(nextX + center.x, 0.08, edge.position.z + edge.length / 2 - city.active.length / 2 + center.z);
+      preview.position.copy(next.position).add(center).setY(0.08);
     }
     button.style.left = `${px}px`; button.style.top = `${py}px`;
   }
