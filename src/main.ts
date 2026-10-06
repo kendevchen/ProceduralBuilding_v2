@@ -211,9 +211,12 @@ function selectBuilding(id: string, animate = false): void {
   citySelection.building = id; cityController.updateDisplay();
   toolbar.setSweep(cut.sweep); updateCityUI();
   if (animate) {
-    // Resolve state restoration/reflow first, then travel from the current view.
-    // Both ends receive the same translation, preserving viewing direction/distance.
-    const to = camera.position.clone(), targetTo = controls.target.clone();
+    // Reframe the selected building rather than carrying over an off-centre orbit target.
+    const box = unfoldView ? unfoldView.bounds() : new Box3(bounds.min, bounds.max);
+    const targetTo = box.getCenter(new Vector3());
+    const halfFov = Math.min(camera.fov * Math.PI / 360, Math.atan(Math.tan(camera.fov * Math.PI / 360) * camera.aspect));
+    const distance = box.getSize(new Vector3()).length() / 2 / Math.sin(halfFov) * 1.05;
+    const to = targetTo.clone().addScaledVector(new Vector3(36, 13, 46).normalize(), distance);
     camera.position.copy(cameraFrom); controls.target.copy(targetFrom);
     cameraMotion = { from: cameraFrom, targetFrom, to, targetTo, elapsed: 0 };
   }
@@ -551,7 +554,7 @@ function frameHome(): void {
 const gui = new GUI({ title: "european building kit" });
 const citySelection = { building: city.activeId };
 const cityController = gui.add(citySelection, "building", { "建築 1": "1" }).name("目前建築").onChange((id: string) => {
-  selectBuilding(id); citySelection.building = city.activeId; cityController.updateDisplay();
+  selectBuilding(id, true); citySelection.building = city.activeId; cityController.updateDisplay();
 });
 function refreshCityChoices(): void {
   cityController.options(Object.fromEntries(city.buildings.map(b => [b.name, b.id])));
@@ -701,6 +704,23 @@ const cityEvents = new WeakSet<Event>();
 const cityBadge = document.createElement("div");
 cityBadge.style.cssText = "position:fixed;left:16px;top:16px;color:white;background:#24282bcc;padding:8px 12px;border-radius:8px;pointer-events:none;z-index:5;font:14px sans-serif";
 document.body.append(cityBadge);
+const cityNavigation = document.createElement("div");
+cityNavigation.style.cssText = "position:fixed;right:340px;top:16px;display:flex;gap:5px;z-index:10";
+const cityArrows = ([-1, 1] as const).map(step => {
+  const button = document.createElement("button");
+  button.textContent = step < 0 ? "‹" : "›";
+  button.title = step < 0 ? "切換左側建築" : "切換右側建築";
+  button.setAttribute("aria-label", button.title);
+  button.style.cssText = "width:34px;height:34px;border:1px solid #ffffff55;border-radius:8px;background:#24282bcc;color:white;font:28px sans-serif;cursor:pointer";
+  button.onclick = () => {
+    const index = city.buildings.findIndex(b => b.id === city.activeId);
+    const next = city.buildings[index + step];
+    if (next) selectBuilding(next.id, true);
+  };
+  cityNavigation.append(button); return { step, button };
+});
+document.body.append(cityNavigation);
+let cityNavigationWidth = -1;
 const cityPointer = new Vector2(-10000, -10000);
 const cityMarkers = (["left", "right"] as const).map(side => {
   const marker = new Group(), spec = dims.street.block;
@@ -721,9 +741,20 @@ const cityMarkers = (["left", "right"] as const).map(side => {
 });
 addEventListener("pointermove", e => cityPointer.set(e.clientX, e.clientY));
 function updateCityUI(): void {
-  cityBadge.textContent = `${city.active.name} · 共 ${city.buildings.length} 棟`;
+  const badge = `${city.active.name} · 共 ${city.buildings.length} 棟`;
+  if (cityBadge.textContent !== badge) cityBadge.textContent = badge;
   const enabled = !!materials && !view.gallery && !view.furnitureGallery && !interiorView.plan;
   cityController.enable(enabled);
+  const activeIndex = city.buildings.findIndex(b => b.id === city.activeId);
+  if (cityNavigationWidth !== innerWidth) {
+    cityNavigationWidth = innerWidth;
+    const right = innerWidth - gui.domElement.getBoundingClientRect().left + 10;
+    cityNavigation.style.right = `${Math.max(16, Math.min(right, innerWidth - 84))}px`;
+  }
+  for (const { step, button } of cityArrows) {
+    button.disabled = !enabled || !city.buildings[activeIndex + step];
+    button.style.opacity = button.disabled ? "0.35" : "1";
+  }
   for (const { side, button, marker, preview } of cityMarkers) {
     if (!enabled || unfoldActive()) { button.style.display = "none"; marker.visible = preview.visible = false; continue; }
     const edge = side === "left" ? city.buildings[0] : city.buildings.at(-1)!;
