@@ -637,9 +637,11 @@ function program(ctx: Ctx, groupCells: Set<number>, apt: number) {
   const closest = (us: Unit[]) => us.reduce((a, u) => (Math.abs(cx(u) - centre) < Math.abs(cx(a) - centre) ? u : a));
   const large = (lv.cls === "N" || lv.cls === "S") && all.length >= 5;
 
-  // the study goes in the left corner of the front (INTERIOR_SPEC.md §5.4); nothing else takes it first
+  // Keep the initial seed and ground/attic program. Other upper floors may
+  // place their study in any available windowed room, not a reserved corner.
+  const fixedStudyCorner = p.seed === 1 || lv.index === 0 || lv.cls === "R";
   const wantsStudy = lv.cls !== "A" && all.length >= 6;
-  const studyCorner = wantsStudy
+  const studyCorner = wantsStudy && fixedStudyCorner
     ? mine().filter(u => front(u) && corner(u)).sort((a, b) => a.x0 - b.x0)[0] ?? null
     : null;
 
@@ -718,7 +720,9 @@ function program(ctx: Ctx, groupCells: Set<number>, apt: number) {
   if (wantsStudy) {
     const cs = mine().filter(u => front(u) && corner(u));
     const fr = mine().filter(front);
-    if (studyCorner && studyCorner.type === null) set(studyCorner, "study");
+    const available = mine().filter(u => u.win.length);
+    if (!fixedStudyCorner && available.length) set(pick(available, 2), "study");
+    else if (studyCorner && studyCorner.type === null) set(studyCorner, "study");
     else if (cs.length) set(pick(cs, 2), "study");
     else if (large && fr.length) set(pick(fr, 2), "study");
   }
