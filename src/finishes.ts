@@ -11,7 +11,7 @@
  * all their floors another. Patterns run in metres in Blender space (z up =
  * three's y); wall patterns are measured up from the room's own floor.
  */
-import { type BufferGeometry, Color, Float32BufferAttribute, MeshStandardMaterial } from "three";
+import { type BufferGeometry, Color, DataTexture, Float32BufferAttribute, LinearFilter, LinearMipmapLinearFilter, MeshStandardMaterial, RedFormat, RepeatWrapping, UnsignedByteType } from "three";
 import { type PlanRoom, ROOM_INFO, type RoomType } from "./plan";
 import dims from "../blender/kit_dims.json";
 
@@ -203,7 +203,25 @@ vFinPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
 vFinN = normalize(mat3(modelMatrix) * objectNormal);
 `;
 
+// A single self-made value-noise lattice for every finish material. Hardware
+// filtering replaces four sine hashes per noise call, and mipmaps filter grain
+// that is smaller than a pixel. Pattern IDs/joints retain their original hash.
+const NOISE_SIZE = 256;
+const noiseValues = new Uint8Array(NOISE_SIZE * NOISE_SIZE);
+for (let y = 0; y < NOISE_SIZE; y++) for (let x = 0; x < NOISE_SIZE; x++) {
+  const hash = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+  noiseValues[y * NOISE_SIZE + x] = Math.round((hash - Math.floor(hash)) * 255);
+}
+const finishNoise = new DataTexture(noiseValues, NOISE_SIZE, NOISE_SIZE, RedFormat, UnsignedByteType);
+finishNoise.name = "shared_finish_noise";
+finishNoise.wrapS = finishNoise.wrapT = RepeatWrapping;
+finishNoise.magFilter = LinearFilter;
+finishNoise.minFilter = LinearMipmapLinearFilter;
+finishNoise.generateMipmaps = true;
+finishNoise.needsUpdate = true;
+
 const FRAG_PARS = /* glsl */ `
+uniform sampler2D uFinNoise;
 varying float vFinPattern;
 varying vec3 vFinA;
 varying vec3 vFinB;
@@ -215,7 +233,7 @@ float finHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.545
 float finNoise(vec2 p) {
   vec2 i = floor(p), f = fract(p);
   f = f * f * (3.0 - 2.0 * f);
-  return mix(mix(finHash(i), finHash(i + vec2(1, 0)), f.x), mix(finHash(i + vec2(0, 1)), finHash(i + vec2(1, 1)), f.x), f.y);
+  return texture2D(uFinNoise, (i + f + 0.5) / ${NOISE_SIZE.toFixed(1)}).r;
 }
 float finFbm(vec2 p) {
   float s = 0.0, a = 0.5;
@@ -435,7 +453,11 @@ float finRough = 0.85;
   vec3 A = vFinA, B = vFinB;
   vec3 col = A;
   vec3 N = normalize(vFinN);
-  if (pat < 10 || pat == 19) {
+  if (pat < 10 || pat == 19
+#ifdef FIN_FLOOR_ONLY
+      || pat == 32
+#endif
+  ) {
     // floors (and plain faces): Blender xy is three's xz
     vec2 uv = vFinPos.xz;
     vec4 r = vec4(A * (0.97 + 0.06 * finNoise(uv * 3.0 + vFinPos.y * 1.7)), 0.85);
@@ -445,6 +467,7 @@ float finRough = 0.85;
     else if (pat == 4) r = finHex(uv, A, B, 0.1);
     else if (pat == 5) r = finMarble(uv, A, B);
     else if (pat == 6) r = finCarpet(uv - A.xy, B.xy);
+    else if (pat == 32) r = vec4(finKitchenStone(uv * 0.7, A, B, 0.32), 0.26);
     else if (pat == 19) {
       // Small, low-contrast scrolling leaves on a matte woven sage ground.
       vec2 cellUv = uv / ${dims.interior.cafeFurniture.carpetRepeat.toFixed(3)};
@@ -481,7 +504,9 @@ float finRough = 0.85;
     }
     col = r.rgb;
     finRough = r.w;
-  } else {
+  }
+#ifndef FIN_FLOOR_ONLY
+  else {
     // walls: along the face, and up from the room's floor
     float u = abs(N.x) > abs(N.z) ? vFinPos.z : vFinPos.x;
     float h = vFinPos.y - vFinZ.x, top = vFinZ.y - vFinZ.x;
@@ -618,6 +643,7 @@ float finRough = 0.85;
     if (h < 0.13 && pat < 31 && pat != 13 && pat != 14 && pat != 17 && pat != 18 && pat != 22 && pat != 23 && pat != 24 && pat != 26 && pat != 27 && pat != 28 && pat != 29 && pat != 30) col = (pat == 12 || pat == 15) ? mix(A, B, 0.5) : B * 0.95;
     if (h < 0.13 && pat == 16) col = vec3(0.82, 0.80, 0.74) * 0.95;
   }
+#endif
   diffuseColor.rgb = col;
 }
 `;
@@ -625,7 +651,11 @@ float finRough = 0.85;
 /** the shader for the finishes; `wall` names it as a solid for the cut (cutaway.ts) */
 export function finishMaterial(surface: "wall" | "floor"): MeshStandardMaterial {
   const mat = new MeshStandardMaterial({ name: surface === "wall" ? "room_finish_wall" : "finish_floor", roughness: 1 });
+  // Floor stamps only use floor patterns. Keep the unrelated wall/furniture
+  // branches out of that GPU program; wall materials still support all stamps.
+  if (surface === "floor") mat.defines = { ...mat.defines, FIN_FLOOR_ONLY: "" };
   mat.onBeforeCompile = shader => {
+    shader.uniforms.uFinNoise = { value: finishNoise };
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", `#include <common>\n${VERT_PARS}`)
       .replace("#include <worldpos_vertex>", `#include <worldpos_vertex>\n${VERT_MAIN}`);
@@ -636,6 +666,6 @@ export function finishMaterial(surface: "wall" | "floor"): MeshStandardMaterial 
       // lifted a little like the white model, so rooms in shadow stay readable
       .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * 0.22;");
   };
-  mat.customProgramCacheKey = () => "room-finish";
+  mat.customProgramCacheKey = () => `room-finish-noise-lut:${surface}`;
   return mat;
 }

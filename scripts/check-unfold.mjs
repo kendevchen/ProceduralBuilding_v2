@@ -20,7 +20,7 @@ try {
   const context = new Proxy({ measureText: () => ({ width: 160 }) }, { get: (target, key) => target[key] ?? (() => {}) });
   globalThis.document = { createElement: () => ({ getContext: () => context }) };
   const kit = { key: (c, v) => `${c}/${v}`, info: () => undefined };
-  let cases = 0, roomsChecked = 0;
+  let cases = 0, roomsChecked = 0, sharedFinishNoise;
   for (const overrides of [
     {}, { baysX: 2, baysY: 2 }, { baysX: 3, baysY: 2, floors: 1 },
     { baysX: 9, baysY: 5 }, { baysX: 10, baysY: 8, floors: 6 },
@@ -109,9 +109,26 @@ try {
       material.onBeforeCompile(shader, {});
       assert.equal(shader.uniforms.uUnfoldUndo, p.undo);
       assert.equal(material.clippingPlanes, p.planes);
+      if (shader.uniforms.uFinNoise) {
+        const noise = shader.uniforms.uFinNoise.value;
+        assert.ok(noise.isDataTexture && noise.generateMipmaps, 'finish noise supports filtered overview rendering');
+        sharedFinishNoise ??= noise;
+        assert.equal(noise, sharedFinishNoise, 'all section material clones share one noise texture');
+      }
+      if (material.name === 'finish_floor') {
+        assert.ok(Object.hasOwn(material.defines, 'FIN_FLOOR_ONLY'), 'floor specialization survives clipping and unfold clones');
+      }
       if (material.name === 'room_finish_wall') {
         assert.ok(shader.vertexShader.includes('uUnfoldUndo * modelMatrix * vec4(transformed'));
         assert.ok(shader.fragmentShader.includes('!gl_FrontFacing'), 'solid sections stay orange');
+      }
+    }
+    for (const part of view.parts) for (const mesh of part.group.children) {
+      if (mesh.material.name !== 'finish_floor') continue;
+      const patterns = mesh.geometry.getAttribute('finPattern');
+      assert.ok(patterns, 'specialized floor shader receives finish stamps');
+      for (const pattern of new Set(patterns.array)) {
+        assert.ok(pattern < 10 || pattern === 19 || pattern === 32, `floor shader supports stamp ${pattern}`);
       }
     }
     view.dispose(); assert.equal(disposed, 0, 'disposing view must not dispose source geometry');
