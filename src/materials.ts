@@ -21,6 +21,7 @@ import {
 } from "three";
 import dims from "../blender/kit_dims.json";
 import { SOURCE_FRAME_GLSL } from "./shaderVariant";
+import { bindBuildingOrigin, cloneShaderMaterial } from "./shaderVariant";
 
 export type TintKey = "stone" | "paint" | "shutter" | "fabric";
 type Pattern = "none" | "ashlar" | "ashlarHeads" | "seams" | "stripes";
@@ -398,6 +399,41 @@ export interface KitMaterials {
   /** railing lace material and its shadow depth material, per atlas pattern */
   lace(pattern: number): Material;
   laceDepth(pattern: number): Material;
+}
+
+/** Per-building materials/uniforms; image textures and shader programs remain shared. */
+export function forkKitMaterials(base: KitMaterials, origin = new Vector3()): KitMaterials {
+  const clones = new Map<Material, Material>();
+  const stone = {
+    uTexMix: { value: 1 }, uSat: { value: 1 }, uBright: { value: 1 },
+    uJointDepth: { value: 1 }, uBlockVar: { value: 1 }, uTone: { value: new Vector3(1, 1, 1) },
+  };
+  const copy = (original: Material) => {
+    let material = clones.get(original);
+    if (!material) {
+      material = cloneShaderMaterial(original);
+      material.onBeforeCompile = (shader, renderer) => {
+        original.onBeforeCompile(shader, renderer);
+        if (original.userData.tint === "stone") Object.assign(shader.uniforms, stone);
+      };
+      bindBuildingOrigin(material, origin);
+      clones.set(original, material);
+    }
+    return material;
+  };
+  const byName = new Map([...base.byName].map(([key, material]) => [key, copy(material)]));
+  return {
+    byName, interior: copy(base.interior), voile: copy(base.voile),
+    lace: pattern => copy(base.lace(pattern)), laceDepth: pattern => copy(base.laceDepth(pattern)),
+    setNight: value => base.setNight(value),
+    setLook: name => {
+      const spec = FACADE_LOOKS[name];
+      stone.uTexMix.value = spec.texMix; stone.uSat.value = spec.sat;
+      stone.uBright.value = spec.bright; stone.uJointDepth.value = spec.joint;
+      stone.uBlockVar.value = spec.block; stone.uTone.value.set(...spec.tone);
+      for (const key of ["zinc", "zinc:noao"]) (byName.get(key) as MeshStandardMaterial).color.setScalar(spec.zinc);
+    },
+  };
 }
 
 export async function createMaterials(base: string): Promise<KitMaterials> {

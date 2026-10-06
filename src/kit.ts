@@ -204,7 +204,7 @@ export class Kit {
   }
 
   /** Build a Group of InstancedMeshes from placements (matrices in Blender Z-up space). */
-  buildGroup(placements: Placement[]): Group {
+  buildGroup(placements: Placement[], materials = this.materials): Group {
     const group = new Group();
     const byPart = new Map<string, Placement[]>();
     for (const pl of placements) {
@@ -226,7 +226,9 @@ export class Kit {
       part.traverse(o => {
         const mesh = o as Mesh;
         if (!mesh.isMesh) return;
-        const base = mesh.material as Material;
+        const original = mesh.material as Material;
+        const materialKey = [...this.materials.byName].find(([, value]) => value === original)?.[0];
+        const base = materialKey ? materials.byName.get(materialKey) ?? original : original;
         const isLace = base.userData.lace === true;
         const tint = base.userData.tint as TintKey | undefined;
         // mesh transform relative to the part root (GLTFLoader splits
@@ -247,14 +249,14 @@ export class Kit {
         }
         for (const b of buckets.values()) {
           const geom = b.mirrored ? this.mirroredGeometry(mesh.geometry) : mesh.geometry;
-          const material = isLace ? this.materials.lace(b.pattern) : base;
+          const material = isLace ? materials.lace(b.pattern) : base;
           const im = new InstancedMesh(geom, material, b.matrices.length);
           im.name = key;
           if (b.tags.some(t => t)) im.userData.tags = b.tags;
           // glass: transparent, drawn after the rooms behind it, casts no shadow
           im.castShadow = !material.transparent;
           im.receiveShadow = !material.transparent;
-          if (isLace) im.customDepthMaterial = this.materials.laceDepth(b.pattern);
+          if (isLace) im.customDepthMaterial = materials.laceDepth(b.pattern);
           for (let i = 0; i < b.matrices.length; i++) {
             im.setMatrixAt(i, b.matrices[i]);
             if (tint) im.setColorAt(i, b.styles[i]?.[tint] ?? WHITE);

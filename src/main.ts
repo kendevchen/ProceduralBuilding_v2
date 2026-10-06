@@ -4,17 +4,17 @@
  * is assembled from the kit (blender/ -> public/assets/kit.glb) by generator.ts.
  */
 import {
-  ACESFilmicToneMapping, Box3, Clock, GridHelper, Group, type InstancedMesh, Mesh, MeshStandardMaterial,
-  PerspectiveCamera, PlaneGeometry, Raycaster, SRGBColorSpace, Scene, type Sprite, Vector2, Vector3, WebGLRenderer,
+  ACESFilmicToneMapping, Box3, BoxGeometry, Clock, GridHelper, Group, type InstancedMesh, Mesh, MeshBasicMaterial, MeshStandardMaterial,
+  Matrix4, PerspectiveCamera, PlaneGeometry, Ray, Raycaster, SRGBColorSpace, Scene, type Sprite, Vector2, Vector3, WebGLRenderer,
 } from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import GUI from "lil-gui";
 import { Environment } from "./environment";
 import { buildGallery } from "./gallery";
 import { buildFurnitureGallery } from "./furnitureGallery";
-import { buildingStyle, generateBuilding, partyChimneys } from "./generator";
+import { buildingStyle, generateBuilding, partyChimneys, type Building } from "./generator";
 import { Kit } from "./kit";
-import { FACADE_LOOKS, type FacadeLook, type KitMaterials, LACE_PATTERNS, createMaterials } from "./materials";
+import { FACADE_LOOKS, type FacadeLook, type KitMaterials, LACE_PATTERNS, createMaterials, forkKitMaterials } from "./materials";
 import { type BuildingParams, defaultParams } from "./params";
 import { PostFX } from "./postfx";
 import { buildInteriors, planRule } from "./interiors";
@@ -24,19 +24,21 @@ import { partyWalls, roofCap, roofShape } from "./roof";
 import { type CutAxis, type CutMode, Cutaway } from "./cutaway";
 import { buildRooms3d } from "./rooms3d";
 import { RoomLabels } from "./roomLabels";
-import { type FurnitureInfo, type SalonInfo, type DiningInfo, type KitchenInfo, type CafeInfo, type BallroomInfo, type AtticInfo, buildCafeTerrace, buildFurniture } from "./furniture";
+import { type FurnitureInfo, type CafeInfo, buildCafeTerrace, buildFurniture } from "./furniture";
 import { LampLights } from "./lampLights";
 import { buildStairs } from "./stairs";
-import { StreetLife } from "./streetlife";
+import { StreetLife, defaultStreet } from "./streetlife";
 import { markCafeShops } from "./cafes";
 import { markAtticRooms } from "./attics";
 import { WindowEditor } from "./windowEditor";
-import { RoomEdits } from "./roomEdits";
+import { RoomEdits, type EditedPlan } from "./roomEdits";
 import { RoomEditor } from "./roomEditor";
 import type { Look } from "./finishes";
 import { Toolbar } from "./toolbar";
 import { UnfoldView, type UnfoldFocus } from "./unfold";
 import dims from "../blender/kit_dims.json";
+import { BuildingScene } from "./buildingScene";
+import { bindBuildingOrigin } from "./shaderVariant";
 
 const renderer = new WebGLRenderer({ antialias: true, powerPreference: "high-performance", logarithmicDepthBuffer: true });
 const DEFAULT_PIXEL_RATIO = Math.min(devicePixelRatio, 1.25);
@@ -74,24 +76,30 @@ const root = new Group();
 root.rotation.x = -Math.PI / 2;
 scene.add(root);
 const params = defaultParams();
-const roomEdits = new RoomEdits();
+let roomEdits = new RoomEdits();
 const view = { gallery: false, furnitureGallery: false };
 let overviewSize: { width: number; depth: number } | null = null;
 /** the study lamps' light (lampLights.ts) */
 const lampLights = new LampLights(scene);
 /** sidewalk and street trees, in world space beside the building (streetlife.ts) */
-const street = new StreetLife();
+let street = new StreetLife();
+const streetSettings = defaultStreet();
+const facadeSettings = { look: "haussmann" as FacadeLook };
 scene.add(street.group);
 /** floor plans (INTERIOR_SPEC.md): the plan view of one level, its labels, the plan check */
 const interiorView = { plan: false, level: 1, labels: true, area: false, check: "—", look: "real" as Look };
 let materials: KitMaterials | null = null;
+let sharedMaterials: KitMaterials | null = null;
 let kit: Kit | null = null;
 let shown: Group | null = null;
 let lastPlan: BuildingPlan | null = null;
+let lastBuilding: Building | null = null;
+let lastFurniture: Group | null = null;
+let lastEdited: EditedPlan | null = null;
 
 /** cutting the building open (INTERIOR_SPEC.md §2): t is the plane's place, 0..1 within the bounds */
 const cut = { on: false, mode: "horizontal" as CutMode, axis: "across" as CutAxis, flip: false, t: 1, sweep: false, dir: 1 };
-const cutaway = new Cutaway();
+let cutaway = new Cutaway();
 /** world bounds of the building (all it is made of, a little beyond), for placing the plane and framing the camera */
 const bounds = { min: new Vector3(-8, 0, -6), max: new Vector3(8, 22, 6) };
 const CUT_MARGIN = 0.05;
@@ -112,6 +120,103 @@ let cameraMotion: { from: Vector3; targetFrom: Vector3; to: Vector3; targetTo: V
 let beforeUnfold: { position: Vector3; target: Vector3 } | null = null;
 let lampSources: Parameters<LampLights["setLamps"]>[0] = [];
 const unfoldActive = () => unfold.selected && cut.on && !view.gallery && !view.furnitureGallery && !interiorView.plan;
+
+interface BuildingRuntime {
+  params: BuildingParams; edits: RoomEdits; street: StreetLife; materials: KitMaterials;
+  cutaway: Cutaway; cut: typeof cut; unfold: typeof unfold; spacing: number | null;
+  interiorView: typeof interiorView; facadeLook: FacadeLook;
+  shown: Group | null; interior: Group | null; roomBoxes: Mesh | null; labels: RoomLabels | null;
+  plan: BuildingPlan | null; building: Building | null; furniture: Group | null;
+  edited: EditedPlan | null;
+  bounds: { min: Vector3; max: Vector3 }; site: typeof site; lamps: typeof lampSources;
+}
+const city = new BuildingScene<BuildingRuntime>(dims.street.block.clearance);
+city.add("right", null, new Box3(new Vector3(-8, 0, -6), new Vector3(8, 22, 6)), 12);
+scene.add(city.active.root);
+
+function captureBuilding(): BuildingRuntime {
+  return { params: structuredClone(params), edits: roomEdits, street, materials: materials!,
+    cutaway, cut: { ...cut }, unfold: { ...unfold }, spacing: unfoldSpacing,
+    interiorView: { ...interiorView }, facadeLook: facadeSettings.look,
+    shown, interior, roomBoxes, labels, plan: lastPlan, building: lastBuilding, furniture: lastFurniture, edited: lastEdited,
+    bounds: { min: bounds.min.clone(), max: bounds.max.clone() }, site: { ...site }, lamps: lampSources };
+}
+
+function bindBuildingEditors(): void {
+  windows.update(lastBuilding, shown);
+  const data = lastFurniture?.userData;
+  roomEditor.update(lastEdited,
+    data?.salons ?? null, data?.dining ?? null, data?.kitchens ?? null, data?.cafe ?? null,
+    data?.ballroom ?? null, data?.attic ?? null);
+}
+
+function selectBuilding(id: string): void {
+  const next = city.buildings.find(b => b.id === id);
+  if (!next || id === city.activeId || !materials || view.gallery || view.furnitureGallery || interiorView.plan) return;
+  const previous = city.active, saved = captureBuilding();
+  previous.state = saved;
+  roomEditor.clearSelection(); windows.update(null, null);
+  releaseUnfold();
+  if (shown) { cutaway.apply(shown, false); shown.visible = true; previous.root.add(shown); }
+  // Dormant buildings retain only their exterior. Recreate rooms lazily on selection/cutting.
+  if (interior) {
+    interior.removeFromParent();
+    interior.traverse(o => {
+      if ((o as InstancedMesh).isInstancedMesh) (o as InstancedMesh).dispose();
+      else if ((o as Mesh).isMesh) (o as Mesh).geometry.dispose();
+    });
+    saved.interior = null; saved.furniture = null; saved.lamps = [];
+  }
+  if (roomBoxes) roomBoxes.visible = true;
+  labels?.dispose(); saved.labels = null;
+  street.group.visible = true;
+  city.activeId = id;
+  root.position.copy(next.position);
+  const offset = next.position.clone().sub(previous.position);
+  camera.position.add(offset); controls.target.add(offset);
+  cameraMotion = null; unfoldMotion = null; beforeUnfold = null; cutShown = false;
+  const state = next.state;
+  if (state) {
+    Object.assign(params, structuredClone(state.params)); roomEdits = state.edits;
+    street = state.street; materials = state.materials; cutaway = state.cutaway;
+    Object.assign(streetSettings, street.params); Object.assign(cut, state.cut); Object.assign(unfold, state.unfold);
+    Object.assign(interiorView, state.interiorView); facadeSettings.look = state.facadeLook;
+    unfoldSpacing = state.spacing; unfoldCurrent = unfold.amount;
+    shown = state.shown; interior = state.interior; roomBoxes = state.roomBoxes; labels = state.labels;
+    lastPlan = state.plan; lastBuilding = state.building; lastFurniture = state.furniture;
+    lastEdited = state.edited;
+    bounds.min.copy(state.bounds.min); bounds.max.copy(state.bounds.max); Object.assign(site, state.site);
+    const box = new Box3(bounds.min, bounds.max);
+    env.frame({ center: box.getCenter(new Vector3()), radius: box.getSize(new Vector3()).length() / 2 });
+    lampSources = state.lamps; lampLights.setLamps(lampSources);
+    if (shown) root.add(shown);
+    bindBuildingEditors();
+    if (lastPlan) syncLevels(lastPlan);
+    applyCut(true);
+  } else {
+    Object.assign(params, structuredClone(saved.params)); params.seed = Math.max(...city.buildings.map(b => b.state?.params.seed ?? 0)) + 1;
+    params.facade = {};
+    roomEdits = new RoomEdits(); cutaway = new Cutaway(); materials = forkKitMaterials(sharedMaterials!, next.position);
+    for (const material of new Set(Object.values(cutaway.interior))) bindBuildingOrigin(material, next.position);
+    materials.setLook(saved.facadeLook); facadeSettings.look = saved.facadeLook;
+    street = new StreetLife(); Object.assign(street.params, streetSettings); street.group.position.copy(next.position); scene.add(street.group);
+    shown = null; interior = null; roomBoxes = null; labels = null; lastBuilding = null; lastPlan = null; lastFurniture = null;
+    Object.assign(cut, { on: false, sweep: false, t: 1 });
+    Object.assign(unfold, { selected: false, amount: dims.interior.unfold.initialAmount, depth: dims.interior.unfold.frontDepth, focus: "all" });
+    unfoldCurrent = 0; unfoldSpacing = null; interiorView.plan = false;
+    rebuild();
+  }
+  gui.controllersRecursive().forEach(c => c.updateDisplay());
+  citySelection.building = id; cityController.updateDisplay();
+  toolbar.setSweep(cut.sweep); updateCityUI();
+}
+
+function addBuilding(side: "left" | "right"): void {
+  if (!materials || view.gallery || view.furnitureGallery || interiorView.plan || unfoldActive()) return;
+  const source = city.active;
+  const entry = city.add(side, null, source.localBounds, source.length);
+  scene.add(entry.root); refreshCityChoices(); selectBuilding(entry.id);
+}
 controls.addEventListener("start", () => { cameraMotion = null; });
 
 function releaseUnfold(): void {
@@ -120,7 +225,7 @@ function releaseUnfold(): void {
   unfoldView.dispose(); unfoldView = null;
   if (shown) shown.visible = true;
   lampLights.setLamps(lampSources);
-  env.frame({ center: new Vector3(0, bounds.max.y / 2, 0), radius: Math.hypot(site.width, site.length, bounds.max.y) / 2 });
+  env.frame({ center: root.position.clone().add(new Vector3(0, bounds.max.y / 2, 0)), radius: Math.hypot(site.width, site.length, bounds.max.y) / 2 });
 }
 
 function updateUnfold(): void {
@@ -153,10 +258,10 @@ function frameUnfold(usePresentation = true): void {
   updateUnfold();
   if (box.isEmpty()) return;
   if (usePresentation) {
-    const target = new Vector3().fromArray(dims.interior.unfold.presentationTarget);
+    const target = new Vector3().fromArray(dims.interior.unfold.presentationTarget).add(root.position);
     cameraMotion = {
       from: camera.position.clone(), targetFrom: controls.target.clone(),
-      to: new Vector3().fromArray(dims.interior.unfold.presentationPosition), targetTo: target, elapsed: 0,
+      to: new Vector3().fromArray(dims.interior.unfold.presentationPosition).add(root.position), targetTo: target, elapsed: 0,
     };
     env.frame({ center: box.getCenter(new Vector3()), radius: box.getSize(new Vector3()).length() / 2 });
     return;
@@ -190,7 +295,7 @@ function show(g: Group, center: Vector3, radius: number): void {
   }
   root.add(g);
   shown = g;
-  env.frame({ center, radius });
+  env.frame({ center: center.clone().add(root.position), radius });
 }
 
 /** put the camera in front of the kit overview, far enough that even the
@@ -207,6 +312,13 @@ function frameGallery(width: number, front: number): void {
 function rebuild(frame = false): void {
   if (!kit || !materials) return;
   releaseUnfold();
+  const overview = view.gallery || view.furnitureGallery || interiorView.plan;
+  root.position.copy(view.gallery || view.furnitureGallery ? new Vector3() : city.active.position);
+  for (const entry of city.buildings) {
+    entry.root.visible = !overview;
+    if (entry.id !== city.activeId && entry.state) entry.state.street.group.visible = !overview;
+  }
+  updateCityUI();
   cameraMotion = null;
   interior = roomBoxes = null;
   labels?.dispose();
@@ -228,7 +340,9 @@ function rebuild(frame = false): void {
     return;
   }
   const b = generateBuilding(params, kit);
+  lastBuilding = b;
   const edited = roomEdits.apply(planBuilding(b, params));
+  lastEdited = edited;
   const plan = edited.plan;
   markCafeShops(plan, params.seed);
   markAtticRooms(plan, params.seed);
@@ -246,7 +360,8 @@ function rebuild(frame = false): void {
   }
   const walls = partyWalls(b.footprint, b.edgeKinds, b.roofBase);
   const flat = roofShape(b.footprint, b.edgeKinds, b.roofBase).z2;
-  const g = kit.buildGroup(b.placements.concat(partyChimneys(params, kit, b.style, walls.edges, flat)));
+  Object.assign(street.params, streetSettings);
+  const g = kit.buildGroup(b.placements.concat(partyChimneys(params, kit, b.style, walls.edges, flat)), materials);
   const cap = roofCap(b.footprint, b.edgeKinds, b.roofBase);
   const roof = new Mesh(cap.geometry, materials.byName.get("zinc:noao"));
   roof.castShadow = roof.receiveShadow = true;
@@ -263,45 +378,69 @@ function rebuild(frame = false): void {
   const curtains = new Mesh(inside.curtains, materials.voile);
   curtains.receiveShadow = true;
   g.add(curtains);
-  interior = buildRooms3d(plan, b, kit, cutaway.interior, interiorView.look);
-  // the stairs' railing: the kit's first lace pattern (欄杆與圓環)
-  interior.add(buildStairs(plan, cutaway.interior, cutaway.cut(materials.lace(0)), materials.laceDepth(0), interiorView.look));
-  const furniture = buildFurniture(plan, b, cutaway.interior, interiorView.look);
-  interior.add(furniture);
-  // the lamps' places in world space: Blender (x, y, z) -> (x - W/2, z, L/2 - y)
-  const furnitureInfo = furniture.userData.furniture as FurnitureInfo;
-  const worldLight = (p: Vector3) => new Vector3(p.x - b.width / 2, p.z, b.length / 2 - p.y);
-  lampSources = [
-    ...furnitureInfo.lamps.map(p => ({ position: worldLight(p), intensity: 9, distance: 4.2 })),
-    ...furnitureInfo.lightSources.map(source => ({ ...source, position: worldLight(source.position) })),
-  ];
-  lampLights.setLamps(lampSources);
-  g.add(interior);
+  if (cut.on) {
+    interior = buildRooms3d(plan, b, kit, cutaway.interior, interiorView.look);
+    // the stairs' railing: the kit's first lace pattern (欄杆與圓環)
+    interior.add(buildStairs(plan, cutaway.interior, cutaway.cut(materials.lace(0)), materials.laceDepth(0), interiorView.look));
+    const furniture = buildFurniture(plan, b, cutaway.interior, interiorView.look);
+    lastFurniture = furniture;
+    interior.add(furniture);
+    // Blender (x, y, z) -> world (x - W/2, z, L/2 - y), plus the building origin.
+    const furnitureInfo = furniture.userData.furniture as FurnitureInfo;
+    const worldLight = (p: Vector3) => new Vector3(p.x - b.width / 2, p.z, b.length / 2 - p.y).add(root.position);
+    lampSources = [
+      ...furnitureInfo.lamps.map(p => ({ position: worldLight(p), intensity: 9, distance: 4.2 })),
+      ...furnitureInfo.lightSources.map(source => ({ ...source, position: worldLight(source.position) })),
+    ];
+    lampLights.setLamps(lampSources);
+    g.add(interior);
+  } else {
+    lastFurniture = null; lampSources = []; lampLights.setLamps([]);
+  }
   g.position.set(-b.width / 2, -b.length / 2, 0); // footprint centred on the origin
   const terrace = buildCafeTerrace(plan, b, cutaway.galleryInterior, street.params);
   terrace.group.userData.unfoldSkip = true;
-  const cafeInfo = furniture.userData.cafe as CafeInfo;
+  const cafeInfo = lastFurniture?.userData.cafe as CafeInfo | undefined;
   for (const [id, count] of Object.entries(terrace.rooms)) {
-    const cafe = cafeInfo.rooms[id];
+    const cafe = cafeInfo?.rooms[id];
     if (cafe) { cafe.outdoorTables = count; cafe.outdoorChairs = count * 2; }
   }
   g.add(terrace.group);
   street.rebuild(b, params.seed, terrace.reserved);
   street.group.visible = true;
   show(g, new Vector3(0, cap.top / 2, 0), Math.hypot(b.width, b.length, cap.top) / 2);
+  const oldPositions = new Map(city.buildings.map(entry => [entry.id, entry.position.clone()]));
+  g.updateWorldMatrix(true, true); street.group.updateWorldMatrix(true, true);
+  const footprint = new Box3().setFromObject(g).union(new Box3().setFromObject(street.group)).translate(root.position.clone().negate());
+  city.updateFootprint(city.activeId, footprint, b.length);
+  for (const entry of city.buildings) {
+    const delta = entry.position.clone().sub(oldPositions.get(entry.id)!);
+    if (entry.id === city.activeId) {
+      root.position.copy(entry.position); street.group.position.copy(entry.position);
+      for (const lamp of lampSources) lamp.position.add(delta);
+      camera.position.add(delta); controls.target.add(delta);
+    } else if (entry.state) {
+      entry.state.street.group.position.copy(entry.position);
+      entry.state.bounds.min.add(delta); entry.state.bounds.max.add(delta);
+      for (const lamp of entry.state.lamps) lamp.position.add(delta);
+    }
+  }
+  lampLights.setLamps(lampSources);
   windows.update(b, g);
   // the cut runs over everything that stands out too (balconies, cornices, chimneys)
   g.updateWorldMatrix(true, true);
   const box = new Box3().setFromObject(g);
   bounds.min.copy(box.min).subScalar(CUT_MARGIN);
   bounds.max.copy(box.max).addScalar(CUT_MARGIN);
+  env.frame({ center: box.getCenter(new Vector3()), radius: box.getSize(new Vector3()).length() / 2 });
   site.width = b.width;
   site.length = b.length;
-  labels = new RoomLabels(plan, interiorView.area);
-  g.add(labels.group);
+  if (cut.on) { labels = new RoomLabels(plan, interiorView.area); g.add(labels.group); }
   applyCut(true);
   if (unfoldActive()) frameUnfold();
-  roomEditor.update(edited, furniture.userData.salons as SalonInfo, furniture.userData.dining as DiningInfo, furniture.userData.kitchens as KitchenInfo, cafeInfo, furniture.userData.ballroom as BallroomInfo ?? null, furniture.userData.attic as AtticInfo ?? null);
+  bindBuildingEditors();
+  city.active.state = captureBuilding();
+  updateCityUI();
 }
 
 /** the plane's place (world space) for the slider */
@@ -319,6 +458,9 @@ function cutPosition(): { at: number } {
  * plane past the building leaves it whole, with the interior still in place (the toggle hides it).
  */
 function applyCut(force = false): void {
+  if (cut.on && !interior && !view.gallery && !view.furnitureGallery && !interiorView.plan && kit) {
+    rebuild(); return;
+  }
   if (unfoldActive() && shown && lastPlan) {
     if (!unfoldView) {
       // Enable the real interior before copying render objects; atlas rooms are explicitly skipped.
@@ -368,7 +510,7 @@ function applyCut(force = false): void {
   toolbar.setInterior(on);
   toolbar.setLevel(on && cut.mode === "horizontal" ? levelAt(at) : "");
   // the plane in the building's own (Blender) coordinates, for the room names
-  const own = cut.mode === "horizontal" ? at : cut.axis === "across" ? at + site.width / 2 : site.length / 2 - at;
+  const own = cut.mode === "horizontal" ? at : cut.axis === "across" ? at - root.position.x + site.width / 2 : site.length / 2 - (at - root.position.z);
   labels?.update(on && interiorView.labels, cut.mode, cut.axis, own, cut.flip);
   labels?.setClip(on ? cutaway.plane : null);
 }
@@ -393,25 +535,50 @@ function frameHome(): void {
   const vfov = (camera.fov * Math.PI) / 180;
   const hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect);
   const d = (r / Math.sin(Math.min(vfov, hfov) / 2)) * 1.05;
-  controls.target.set(0, bounds.max.y * 0.42, 0);
+  controls.target.copy(root.position).add(new Vector3(0, bounds.max.y * 0.42, 0));
   camera.position.copy(controls.target).addScaledVector(new Vector3(36, 13, 46).normalize(), d);
 }
 
 // ---- GUI ----
 const gui = new GUI({ title: "european building kit" });
+const citySelection = { building: city.activeId };
+const cityController = gui.add(citySelection, "building", { "建築 1": "1" }).name("目前建築").onChange((id: string) => {
+  selectBuilding(id); citySelection.building = city.activeId; cityController.updateDisplay();
+});
+function refreshCityChoices(): void {
+  cityController.options(Object.fromEntries(city.buildings.map(b => [b.name, b.id])));
+}
+gui.add({ left: () => addBuilding("left") }, "left").name("＋ 左側新增建築");
+gui.add({ right: () => addBuilding("right") }, "right").name("＋ 右側新增建築");
+gui.add({ overview: () => {
+  if (view.gallery || view.furnitureGallery || interiorView.plan) return;
+  const box = city.bounds(); if (unfoldView) box.union(unfoldView.bounds());
+  const target = box.getCenter(new Vector3());
+  const forward = new Vector3(0.25, 0.3, 1).normalize();
+  const right = new Vector3(0, 1, 0).cross(forward).normalize(), up = forward.clone().cross(right);
+  const tanV = Math.tan(camera.fov * Math.PI / 360) * 0.83, tanH = tanV * camera.aspect;
+  let distance = 0;
+  for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
+    const p = new Vector3(x, y, z).sub(target), depth = p.dot(forward);
+    distance = Math.max(distance, Math.abs(p.dot(right)) / tanH + depth, Math.abs(p.dot(up)) / tanV + depth);
+  }
+  cameraMotion = null; controls.target.copy(target);
+  camera.position.copy(target).addScaledVector(forward, distance);
+  env.frame({ center: target, radius: box.getSize(new Vector3()).length() / 2 });
+}}, "overview").name("街區總覽");
 const update = () => rebuild();
 gui.add(view, "gallery").name("零件總覽").listen().onChange((on: boolean) => {
   if (on) { view.furnitureGallery = false; interiorView.plan = false; }
   if (!on) {
-    camera.position.set(36, 20, 46);
-    controls.target.set(0, 7, 0);
+    camera.position.set(36, 20, 46).add(city.active.position);
+    controls.target.set(0, 7, 0).add(city.active.position);
   }
   toolbar.enableCut(!on && !interiorView.plan);
   rebuild(true);
 });
 gui.add(view, "furnitureGallery").name("家具總覽").listen().onChange((on: boolean) => {
   if (on) { view.gallery = false; interiorView.plan = false; }
-  else { camera.position.set(36, 20, 46); controls.target.set(0, 7, 0); }
+  else { camera.position.set(36, 20, 46).add(city.active.position); controls.target.set(0, 7, 0).add(city.active.position); }
   toolbar.enableCut(!on && !interiorView.plan);
   rebuild(true);
 });
@@ -449,7 +616,7 @@ fFacade.add(params, "doorStyle", { "拱形馬車大門": "arched", "方形馬車
 fFacade.add(params, "groundWindow", { "拱窗": "arched", "方窗": "rect" }).name("一樓窗").onChange(update);
 fFacade.add({ clear: () => windows.clearAll() }, "clear").name("清除所有個別設定的窗戶");
 const fLook = gui.addFolder("🎨 外觀 (Look)");
-fLook.add({ look: "haussmann" as FacadeLook }, "look", { "奧斯曼（原本）": "haussmann", "巴黎淺色石灰岩": "paris" }).name("外牆材質")
+fLook.add(facadeSettings, "look", { "奧斯曼（原本）": "haussmann", "巴黎淺色石灰岩": "paris" }).name("外牆材質")
   .onChange((l: FacadeLook) => {
     materials?.setLook(l);
     // the look brings its own shutter paint (it can still be changed after)
@@ -463,19 +630,19 @@ fLook.addColor(params, "shutter").name("百葉漆色").onChange(update);
 fLook.addColor(params, "awning").name("遮雨棚顏色").onChange(update);
 fLook.add(params, "lace", Object.fromEntries(LACE_PATTERNS.map((n, i) => [n, i]))).name("欄杆鐵花").onChange(update);
 const fStreet = gui.addFolder("🌳 街道 (Street)");
-fStreet.add(street.params, "sidewalk").name("人行道").onChange(update);
-fStreet.add(street.params, "width", 1.5, 6, 0.1).name("人行道寬度 m").onChange(update);
-fStreet.add(street.params, "count", 0, 8, 1).name("每面路樹數").onChange(update);
+fStreet.add(streetSettings, "sidewalk").name("人行道").onChange(update);
+fStreet.add(streetSettings, "width", 1.5, 6, 0.1).name("人行道寬度 m").onChange(update);
+fStreet.add(streetSettings, "count", 0, 8, 1).name("每面路樹數").onChange(update);
 const fInterior = gui.addFolder("🏢 室內樓層 (Interior)");
 fInterior.add(interiorView, "plan").name("平面檢視（除錯）").listen().onChange((on: boolean) => {
   if (on) {
     view.gallery = view.furnitureGallery = false;
     const z = lastPlan?.levels[interiorView.level]?.floorZ ?? 0;
-    controls.target.set(0, z, 0);
-    camera.position.set(12, z + 30, 26);
+    controls.target.set(0, z, 0).add(city.active.position);
+    camera.position.set(12, z + 30, 26).add(city.active.position);
   } else {
-    camera.position.set(36, 20, 46);
-    controls.target.set(0, 7, 0);
+    camera.position.set(36, 20, 46).add(city.active.position);
+    controls.target.set(0, 7, 0).add(city.active.position);
   }
   toolbar.enableCut(!on && !view.gallery && !view.furnitureGallery);
   rebuild();
@@ -509,7 +676,7 @@ function syncLevels(plan: BuildingPlan): void {
 
 /** click a window to set its facade details on its own (windowEditor.ts) */
 const roomEditor = new RoomEditor({
-  canvas: renderer.domElement, camera, gui, edits: roomEdits,
+  canvas: renderer.domElement, camera, gui, get edits() { return roomEdits; },
   labels: () => labels,
   rebuild: () => rebuild(),
 });
@@ -518,8 +685,95 @@ const windows = new WindowEditor({
   shown: () => (unfoldActive() || view.gallery || view.furnitureGallery || interiorView.plan ? null : shown),
   clip: () => (cutShown ? cutaway.plane : null),
   rebuild: () => rebuild(),
-  ignorePointer: e => roomEditor.consumedEvent(e),
+  ignorePointer: e => roomEditor.consumedEvent(e) || cityEvents.has(e),
 });
+
+// Project ground anchors into accessible controls. Hover only reveals the nearby edge.
+const cityEvents = new WeakSet<Event>();
+const cityBadge = document.createElement("div");
+cityBadge.style.cssText = "position:fixed;left:16px;top:16px;color:white;background:#24282bcc;padding:8px 12px;border-radius:8px;pointer-events:none;z-index:5;font:14px sans-serif";
+document.body.append(cityBadge);
+const cityPointer = new Vector2(-10000, -10000);
+const cityMarkers = (["left", "right"] as const).map(side => {
+  const marker = new Group(), spec = dims.street.block;
+  const white = new MeshBasicMaterial({ color: 0xffffff, depthTest: false });
+  marker.add(new Mesh(new BoxGeometry(spec.markerSize, spec.markerThickness, spec.markerStroke), white));
+  marker.add(new Mesh(new BoxGeometry(spec.markerStroke, spec.markerThickness, spec.markerSize), white));
+  marker.visible = false; scene.add(marker);
+  const preview = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.45, depthWrite: false }));
+  preview.visible = false; scene.add(preview);
+  const button = document.createElement("button");
+  button.title = `${side === "left" ? "左" : "右"}側新增建築`;
+  button.setAttribute("aria-label", button.title);
+  button.style.cssText = "position:fixed;display:none;transform:translate(-50%,-50%);width:54px;height:54px;background:transparent;border:0;cursor:pointer;z-index:6";
+  button.addEventListener("pointerdown", e => e.stopPropagation());
+  button.addEventListener("click", () => addBuilding(side));
+  document.body.append(button);
+  return { side, button, marker, preview };
+});
+addEventListener("pointermove", e => cityPointer.set(e.clientX, e.clientY));
+function updateCityUI(): void {
+  cityBadge.textContent = `${city.active.name} · 共 ${city.buildings.length} 棟`;
+  const enabled = !!materials && !view.gallery && !view.furnitureGallery && !interiorView.plan;
+  cityController.enable(enabled);
+  for (const { side, button, marker, preview } of cityMarkers) {
+    if (!enabled || unfoldActive()) { button.style.display = "none"; marker.visible = preview.visible = false; continue; }
+    const edge = side === "left" ? city.buildings[0] : city.buildings.at(-1)!;
+    const x = edge.position.x + (side === "left" ? edge.localBounds.min.x - dims.street.block.markerOffset : edge.localBounds.max.x + dims.street.block.markerOffset);
+    marker.position.set(x, 0.1, edge.position.z + edge.length / 2);
+    const p = marker.position.clone().project(camera);
+    const px = (p.x + 1) * innerWidth / 2, py = (1 - p.y) * innerHeight / 2;
+    const visible = p.z > -1 && p.z < 1 && Math.hypot(cityPointer.x - px, cityPointer.y - py) < 110;
+    button.style.display = visible ? "block" : "none";
+    marker.visible = visible;
+    preview.visible = visible;
+    if (visible) {
+      const local = city.active.localBounds, size = local.getSize(new Vector3()), center = local.getCenter(new Vector3());
+      const nextX = side === "left" ? edge.position.x + edge.localBounds.min.x - city.clearance - local.max.x
+        : edge.position.x + edge.localBounds.max.x + city.clearance - local.min.x;
+      preview.scale.set(size.x, dims.street.block.markerThickness, size.z);
+      preview.position.set(nextX + center.x, 0.08, edge.position.z + edge.length / 2 - city.active.length / 2 + center.z);
+    }
+    button.style.left = `${px}px`; button.style.top = `${py}px`;
+  }
+}
+let cityDown: Vector2 | null = null;
+renderer.domElement.addEventListener("pointerdown", e => {
+  cityDown = e.button === 0 && e.isPrimary ? new Vector2(e.clientX, e.clientY) : null;
+}, true);
+renderer.domElement.addEventListener("pointercancel", () => { cityDown = null; }, true);
+renderer.domElement.addEventListener("pointerup", e => {
+  const down = cityDown; cityDown = null;
+  if (!down || down.distanceTo(new Vector2(e.clientX, e.clientY)) > 5 || roomEditor.consumedEvent(e)
+    || view.gallery || view.furnitureGallery || interiorView.plan) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  const ray = new Raycaster();
+  ray.setFromCamera(new Vector2((e.clientX - rect.left) / rect.width * 2 - 1, 1 - (e.clientY - rect.top) / rect.height * 2), camera);
+  const targets: Mesh[] = [];
+  const doors: { id: string; distance: number }[] = [];
+  for (const entry of city.buildings) {
+    entry.root.updateWorldMatrix(true, true);
+    const model = entry.id === city.activeId ? shown : entry.state?.shown;
+    if (model?.visible) model.traverseVisible(o => { if ((o as Mesh).isMesh) targets.push(o as Mesh); });
+    entry.state?.street.group.traverseVisible(o => { if ((o as Mesh).isMesh) targets.push(o as Mesh); });
+    if (entry.id === city.activeId || !model) continue;
+    for (const door of entry.state?.building?.windows ?? []) {
+      if (door.kind !== "door") continue;
+      const matrix = new Matrix4().multiplyMatrices(model.matrixWorld, door.matrix);
+      const local = new Ray().copy(ray.ray).applyMatrix4(matrix.clone().invert());
+      if (Math.abs(local.direction.y) < 1e-6) continue;
+      const t = -local.origin.y / local.direction.y;
+      if (t <= 0) continue;
+      const at = local.at(t, new Vector3());
+      if (Math.abs(at.x) > door.half || at.z < door.z0 || at.z > door.z1) continue;
+      doors.push({ id: entry.id, distance: at.applyMatrix4(matrix).distanceTo(ray.ray.origin) });
+    }
+  }
+  const picked = doors.sort((a, b) => a.distance - b.distance)[0]; if (!picked) return;
+  const foreground = ray.intersectObjects(targets, false)[0];
+  if (foreground && foreground.distance < picked.distance - 0.25) return;
+  cityEvents.add(e); selectBuilding(picked.id);
+}, true);
 
 // ---- the section panel and the bottom toolbar ----
 let saveNext = false;
@@ -709,7 +963,9 @@ if (import.meta.env.DEV) {
 
 const base = import.meta.env.BASE_URL;
 createMaterials(base).then(async m => {
-  materials = m;
+  sharedMaterials = m;
+  materials = forkKitMaterials(m, city.active.position);
+  for (const material of new Set(Object.values(cutaway.interior))) bindBuildingOrigin(material, city.active.position);
   kit = new Kit(m);
   m.setNight(env.settings.night);
   await kit.load(`${base}assets/kit.glb`, `${base}assets/kit_manifest.json`);
@@ -755,6 +1011,7 @@ renderer.setAnimationLoop(() => {
     applyCut();
   }
   controls.update();
+  updateCityUI();
   lampLights.update(controls.target);
   env.tick(camera.position);
   post.render(dt);

@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "check:rooms": "node scripts/check-room-editor.mjs",
     "check:unfold": "node scripts/check-unfold.mjs",
+    "check:buildings": "node scripts/check-buildings.mjs",
     "preview": "vite preview",
     "kit": "sh blender/make_kit.sh",
     "tex": "sh blender/make_kit.sh tex",
