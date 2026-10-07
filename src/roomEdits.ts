@@ -14,7 +14,7 @@ const validateRoomType = (plan: BuildingPlan, level: number, type: EditableRoomT
   if (type === "maid" && plan.levels[level]?.cls !== "R") throw new Error("閣樓房只能設置在閣樓層");
 };
 // Attic rooms may be converted, but structural spaces never become editable through a rename.
-export const editableRoom = (room: PlanRoom) => room.levels === 1 && (editableType(room.type) && (room.type !== "shop" || room.level === 0));
+export const editableRoom = (room: PlanRoom) => room.levels === 1 && !room.structuralId && (editableType(room.type) && (room.type !== "shop" || room.level === 0));
 type Members = string[];
 type Operation = { id: number; kind: "type"; members: Members; type: EditableRoomType }
   | { id: number; kind: "merge"; groups: [Members, Members]; type: EditableRoomType };
@@ -36,6 +36,7 @@ function sourceKey(plan: BuildingPlan, r: PlanRoom): string {
 
 function clonePlan(plan: BuildingPlan): BuildingPlan {
   return { ...plan,
+    ...(plan.circulation ? { circulation: structuredClone(plan.circulation) } : {}),
     ...(plan.programDiagnostics ? { programDiagnostics: structuredClone(plan.programDiagnostics) } : {}),
     rooms: plan.rooms.map(r => ({ ...r, ...(r.cellIds ? { cellIds: [...r.cellIds] } : {}), ...(r.programTargets ? { programTargets: [...r.programTargets] } : {}), polygon: r.polygon.map(p => [...p] as V2), rect: [...r.rect], windows: [...r.windows], doors: r.doors.map(d => ({ ...d })) })),
     walls: plan.walls.map(w => ({ ...w, a: [...w.a], b: [...w.b], rooms: [...w.rooms], openings: w.openings.map(o => ({ ...o })) })),
@@ -114,7 +115,7 @@ function mergePlan(plan: BuildingPlan, ids: [string, string], type: EditableRoom
     for (const side of [0, 1]) {
       const room = byId.get(wall.rooms[side] ?? ""), to = wall.rooms[1 - side];
       if (!room || !to) continue;
-      room.doors.push(...wall.openings.map(o => ({ wall: wi, at: o.at, width: o.width, height: o.height, to })));
+      room.doors.push(...wall.openings.filter(o => o.role !== "equipment").map(o => ({ wall: wi, at: o.at, width: o.width, height: o.height, to })));
     }
   });
   return merged;

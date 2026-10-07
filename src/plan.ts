@@ -25,6 +25,9 @@ import type { Cell, LegacyGrid } from "./planning/legacyGrid";
 import { sharedEdges } from "./planning/edgeIndex";
 import { varyApartment, programRoll, type ProgramUnit as Unit, type ProgramChoice } from "./planning/program";
 import { floorSignature } from "./planning/signature";
+import { buildCorePlan } from "./planning/corePlan";
+import { checkCirculation, type CirculationMetadata } from "./planning/circulation";
+import type { CoreFrame } from "./planning/cores";
 import { roomsOverlap } from "./roomGeometry";
 
 const I = dims.interior;
@@ -39,10 +42,13 @@ const OEIL = 0.6;
 export type RoomType =
   | "vestibule" | "concierge" | "shop" | "shopBack" | "stair" | "corridor"
   | "salon" | "dining" | "ballroom" | "study" | "bedroom" | "kitchen" | "wc" | "maid" | "storage"
-  | "bathroom" | "closet" | "foyer" | "pantry";
+  | "bathroom" | "closet" | "foyer" | "pantry" | "liftHall" | "elevator" | "shaft";
 
 /** names and diagram colours (INTERIOR_SPEC.md §4) */
 export const ROOM_INFO: Record<RoomType, { name: string; color: string }> = {
+  liftHall: { name: "電梯廳", color: "#c4d4de" },
+  elevator: { name: "電梯井", color: "#8297ab" },
+  shaft: { name: "管道井", color: "#69767b" },
   vestibule: { name: "門口大廳", color: "#d8c3a5" },
   concierge: { name: "門房", color: "#b5c99a" },
   shop: { name: "店面", color: "#d98e4a" },
@@ -78,6 +84,7 @@ export interface PlanLevel {
 }
 
 export interface PlanWindow {
+  openingRole?: "maintenance";
   level: number;
   side: number;
   /** bay on its side; -1: the pan coupé diagonal */
@@ -102,6 +109,9 @@ export interface PlanDoor {
 }
 
 export interface PlanRoom {
+  structuralId?: string;
+  coreId?: string;
+  circulation?: "public" | "private" | "equipment";
   /** Stable fixed-cell membership, present only for opt-in floor programming. */
   cellIds?: string[];
   part?: string;
@@ -141,10 +151,14 @@ export interface PlanWall {
   kind: WallKind;
   /** room ids on either side; null: the ballroom's void */
   rooms: [string, string | null];
-  openings: { at: number; width: number; height: number }[];
+  openings: { at: number; width: number; height: number; role?: "equipment" }[];
 }
 
 export interface PlanStair {
+  id?: string;
+  coreId?: string;
+  frame?: CoreFrame;
+  landingEdge?: [V2, V2];
   kind: "main" | "service";
   polygon: V2[];
   /** first and last level served */
@@ -198,6 +212,7 @@ export interface FloorProgramDiagnostic {
 }
 
 export interface BuildingPlan {
+  circulation?: CirculationMetadata;
   /** Candidate diagnostics are separate from validation issues; signatures describe generation, before edits. */
   programDiagnostics?: FloorProgramDiagnostic[];
   width: number;
@@ -210,7 +225,7 @@ export interface BuildingPlan {
   windows: PlanWindow[];
   stairs: PlanStair[];
   /** floor openings besides the stair wells: the ballroom's upper half */
-  voids: { level: number; polygon: V2[] }[];
+  voids: { level: number; polygon: V2[]; id?: string; kind?: "elevator" | "shaft"; ceiling?: boolean }[];
   issues: string[];
 }
 
@@ -234,7 +249,7 @@ export function polygonArea(poly: V2[]): number {
 }
 
 /** clip a polygon by a convex counterclockwise one (Sutherland-Hodgman) */
-function clipConvex(poly: V2[], clip: V2[]): V2[] {
+export function clipConvex(poly: V2[], clip: V2[]): V2[] {
   let out = poly;
   for (let i = 0; i < clip.length && out.length; i++) {
     const a = clip[i], b = clip[(i + 1) % clip.length];
@@ -288,7 +303,7 @@ interface Grid extends LegacyGrid {
 }
 
 /** Geometry comes from the topology; only actual opening variants come from the facade. */
-function buildingGrid(b: Building): Grid {
+export function buildingGrid(b: Building): Grid {
   const bays: FacadeBay[] = [];
   b.sides.forEach((s, side) => {
     if (s.kind === "party") return;
@@ -308,7 +323,7 @@ function buildingGrid(b: Building): Grid {
 
 // ------------------------------------------------------------------ levels
 
-function planLevels(b: Building): PlanLevel[] {
+export function planLevels(b: Building): PlanLevel[] {
   const out: PlanLevel[] = [{
     index: 0, name: "1F", cls: "G", floorZ: I.groundFloor, ceilingZ: (b.rows[0]?.z ?? b.wallTop) - I.ceiling,
   }];
@@ -324,7 +339,7 @@ function planLevels(b: Building): PlanLevel[] {
 }
 
 /** every opening of every floor on the facades */
-function facadeWindows(g: Grid, levels: PlanLevel[]): PlanWindow[] {
+export function facadeWindows(g: Grid, levels: PlanLevel[]): PlanWindow[] {
   const out: PlanWindow[] = [];
   for (const lv of levels) {
     for (const fb of g.bays) {
@@ -400,7 +415,7 @@ interface Ctx {
 }
 
 /** fuse units into one (they must make a rectangle) */
-function fuse(ctx: Ctx, us: Unit[], type: RoomType | null): Unit {
+export function fuse(ctx: Ctx, us: Unit[], type: RoomType | null): Unit {
   const list = [...new Set(us)];
   const m: Unit = {
     cells: list.flatMap(u => u.cells), win: list.flatMap(u => u.win), type, apartment: list[0].apartment,
@@ -432,7 +447,7 @@ function mergeRuns(ctx: Ctx, type: RoomType, same: (a: Unit, b: Unit) => boolean
 
 /** the rooms of one apartment (INTERIOR_SPEC.md §5.4): reception rooms on the
  *  street, the kitchen and WC at the back next to the stairs, bedrooms */
-function program(ctx: Ctx, groupCells: Set<number>, apt: number) {
+export function program(ctx: Ctx, groupCells: Set<number>, apt: number) {
   const { g, p, lv } = ctx;
   const L = g.L;
   const lastCol = g.cols.length - 1;
@@ -505,7 +520,7 @@ function program(ctx: Ctx, groupCells: Set<number>, apt: number) {
     }
     const near = bk.filter(u => Math.abs(Math.abs(cx(u) - kx) - Math.abs(cx(bk[0]) - kx)) < 0.01);
     kitchen = near.length ? pick(near, 3) : null;
-    if (!kitchen) kitchen = mine().find(u => u.win.length && !front(u)) ?? mine().find(u => !u.win.length) ?? null;
+    if (!kitchen) kitchen = mine().find(u => u.win.length && !front(u)) ?? mine().find(u => !u.win.length) ?? (ctx.b.topology.coreLayout ? mine().find(u => u.win.length) : null) ?? null;
     if (kitchen) set(kitchen, "kitchen");
     if (ctx.variation) ctx.choices.push({ apartment: apt, feature: "V2", outcome: kitchen ? JSON.stringify(rectOf(kitchen)) : "no legal kitchen" });
   }
@@ -936,6 +951,7 @@ function connect(units: Unit[], voids: Rect[], lv: PlanLevel, cageX: number, lan
 // ------------------------------------------------------------------ the plan
 
 function buildPlan(b: Building, p: BuildingParams, retries: ReadonlyMap<number, number> = new Map(), fallback: ReadonlySet<number> = new Set()): BuildingPlan {
+  if (b.topology.coreLayout) return buildCorePlan(b, p, retries, fallback);
   const g = buildingGrid(b);
   const levels = planLevels(b);
   const windows = facadeWindows(g, levels);
@@ -1097,7 +1113,7 @@ export function planBuilding(b: Building, p: BuildingParams): BuildingPlan {
  * line longer: the widest that give every floor the target going, else the
  * narrowest.
  */
-function layoutStair(kind: PlanStair["kind"], poly: V2[], doorEdge: number, levels: PlanLevel[], from: number, to: number): StairLayout {
+export function layoutStair(kind: PlanStair["kind"], poly: V2[], doorEdge: number, levels: PlanLevel[], from: number, to: number): StairLayout {
   const S = I.stair, K = S[kind];
   const xs = poly.map(p => p[0]), ys = poly.map(p => p[1]);
   const rect: Rect = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
@@ -1142,7 +1158,7 @@ const KIND_NAME: Record<PlanWindow["kind"], string> = { window: "窗", door: "�
 export function checkPlan(plan: BuildingPlan, checkUses = true): string[] {
   const issues: string[] = [];
   const name = (i: number) => plan.levels[i]?.name ?? `L${i}`;
-  if (plan.programDiagnostics) {
+  if (plan.programDiagnostics || plan.circulation) {
     for (const lv of plan.levels) {
       const rooms = plan.rooms.filter(r => r.level === lv.index).sort((a, b) => a.rect[0] - b.rect[0]);
       for (let i = 0; i < rooms.length; i++) {
@@ -1216,7 +1232,7 @@ export function checkPlan(plan: BuildingPlan, checkUses = true): string[] {
         }
       }
     }
-    for (const r of rs) if (!seen.has(r.id)) issues.push(`${lv.name}：${r.name} ${r.id} 走不到`);
+    for (const r of rs) if (r.type !== "elevator" && r.type !== "shaft" && !seen.has(r.id)) issues.push(`${lv.name}：${r.name} ${r.id} 走不到`);
   }
   // sizes
   for (const r of plan.rooms) {
@@ -1251,9 +1267,10 @@ export function checkPlan(plan: BuildingPlan, checkUses = true): string[] {
   }
   for (const [k, rs] of checkUses ? flats : []) {
     const rooms = rs.filter(r => r.type !== "corridor");
-    if (rooms.length < 4) continue;
+    if (rooms.length < 4 && !plan.circulation) continue;
     const missing = (["salon", "kitchen", "wc", "bedroom"] as RoomType[]).filter(t => !rooms.some(r => r.type === t));
     if (missing.length) issues.push(`${name(Number(k.split("|")[0]))}：住戶 ${k.split("|")[1]} 缺少${missing.map(t => ROOM_INFO[t].name).join("、")}`);
   }
+  if (plan.circulation) issues.push(...checkCirculation(plan));
   return issues;
 }

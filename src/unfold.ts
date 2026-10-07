@@ -21,12 +21,10 @@ export function unfoldCuts(plan: BuildingPlan): [number, number] {
   const candidates = new Set([w * U.edgeRatio, w * (1 - U.edgeRatio)]);
   const wallAxes = new Set<number>();
   for (const wall of plan.walls) if (Math.abs(wall.a[0] - wall.b[0]) < 1e-5) { candidates.add(wall.a[0]); wallAxes.add(wall.a[0]); }
-  for (const stair of plan.stairs) {
-    candidates.add(stair.layout.rect[0] - REVEAL);
-    candidates.add(stair.layout.rect[2] + REVEAL);
-  }
-  const safe = [...candidates].filter(x => x >= min && x <= w - min && !plan.stairs.some(s =>
-    x > s.layout.rect[0] - REVEAL + 1e-5 && x < s.layout.rect[2] + REVEAL - 1e-5));
+  const stairBounds = plan.stairs.map(stair => [Math.min(...stair.polygon.map(q => q[0])), Math.max(...stair.polygon.map(q => q[0]))]);
+  for (const bound of stairBounds) { candidates.add(bound[0] - REVEAL); candidates.add(bound[1] + REVEAL); }
+  const safe = [...candidates].filter(x => x >= min && x <= w - min && !stairBounds.some(bound =>
+    x > bound[0] - REVEAL + 1e-5 && x < bound[1] + REVEAL - 1e-5));
   let result: [number, number] | null = null, best = Infinity;
   for (const a of safe) for (const b of safe) {
     if (b - a < min) continue;

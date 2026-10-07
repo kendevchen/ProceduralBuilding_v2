@@ -9,6 +9,7 @@
     "check:rooms": "node scripts/check-room-editor.mjs",
     "check:plans": "node scripts/check-plans.mjs",
     "check:variety": "node scripts/check-variety.mjs",
+    "check:cores": "node scripts/check-cores.mjs",
     "check:topology": "node scripts/check-topology.mjs",
     "bench:plans": "node scripts/check-plans.mjs --benchmark",
     "bench:interior": "node --expose-gc scripts/bench-interior.mjs",

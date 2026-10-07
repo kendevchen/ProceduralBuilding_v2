@@ -182,20 +182,21 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
     const k = lv.index;
     const below = [
       ...plan.stairs.filter(s => k > s.from && k <= s.to).map(s => s.polygon),
-      ...plan.voids.filter(v => v.level === k).map(v => v.polygon),
+      ...plan.voids.filter(v => v.level === k && (!v.kind || k > 0)).map(v => v.polygon),
     ];
     floors.polygon(inner, below.map(shrink), p => v3(p, lv.floorZ), UP);
     if (lv.cls === "R") continue;
     const above = [
       ...plan.stairs.filter(s => k >= s.from && k < s.to).map(s => s.polygon),
       ...(ballroom && ballroom.level === k ? [ballroom.polygon] : []),
+      ...plan.voids.filter(v => v.level === k && v.ceiling).map(v => v.polygon),
     ];
     ceilings.polygon(inner, above.map(shrink), p => v3(p, lv.ceilingZ), DOWN);
   }
   // each room's floor finish laid on the slab (the stairs only on the ground floor, where they stand on it)
   if (finished) {
     for (const r of plan.rooms) {
-      if (r.type === "stair" && r.level > 0) continue;
+      if ((r.type === "stair" && r.level > 0) || r.type === "elevator" || r.type === "shaft") continue;
       finishFloors.stamp = stampOf(look, r, "floor");
       finishFloors.polygon(r.polygon, [], p => v3(p, r.floorZ + 0.003), UP);
     }
@@ -223,6 +224,7 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
     const r = id ? rooms.get(id) : undefined;
     if (!r || r.level !== k) return false;
     if (r.type === "ballroom") return true;
+    if (r.type === "elevator" || r.type === "shaft") return true;
     if (r.type !== "stair") return false;
     const c = centroid(r.polygon);
     return plan.stairs.some(s => k >= s.from && k < s.to && inConvex(s.polygon, c));

@@ -31,6 +31,9 @@ type Pattern = (typeof P)[keyof typeof P];
 interface Finish { pattern: Pattern; a: string; b: string }
 
 const FLOORS: Record<RoomType, Finish> = {
+  liftHall: { pattern: P.marble, a: "#e6e1d6", b: "#33302d" },
+  elevator: { pattern: P.plain, a: "#8297ab", b: "#8297ab" },
+  shaft: { pattern: P.plain, a: "#69767b", b: "#69767b" },
   bathroom: { pattern: P.hexSparse, a: "#e9e6df", b: "#2f2f33" },
   closet: { pattern: P.boards, a: "#8f7a63", b: "#6b5a48" },
   foyer: { pattern: P.marble, a: "#e6e1d6", b: "#33302d" },
@@ -53,6 +56,9 @@ const FLOORS: Record<RoomType, Finish> = {
 };
 
 const WALLS: Record<RoomType, Finish> = {
+  liftHall: { pattern: P.paint, a: "#e6dece", b: "#d8ccb3" },
+  elevator: { pattern: P.plain, a: "#8297ab", b: "#8297ab" },
+  shaft: { pattern: P.plain, a: "#69767b", b: "#69767b" },
   bathroom: { pattern: P.tiles, a: "#eef2f2", b: "#cfdde0" },
   closet: { pattern: P.paint, a: "#d9d3c7", b: "#b8b0a2" },
   foyer: { pattern: P.boiserie, a: "#e2d6be", b: "#bfae8c" },

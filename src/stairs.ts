@@ -394,8 +394,10 @@ export function buildStairs(plan: BuildingPlan, mats: InteriorMaterials, lace: M
   const slab = (k: number) => levels[k].floorZ - levels[k - 1].ceilingZ;
 
   for (const s of plan.stairs) {
+    const starts = [solid, carpet, iron, wood].map(t => t.pos.length);
+    const ribbonStart = ribbon.pos.length;
     solid.stamp = look === "real" ? stairMarbleStamp()
-      : stampOf(look, plan.rooms.find(r => r.type === "stair" && r.level === s.from) ?? null, "floor");
+      : stampOf(look, plan.rooms.find(r => r.type === "stair" && r.level === s.from && (!s.id || r.structuralId === s.id)) ?? null, "floor");
     const w = new Well(s);
     const main = s.kind === "main";
     const flights = s.layout.flights;
@@ -438,6 +440,18 @@ export function buildStairs(plan: BuildingPlan, mats: InteriorMaterials, lace: M
     handrail(wood, rail);
     if (main) laceRibbon(ribbon, rail);
     else bars(iron, rail);
+    // Every shape is generated in the same local frame as its landing doors.
+    if (s.frame) {
+      const { origin, orientation } = s.frame, c = Math.cos(orientation), sn = Math.sin(orientation);
+      const transform = (pos: number[], start: number) => {
+        for (let i = start; i < pos.length; i += 3) {
+          const x = pos[i], y = pos[i + 1];
+          pos[i] = origin[0] + c * x - sn * y; pos[i + 1] = origin[1] + sn * x + c * y;
+        }
+      };
+      [solid, carpet, iron, wood].forEach((t, i) => transform(t.pos, starts[i]));
+      transform(ribbon.pos, ribbonStart);
+    }
   }
 
   const group = new Group();

@@ -5,6 +5,7 @@ import type { BuildingParams, DimensionVersion, LayoutMode } from "./params";
 import { PURPOSE, rand } from "./rng";
 import { type EdgeKind, type V2, insetEdges } from "./roof";
 import { buildLegacyGrid, type GridSide, type LegacyGrid } from "./planning/legacyGrid";
+import { resolveCores, coreCellId, type CoreLayout } from "./planning/cores";
 import { sharedEdges, type Rect } from "./planning/edgeIndex";
 
 export type UpperClass = "N" | "S" | "A";
@@ -45,6 +46,11 @@ export interface TopologyCore {
   /** Inclusive served levels, with ground = 0, upper = 1..floors, attic = floors+1. */
   fromLevel: number;
   toLevel: number;
+  position?: V2;
+  orientation?: number;
+  elevatorIds?: string[];
+  hallIds?: string[];
+  shaftIds?: string[];
 }
 export interface TopologyVoid {
   id: string;
@@ -58,7 +64,8 @@ export interface TopologyVoid {
 export interface BuildingTopology {
   schemaVersion: 1;
   dimensionVersion: DimensionVersion;
-  mode: "legacy";
+  mode: "legacy" | "cores";
+  coreLayout?: CoreLayout;
   width: number;
   length: number;
   rows: Row[];
@@ -79,7 +86,7 @@ export interface BuildingTopology {
   diagnostics: string[];
 }
 export interface TopologyDiagnostic {
-  code: "invalid-input" | "invalid-envelope" | "mode-not-implemented";
+  code: "invalid-input" | "invalid-envelope" | "mode-not-implemented" | "core-capacity";
   message: string;
 }
 /** Unsupported is deliberately distinct from geometrically infeasible. */
@@ -203,37 +210,49 @@ export function resolveBuildingTopology(p: BuildingParams): TopologyResult {
   const old = dims.interior.planning.legacyLimits;
   const inOldEnvelope = p.baysX <= old.baysX && p.floors <= old.floors &&
     (p.type === "row" ? L <= old.rowDepth : p.baysY <= old.baysY);
-  if (requestedMode !== "legacy" && !(requestedMode === "auto" && inOldEnvelope)) {
+  if (requestedMode !== "legacy" && requestedMode !== "auto") {
     return { status: "unsupported", requestedMode, diagnostics: [{ code: "mode-not-implemented", message:
-      requestedMode === "auto" ? "大型自動配置需 P3–P5 的核心、採光井與中庭可行性求解；目前不退回舊配置" : `${requestedMode} 配置尚待後續階段實作；目前不改選其他模式` }] };
+      `${requestedMode} 配置尚待後續階段實作；目前不改選其他模式` }] };
   }
   const rows = upperRows(p), last = rows.at(-1)!;
   const wallTop = last.z + last.height, roofBase = wallTop + dims.cornice.height;
   const n = facades[0].bays.length;
   const door = n % 2 === 1 ? (n - 1) / 2 : n / 2 - (rand(p.seed, PURPOSE.doorBay) < 0.5 ? 1 : 0);
-  const ballroom = ballroomBays(p, n, ck[0], ck[1], rows.length, L);
-  const grid = buildLegacyGrid({ width: W, length: L, footprint, sides: facades, door, ballroom }, p);
-  const cellId = (i: number) => `legacy:block:cell:${i}`;
+  let ballroom = ballroomBays(p, n, ck[0], ck[1], rows.length, L);
+  const useCores = requestedMode === "auto" && !inOldEnvelope;
+  const envelope = { width: W, length: L, footprint, sides: facades, door, ballroom };
+  const candidate = useCores ? resolveCores(envelope, p) : null;
+  if (candidate && candidate.status !== "ready") return { status: candidate.status, requestedMode,
+    diagnostics: [{ code: candidate.status === "infeasible" ? "core-capacity" : "mode-not-implemented", message: candidate.message }] };
+  const coreCandidate = candidate?.status === "ready" ? candidate : null;
+  const grid = coreCandidate?.grid ?? buildLegacyGrid(envelope, p);
+  if (coreCandidate) ballroom = coreCandidate.ballroom;
+  const cellId = useCores ? coreCellId : (i: number) => `legacy:block:cell:${i}`;
   const cells: TopologyCell[] = grid.cells.map(c => ({
-    id: cellId(c.id), legacyIndex: c.id, moduleId: "legacy:block", zone: c.zone,
+    id: cellId(c.id), legacyIndex: c.id, moduleId: useCores ? "cores:block" : "legacy:block", zone: c.zone,
     rect: [c.x0, c.y0, c.x1, c.y1], neighbours: [],
   }));
   for (const e of sharedEdges(cells.map(c => c.rect))) {
     cells[e.i].neighbours.push(cells[e.j].id);
     cells[e.j].neighbours.push(cells[e.i].id);
   }
-  const cores: TopologyCore[] = [{ id: "legacy:main", kind: "main", stairIds: ["legacy:main:stair"], cellIds: grid.cage.map(cellId), fromLevel: 0, toLevel: grid.service ? p.floors : p.floors + 1 }];
-  if (grid.service) cores.push({ id: "legacy:service", kind: "service", stairIds: ["legacy:service:stair"], cellIds: grid.service.map(cellId), fromLevel: 0, toLevel: p.floors + 1 });
+  const cores: TopologyCore[] = coreCandidate?.cores ?? [{ id: "legacy:main", kind: "main", stairIds: ["legacy:main:stair"], cellIds: grid.cage.map(cellId), fromLevel: 0, toLevel: grid.service ? p.floors : p.floors + 1 }];
+  if (!coreCandidate && grid.service) cores.push({ id: "legacy:service", kind: "service", stairIds: ["legacy:service:stair"], cellIds: grid.service.map(cellId), fromLevel: 0, toLevel: p.floors + 1 });
   const voids: TopologyVoid[] = ballroom && grid.ballroom.length ? [{
-    id: "legacy:ballroom", kind: "ballroom", cellIds: grid.ballroom.map(cellId), fromLevel: 2, toLevel: 2,
+    id: useCores ? "cores:ballroom" : "legacy:ballroom", kind: "ballroom", cellIds: grid.ballroom.map(cellId), fromLevel: 2, toLevel: 2,
     z0: rows[1].z + dims.interior.floor, z1: rows[1].z + rows[1].height - dims.interior.ceiling,
   }] : [];
+  if (coreCandidate) for (const part of coreCandidate.layout.parts) {
+    if (part.role !== "elevator" && part.role !== "shaft") continue;
+    voids.push({ id: part.id, kind: part.role, cellIds: [cellId(part.cell)], fromLevel: 0, toLevel: p.floors + 1,
+      z0: dims.interior.groundFloor, z1: roofBase + dims.mansard.rise - dims.interior.atticCeiling });
+  }
   const topology: BuildingTopology = {
-    schemaVersion: 1, dimensionVersion: version, mode: "legacy", width: W, length: L, rows, wallTop, roofBase,
+    schemaVersion: 1, dimensionVersion: version, mode: useCores ? "cores" : "legacy", ...(coreCandidate ? { coreLayout: coreCandidate.layout } : {}), width: W, length: L, rows, wallTop, roofBase,
     footprint, edgeKinds, boundaryLoops: [{ id: "outer", role: "outer", points: footprint, facadeIds }], facades,
-    modules: [{ id: "legacy:block", frame: new Matrix4().toArray(), polygon: grid.inner, facadeIds }],
+    modules: [{ id: useCores ? "cores:block" : "legacy:block", frame: new Matrix4().toArray(), polygon: grid.inner, facadeIds }],
     cells, cores, voids, door, ballroom, grid,
-    diagnostics: inOldEnvelope ? [] : ["舊演算法的大型試算；不代表已通過新版採光、電梯或雙梯需求"],
+    diagnostics: coreCandidate ? ["P3 淺平面核心候選；深平面／中庭候選仍待 P4/P5，未作法規認證"] : inOldEnvelope ? [] : ["舊演算法的大型試算；不代表已通過新版採光、電梯或雙梯需求"],
   };
   return { status: "ready", topology: freezeData(topology) };
 }

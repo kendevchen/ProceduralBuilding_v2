@@ -1,0 +1,2475 @@
+{
+  "date": "2026-10-07T13:12:27.078Z",
+  "cases": [
+    {
+      "fixture": {
+        "seed": 1,
+        "floorVariety": true
+      },
+      "rooms": 373,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 45,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 42.119139378490146,
+      "diagnostics": 2,
+      "ms": 188.19066699999996
+    },
+    {
+      "fixture": {
+        "seed": 2,
+        "floorVariety": true
+      },
+      "rooms": 366,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 45,
+      "maxNearest": 21.008782474432063,
+      "maxSecond": 42.119139378490146,
+      "diagnostics": 2,
+      "ms": 159.931333
+    },
+    {
+      "fixture": {
+        "seed": 3,
+        "floorVariety": true
+      },
+      "rooms": 370,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 45,
+      "maxNearest": 20.799293495705573,
+      "maxSecond": 42.119139378490146,
+      "diagnostics": 2,
+      "ms": 160.92162500000006
+    },
+    {
+      "fixture": {
+        "seed": 4,
+        "floorVariety": true
+      },
+      "rooms": 373,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 44,
+      "maxNearest": 20.799293495705573,
+      "maxSecond": 42.119139378490146,
+      "diagnostics": 3,
+      "ms": 148.98566700000015
+    },
+    {
+      "fixture": {
+        "seed": 5,
+        "floorVariety": true
+      },
+      "rooms": 367,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 45,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 42.119139378490146,
+      "diagnostics": 2,
+      "ms": 161.122791
+    },
+    {
+      "fixture": {
+        "seed": 6,
+        "floorVariety": true
+      },
+      "rooms": 367,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 45,
+      "maxNearest": 22.168301882788455,
+      "maxSecond": 42.119139378490146,
+      "diagnostics": 2,
+      "ms": 168.194708
+    },
+    {
+      "fixture": {
+        "seed": 7,
+        "floorVariety": true
+      },
+      "rooms": 366,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 44,
+      "maxNearest": 22.168301882788455,
+      "maxSecond": 42.119139378490146,
+      "diagnostics": 3,
+      "ms": 165.81391699999995
+    },
+    {
+      "fixture": {
+        "seed": 8,
+        "floorVariety": true
+      },
+      "rooms": 372,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 45,
+      "maxNearest": 22.168301882788455,
+      "maxSecond": 42.119139378490146,
+      "diagnostics": 2,
+      "ms": 160.28691700000013
+    },
+    {
+      "fixture": {
+        "seed": 9,
+        "floorVariety": true
+      },
+      "rooms": 373,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 45,
+      "maxNearest": 21.008782474432063,
+      "maxSecond": 42.119139378490146,
+      "diagnostics": 2,
+      "ms": 164.18920900000012
+    },
+    {
+      "fixture": {
+        "seed": 10,
+        "floorVariety": true
+      },
+      "rooms": 363,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 45,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 42.119139378490146,
+      "diagnostics": 2,
+      "ms": 141.38470799999982
+    },
+    {
+      "fixture": {
+        "floors": 6,
+        "type": "freestanding",
+        "cornerStyle": "pier",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 208,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 30,
+      "maxNearest": 20.765365761750903,
+      "maxSecond": 43.665324146366,
+      "diagnostics": 1,
+      "ms": 88.33133300000009
+    },
+    {
+      "fixture": {
+        "floors": 6,
+        "type": "freestanding",
+        "cornerStyle": "pier",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 215,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 16,
+      "maxNearest": 20.765365761750903,
+      "maxSecond": 43.665324146366,
+      "diagnostics": 0,
+      "ms": 99.02629100000013
+    },
+    {
+      "fixture": {
+        "floors": 6,
+        "type": "freestanding",
+        "cornerStyle": "pier",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 208,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 30,
+      "maxNearest": 20.765365761750903,
+      "maxSecond": 43.665324146366,
+      "diagnostics": 1,
+      "ms": 91.81716700000015
+    },
+    {
+      "fixture": {
+        "floors": 6,
+        "type": "freestanding",
+        "cornerStyle": "panCoupe",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 208,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 29,
+      "maxNearest": 22.400586675294136,
+      "maxSecond": 43.63316081113648,
+      "diagnostics": 2,
+      "ms": 101.10304199999973
+    },
+    {
+      "fixture": {
+        "floors": 6,
+        "type": "freestanding",
+        "cornerStyle": "panCoupe",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 215,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 16,
+      "maxNearest": 22.400586675294136,
+      "maxSecond": 43.63316081113648,
+      "diagnostics": 0,
+      "ms": 98.75295899999992
+    },
+    {
+      "fixture": {
+        "floors": 6,
+        "type": "freestanding",
+        "cornerStyle": "panCoupe",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 208,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 29,
+      "maxNearest": 22.400586675294136,
+      "maxSecond": 43.63316081113648,
+      "diagnostics": 2,
+      "ms": 90.78129100000024
+    },
+    {
+      "fixture": {
+        "floors": 6,
+        "type": "corner",
+        "cornerStyle": "pier",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 234,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 22,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 43.353841491271154,
+      "diagnostics": 9,
+      "ms": 104.87770799999998
+    },
+    {
+      "fixture": {
+        "floors": 6,
+        "type": "corner",
+        "cornerStyle": "pier",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 232,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 15,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 43.353841491271154,
+      "diagnostics": 1,
+      "ms": 113.48441599999978
+    },
+    {
+      "fixture": {
+        "floors": 6,
+        "type": "corner",
+        "cornerStyle": "pier",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 234,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 22,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 43.353841491271154,
+      "diagnostics": 9,
+      "ms": 111.93379199999981
+    },
+    {
+      "fixture": {
+        "floors": 6,
+        "type": "corner",
+        "cornerStyle": "panCoupe",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 233,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 21,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 43.08813366588211,
+      "diagnostics": 10,
+      "ms": 108.85333400000036
+    },
+    {
+      "fixture": {
+        "floors": 6,
+        "type": "corner",
+        "cornerStyle": "panCoupe",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 231,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 14,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 43.08813366588211,
+      "diagnostics": 2,
+      "ms": 104.73208299999988
+    },
+    {
+      "fixture": {
+        "floors": 6,
+        "type": "corner",
+        "cornerStyle": "panCoupe",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 233,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 21,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 43.08813366588211,
+      "diagnostics": 10,
+      "ms": 106.85341599999992
+    },
+    {
+      "fixture": {
+        "floors": 6,
+        "type": "row",
+        "cornerStyle": "pier",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 208,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 31,
+      "maxNearest": 20.76536576175091,
+      "maxSecond": 43.35384149127116,
+      "diagnostics": 0,
+      "ms": 87.30291699999998
+    },
+    {
+      "fixture": {
+        "floors": 6,
+        "type": "row",
+        "cornerStyle": "pier",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 215,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 16,
+      "maxNearest": 20.76536576175091,
+      "maxSecond": 43.35384149127116,
+      "diagnostics": 0,
+      "ms": 96.1433750000001
+    },
+    {
+      "fixture": {
+        "floors": 6,
+        "type": "row",
+        "cornerStyle": "pier",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 208,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 31,
+      "maxNearest": 20.76536576175091,
+      "maxSecond": 43.35384149127116,
+      "diagnostics": 0,
+      "ms": 86.53033400000004
+    },
+    {
+      "fixture": {
+        "floors": 6,
+        "type": "row",
+        "cornerStyle": "panCoupe",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 208,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 31,
+      "maxNearest": 20.76536576175091,
+      "maxSecond": 43.35384149127116,
+      "diagnostics": 0,
+      "ms": 88.75212499999998
+    },
+    {
+      "fixture": {
+        "floors": 6,
+        "type": "row",
+        "cornerStyle": "panCoupe",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 215,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 16,
+      "maxNearest": 20.76536576175091,
+      "maxSecond": 43.35384149127116,
+      "diagnostics": 0,
+      "ms": 109.84270800000013
+    },
+    {
+      "fixture": {
+        "floors": 6,
+        "type": "row",
+        "cornerStyle": "panCoupe",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 208,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 31,
+      "maxNearest": 20.76536576175091,
+      "maxSecond": 43.35384149127116,
+      "diagnostics": 0,
+      "ms": 89.51754100000016
+    },
+    {
+      "fixture": {
+        "floors": 7,
+        "type": "freestanding",
+        "cornerStyle": "pier",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 275,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 33,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 42.119139378490146,
+      "diagnostics": 2,
+      "ms": 106.48387500000035
+    },
+    {
+      "fixture": {
+        "floors": 7,
+        "type": "freestanding",
+        "cornerStyle": "pier",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 278,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 18,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 42.119139378490146,
+      "diagnostics": 0,
+      "ms": 111.45191699999987
+    },
+    {
+      "fixture": {
+        "floors": 7,
+        "type": "freestanding",
+        "cornerStyle": "pier",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 275,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 33,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 42.119139378490146,
+      "diagnostics": 2,
+      "ms": 98.6063750000003
+    },
+    {
+      "fixture": {
+        "floors": 7,
+        "type": "freestanding",
+        "cornerStyle": "panCoupe",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 275,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 33,
+      "maxNearest": 22.168301882788455,
+      "maxSecond": 41.18038159317364,
+      "diagnostics": 2,
+      "ms": 102.4853750000002
+    },
+    {
+      "fixture": {
+        "floors": 7,
+        "type": "freestanding",
+        "cornerStyle": "panCoupe",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 278,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 18,
+      "maxNearest": 22.168301882788455,
+      "maxSecond": 41.18038159317364,
+      "diagnostics": 0,
+      "ms": 136.28012499999932
+    },
+    {
+      "fixture": {
+        "floors": 7,
+        "type": "freestanding",
+        "cornerStyle": "panCoupe",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 275,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 33,
+      "maxNearest": 22.168301882788455,
+      "maxSecond": 41.18038159317364,
+      "diagnostics": 2,
+      "ms": 112.34620799999993
+    },
+    {
+      "fixture": {
+        "floors": 7,
+        "type": "corner",
+        "cornerStyle": "pier",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 297,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 25,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 42.08338182806036,
+      "diagnostics": 10,
+      "ms": 113.28975000000082
+    },
+    {
+      "fixture": {
+        "floors": 7,
+        "type": "corner",
+        "cornerStyle": "pier",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 297,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 17,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 42.08338182806036,
+      "diagnostics": 1,
+      "ms": 114.1078749999997
+    },
+    {
+      "fixture": {
+        "floors": 7,
+        "type": "corner",
+        "cornerStyle": "pier",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 297,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 25,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 42.08338182806036,
+      "diagnostics": 10,
+      "ms": 111.50550000000021
+    },
+    {
+      "fixture": {
+        "floors": 7,
+        "type": "corner",
+        "cornerStyle": "panCoupe",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 296,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 24,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 41.59253953030775,
+      "diagnostics": 11,
+      "ms": 109.7943750000004
+    },
+    {
+      "fixture": {
+        "floors": 7,
+        "type": "corner",
+        "cornerStyle": "panCoupe",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 296,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 16,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 41.59253953030775,
+      "diagnostics": 2,
+      "ms": 107.54795800000011
+    },
+    {
+      "fixture": {
+        "floors": 7,
+        "type": "corner",
+        "cornerStyle": "panCoupe",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 296,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 24,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 41.59253953030775,
+      "diagnostics": 11,
+      "ms": 102.45929099999921
+    },
+    {
+      "fixture": {
+        "floors": 7,
+        "type": "row",
+        "cornerStyle": "pier",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 275,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 35,
+      "maxNearest": 20.765365761750907,
+      "maxSecond": 41.87141483302339,
+      "diagnostics": 0,
+      "ms": 95.06391699999949
+    },
+    {
+      "fixture": {
+        "floors": 7,
+        "type": "row",
+        "cornerStyle": "pier",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 278,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 18,
+      "maxNearest": 20.765365761750907,
+      "maxSecond": 41.87141483302339,
+      "diagnostics": 0,
+      "ms": 105.50508300000001
+    },
+    {
+      "fixture": {
+        "floors": 7,
+        "type": "row",
+        "cornerStyle": "pier",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 275,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 35,
+      "maxNearest": 20.765365761750907,
+      "maxSecond": 41.87141483302339,
+      "diagnostics": 0,
+      "ms": 93.30525000000034
+    },
+    {
+      "fixture": {
+        "floors": 7,
+        "type": "row",
+        "cornerStyle": "panCoupe",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 275,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 35,
+      "maxNearest": 20.765365761750907,
+      "maxSecond": 41.87141483302339,
+      "diagnostics": 0,
+      "ms": 95.44279199999983
+    },
+    {
+      "fixture": {
+        "floors": 7,
+        "type": "row",
+        "cornerStyle": "panCoupe",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 278,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 18,
+      "maxNearest": 20.765365761750907,
+      "maxSecond": 41.87141483302339,
+      "diagnostics": 0,
+      "ms": 103.12645799999973
+    },
+    {
+      "fixture": {
+        "floors": 7,
+        "type": "row",
+        "cornerStyle": "panCoupe",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 275,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 35,
+      "maxNearest": 20.765365761750907,
+      "maxSecond": 41.87141483302339,
+      "diagnostics": 0,
+      "ms": 93.37070799999947
+    },
+    {
+      "fixture": {
+        "floors": 14,
+        "type": "freestanding",
+        "cornerStyle": "pier",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 485,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 61,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 42.119139378490146,
+      "diagnostics": 2,
+      "ms": 176.86112500000036
+    },
+    {
+      "fixture": {
+        "floors": 14,
+        "type": "freestanding",
+        "cornerStyle": "pier",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 495,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 32,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 42.119139378490146,
+      "diagnostics": 0,
+      "ms": 193.8439159999998
+    },
+    {
+      "fixture": {
+        "floors": 14,
+        "type": "freestanding",
+        "cornerStyle": "pier",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 485,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 61,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 42.119139378490146,
+      "diagnostics": 2,
+      "ms": 190.47570799999994
+    },
+    {
+      "fixture": {
+        "floors": 14,
+        "type": "freestanding",
+        "cornerStyle": "panCoupe",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 485,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 61,
+      "maxNearest": 22.168301882788455,
+      "maxSecond": 41.18038159317364,
+      "diagnostics": 2,
+      "ms": 172.04291599999942
+    },
+    {
+      "fixture": {
+        "floors": 14,
+        "type": "freestanding",
+        "cornerStyle": "panCoupe",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 495,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 32,
+      "maxNearest": 22.168301882788455,
+      "maxSecond": 41.18038159317364,
+      "diagnostics": 0,
+      "ms": 193.4685840000002
+    },
+    {
+      "fixture": {
+        "floors": 14,
+        "type": "freestanding",
+        "cornerStyle": "panCoupe",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 485,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 61,
+      "maxNearest": 22.168301882788455,
+      "maxSecond": 41.18038159317364,
+      "diagnostics": 2,
+      "ms": 176.25583300000017
+    },
+    {
+      "fixture": {
+        "floors": 14,
+        "type": "corner",
+        "cornerStyle": "pier",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 528,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 46,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 42.08338182806036,
+      "diagnostics": 17,
+      "ms": 206.76233299999967
+    },
+    {
+      "fixture": {
+        "floors": 14,
+        "type": "corner",
+        "cornerStyle": "pier",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 528,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 31,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 42.08338182806036,
+      "diagnostics": 1,
+      "ms": 216.99345799999992
+    },
+    {
+      "fixture": {
+        "floors": 14,
+        "type": "corner",
+        "cornerStyle": "pier",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 528,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 46,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 42.08338182806036,
+      "diagnostics": 17,
+      "ms": 213.11733299999923
+    },
+    {
+      "fixture": {
+        "floors": 14,
+        "type": "corner",
+        "cornerStyle": "panCoupe",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 527,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 45,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 41.59253953030775,
+      "diagnostics": 18,
+      "ms": 206.56866700000046
+    },
+    {
+      "fixture": {
+        "floors": 14,
+        "type": "corner",
+        "cornerStyle": "panCoupe",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 527,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 30,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 41.59253953030775,
+      "diagnostics": 2,
+      "ms": 209.72233400000005
+    },
+    {
+      "fixture": {
+        "floors": 14,
+        "type": "corner",
+        "cornerStyle": "panCoupe",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 527,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 45,
+      "maxNearest": 20.7653657617509,
+      "maxSecond": 41.59253953030775,
+      "diagnostics": 18,
+      "ms": 205.09812499999953
+    },
+    {
+      "fixture": {
+        "floors": 14,
+        "type": "row",
+        "cornerStyle": "pier",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 485,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 63,
+      "maxNearest": 20.765365761750907,
+      "maxSecond": 41.87141483302339,
+      "diagnostics": 0,
+      "ms": 178.046875
+    },
+    {
+      "fixture": {
+        "floors": 14,
+        "type": "row",
+        "cornerStyle": "pier",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 495,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 32,
+      "maxNearest": 20.765365761750907,
+      "maxSecond": 41.87141483302339,
+      "diagnostics": 0,
+      "ms": 200.7826669999995
+    },
+    {
+      "fixture": {
+        "floors": 14,
+        "type": "row",
+        "cornerStyle": "pier",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 485,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 63,
+      "maxNearest": 20.765365761750907,
+      "maxSecond": 41.87141483302339,
+      "diagnostics": 0,
+      "ms": 181.53087499999856
+    },
+    {
+      "fixture": {
+        "floors": 14,
+        "type": "row",
+        "cornerStyle": "panCoupe",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 485,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 63,
+      "maxNearest": 20.765365761750907,
+      "maxSecond": 41.87141483302339,
+      "diagnostics": 0,
+      "ms": 181.1361250000009
+    },
+    {
+      "fixture": {
+        "floors": 14,
+        "type": "row",
+        "cornerStyle": "panCoupe",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 495,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 32,
+      "maxNearest": 20.765365761750907,
+      "maxSecond": 41.87141483302339,
+      "diagnostics": 0,
+      "ms": 205.52141699999993
+    },
+    {
+      "fixture": {
+        "floors": 14,
+        "type": "row",
+        "cornerStyle": "panCoupe",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 485,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 63,
+      "maxNearest": 20.765365761750907,
+      "maxSecond": 41.87141483302339,
+      "diagnostics": 0,
+      "ms": 182.96991700000035
+    },
+    {
+      "fixture": {
+        "floors": 15,
+        "type": "freestanding",
+        "cornerStyle": "pier",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 582,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 64,
+      "maxNearest": 17.37952233267905,
+      "maxSecond": 18.459547860045713,
+      "diagnostics": 3,
+      "ms": 288.6869169999991
+    },
+    {
+      "fixture": {
+        "floors": 15,
+        "type": "freestanding",
+        "cornerStyle": "pier",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 594,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 34,
+      "maxNearest": 16.550332579817745,
+      "maxSecond": 18.459547860045713,
+      "diagnostics": 0,
+      "ms": 305.3135829999992
+    },
+    {
+      "fixture": {
+        "floors": 15,
+        "type": "freestanding",
+        "cornerStyle": "pier",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 582,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 64,
+      "maxNearest": 17.37952233267905,
+      "maxSecond": 18.459547860045713,
+      "diagnostics": 3,
+      "ms": 280.2932089999995
+    },
+    {
+      "fixture": {
+        "floors": 15,
+        "type": "freestanding",
+        "cornerStyle": "panCoupe",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 582,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 64,
+      "maxNearest": 17.37952233267905,
+      "maxSecond": 19.168301882788455,
+      "diagnostics": 3,
+      "ms": 279.80233299999963
+    },
+    {
+      "fixture": {
+        "floors": 15,
+        "type": "freestanding",
+        "cornerStyle": "panCoupe",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 594,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 34,
+      "maxNearest": 16.550332579817745,
+      "maxSecond": 19.168301882788455,
+      "diagnostics": 0,
+      "ms": 299.5982499999991
+    },
+    {
+      "fixture": {
+        "floors": 15,
+        "type": "freestanding",
+        "cornerStyle": "panCoupe",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 582,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 64,
+      "maxNearest": 17.37952233267905,
+      "maxSecond": 19.168301882788455,
+      "diagnostics": 3,
+      "ms": 282.01937499999985
+    },
+    {
+      "fixture": {
+        "floors": 15,
+        "type": "corner",
+        "cornerStyle": "pier",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 629,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 49,
+      "maxNearest": 16.56620042856664,
+      "maxSecond": 18.35918199366249,
+      "diagnostics": 18,
+      "ms": 319.31875000000036
+    },
+    {
+      "fixture": {
+        "floors": 15,
+        "type": "corner",
+        "cornerStyle": "pier",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 629,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 33,
+      "maxNearest": 16.56620042856664,
+      "maxSecond": 18.35918199366249,
+      "diagnostics": 1,
+      "ms": 312.88487499999974
+    },
+    {
+      "fixture": {
+        "floors": 15,
+        "type": "corner",
+        "cornerStyle": "pier",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 629,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 49,
+      "maxNearest": 16.56620042856664,
+      "maxSecond": 18.35918199366249,
+      "diagnostics": 18,
+      "ms": 311.0846669999992
+    },
+    {
+      "fixture": {
+        "floors": 15,
+        "type": "corner",
+        "cornerStyle": "panCoupe",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 628,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 48,
+      "maxNearest": 16.56620042856664,
+      "maxSecond": 17.858275253421372,
+      "diagnostics": 19,
+      "ms": 313.9272499999988
+    },
+    {
+      "fixture": {
+        "floors": 15,
+        "type": "corner",
+        "cornerStyle": "panCoupe",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 628,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 32,
+      "maxNearest": 16.56620042856664,
+      "maxSecond": 17.858275253421372,
+      "diagnostics": 2,
+      "ms": 322.8442500000001
+    },
+    {
+      "fixture": {
+        "floors": 15,
+        "type": "corner",
+        "cornerStyle": "panCoupe",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 628,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 48,
+      "maxNearest": 16.56620042856664,
+      "maxSecond": 17.858275253421372,
+      "diagnostics": 19,
+      "ms": 319.98812499999985
+    },
+    {
+      "fixture": {
+        "floors": 15,
+        "type": "row",
+        "cornerStyle": "pier",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 582,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 64,
+      "maxNearest": 17.379522332679052,
+      "maxSecond": 18.45954786004572,
+      "diagnostics": 3,
+      "ms": 278.0761249999996
+    },
+    {
+      "fixture": {
+        "floors": 15,
+        "type": "row",
+        "cornerStyle": "pier",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 594,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 34,
+      "maxNearest": 16.550332579817745,
+      "maxSecond": 18.45954786004572,
+      "diagnostics": 0,
+      "ms": 297.0432499999988
+    },
+    {
+      "fixture": {
+        "floors": 15,
+        "type": "row",
+        "cornerStyle": "pier",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 582,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 64,
+      "maxNearest": 17.379522332679052,
+      "maxSecond": 18.45954786004572,
+      "diagnostics": 3,
+      "ms": 277.1074579999986
+    },
+    {
+      "fixture": {
+        "floors": 15,
+        "type": "row",
+        "cornerStyle": "panCoupe",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 582,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 64,
+      "maxNearest": 17.379522332679052,
+      "maxSecond": 18.45954786004572,
+      "diagnostics": 3,
+      "ms": 274.73175000000083
+    },
+    {
+      "fixture": {
+        "floors": 15,
+        "type": "row",
+        "cornerStyle": "panCoupe",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 594,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 34,
+      "maxNearest": 16.550332579817745,
+      "maxSecond": 18.45954786004572,
+      "diagnostics": 0,
+      "ms": 295.2262499999997
+    },
+    {
+      "fixture": {
+        "floors": 15,
+        "type": "row",
+        "cornerStyle": "panCoupe",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 582,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 64,
+      "maxNearest": 17.379522332679052,
+      "maxSecond": 18.45954786004572,
+      "diagnostics": 3,
+      "ms": 275.33979100000033
+    },
+    {
+      "fixture": {
+        "floors": 20,
+        "type": "freestanding",
+        "cornerStyle": "pier",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 752,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 84,
+      "maxNearest": 17.37952233267905,
+      "maxSecond": 18.459547860045713,
+      "diagnostics": 3,
+      "ms": 376.80970799999886
+    },
+    {
+      "fixture": {
+        "floors": 20,
+        "type": "freestanding",
+        "cornerStyle": "pier",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 769,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 44,
+      "maxNearest": 16.550332579817745,
+      "maxSecond": 18.459547860045713,
+      "diagnostics": 0,
+      "ms": 399.08579100000134
+    },
+    {
+      "fixture": {
+        "floors": 20,
+        "type": "freestanding",
+        "cornerStyle": "pier",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 752,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 84,
+      "maxNearest": 17.37952233267905,
+      "maxSecond": 18.459547860045713,
+      "diagnostics": 3,
+      "ms": 372.10429099999965
+    },
+    {
+      "fixture": {
+        "floors": 20,
+        "type": "freestanding",
+        "cornerStyle": "panCoupe",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 752,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 84,
+      "maxNearest": 17.37952233267905,
+      "maxSecond": 19.168301882788455,
+      "diagnostics": 3,
+      "ms": 377.8857079999998
+    },
+    {
+      "fixture": {
+        "floors": 20,
+        "type": "freestanding",
+        "cornerStyle": "panCoupe",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 769,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 44,
+      "maxNearest": 16.550332579817745,
+      "maxSecond": 19.168301882788455,
+      "diagnostics": 0,
+      "ms": 415.646999999999
+    },
+    {
+      "fixture": {
+        "floors": 20,
+        "type": "freestanding",
+        "cornerStyle": "panCoupe",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 752,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 84,
+      "maxNearest": 17.37952233267905,
+      "maxSecond": 19.168301882788455,
+      "diagnostics": 3,
+      "ms": 403.0113339999989
+    },
+    {
+      "fixture": {
+        "floors": 20,
+        "type": "corner",
+        "cornerStyle": "pier",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 814,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 64,
+      "maxNearest": 16.56620042856664,
+      "maxSecond": 18.35918199366249,
+      "diagnostics": 23,
+      "ms": 450.36504199999763
+    },
+    {
+      "fixture": {
+        "floors": 20,
+        "type": "corner",
+        "cornerStyle": "pier",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 814,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 43,
+      "maxNearest": 16.56620042856664,
+      "maxSecond": 18.35918199366249,
+      "diagnostics": 1,
+      "ms": 447.44616699999824
+    },
+    {
+      "fixture": {
+        "floors": 20,
+        "type": "corner",
+        "cornerStyle": "pier",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 814,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 64,
+      "maxNearest": 16.56620042856664,
+      "maxSecond": 18.35918199366249,
+      "diagnostics": 23,
+      "ms": 436.8553749999992
+    },
+    {
+      "fixture": {
+        "floors": 20,
+        "type": "corner",
+        "cornerStyle": "panCoupe",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 813,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 63,
+      "maxNearest": 16.56620042856664,
+      "maxSecond": 17.858275253421372,
+      "diagnostics": 24,
+      "ms": 448.1391249999979
+    },
+    {
+      "fixture": {
+        "floors": 20,
+        "type": "corner",
+        "cornerStyle": "panCoupe",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 813,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 42,
+      "maxNearest": 16.56620042856664,
+      "maxSecond": 17.858275253421372,
+      "diagnostics": 2,
+      "ms": 450.62920799999847
+    },
+    {
+      "fixture": {
+        "floors": 20,
+        "type": "corner",
+        "cornerStyle": "panCoupe",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 813,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 63,
+      "maxNearest": 16.56620042856664,
+      "maxSecond": 17.858275253421372,
+      "diagnostics": 24,
+      "ms": 419.7440830000014
+    },
+    {
+      "fixture": {
+        "floors": 20,
+        "type": "row",
+        "cornerStyle": "pier",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 752,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 84,
+      "maxNearest": 17.379522332679052,
+      "maxSecond": 18.45954786004572,
+      "diagnostics": 3,
+      "ms": 379.3792500000018
+    },
+    {
+      "fixture": {
+        "floors": 20,
+        "type": "row",
+        "cornerStyle": "pier",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 769,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 44,
+      "maxNearest": 16.550332579817745,
+      "maxSecond": 18.45954786004572,
+      "diagnostics": 0,
+      "ms": 412.75429200000144
+    },
+    {
+      "fixture": {
+        "floors": 20,
+        "type": "row",
+        "cornerStyle": "pier",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 752,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 84,
+      "maxNearest": 17.379522332679052,
+      "maxSecond": 18.45954786004572,
+      "diagnostics": 3,
+      "ms": 378.9445839999971
+    },
+    {
+      "fixture": {
+        "floors": 20,
+        "type": "row",
+        "cornerStyle": "panCoupe",
+        "apartments": "auto",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 752,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 84,
+      "maxNearest": 17.379522332679052,
+      "maxSecond": 18.45954786004572,
+      "diagnostics": 3,
+      "ms": 380.2268750000003
+    },
+    {
+      "fixture": {
+        "floors": 20,
+        "type": "row",
+        "cornerStyle": "panCoupe",
+        "apartments": "one",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 769,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 44,
+      "maxNearest": 16.550332579817745,
+      "maxSecond": 18.45954786004572,
+      "diagnostics": 0,
+      "ms": 403.1554589999978
+    },
+    {
+      "fixture": {
+        "floors": 20,
+        "type": "row",
+        "cornerStyle": "panCoupe",
+        "apartments": "two",
+        "depth": 17,
+        "ballroom": true
+      },
+      "rooms": 752,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 84,
+      "maxNearest": 17.379522332679052,
+      "maxSecond": 18.45954786004572,
+      "diagnostics": 3,
+      "ms": 372.00445799999943
+    },
+    {
+      "fixture": {
+        "floors": 20,
+        "baysX": 20,
+        "profile": "uniform",
+        "groundUse": "mixed",
+        "floorVariety": true
+      },
+      "rooms": 1131,
+      "cores": 3,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1",
+        "cores:2:stair:0",
+        "cores:2:stair:1"
+      ],
+      "apartments": 108,
+      "maxNearest": 21.266272501992017,
+      "maxSecond": 24.20943608913888,
+      "diagnostics": 2,
+      "ms": 876.7560000000012
+    },
+    {
+      "fixture": {
+        "floors": 20,
+        "baysX": 20,
+        "profile": "haussmann",
+        "groundUse": "mixed",
+        "floorVariety": true
+      },
+      "rooms": 1131,
+      "cores": 3,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1",
+        "cores:2:stair:0",
+        "cores:2:stair:1"
+      ],
+      "apartments": 108,
+      "maxNearest": 21.266272501992017,
+      "maxSecond": 24.20943608913888,
+      "diagnostics": 2,
+      "ms": 882.7877919999992
+    },
+    {
+      "fixture": {
+        "floors": 20,
+        "baysX": 20,
+        "profile": "uniform",
+        "groundUse": "shops",
+        "floorVariety": true
+      },
+      "rooms": 1131,
+      "cores": 3,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1",
+        "cores:2:stair:0",
+        "cores:2:stair:1"
+      ],
+      "apartments": 105,
+      "maxNearest": 21.266272501992017,
+      "maxSecond": 24.20943608913888,
+      "diagnostics": 5,
+      "ms": 862.9233749999985
+    },
+    {
+      "fixture": {
+        "floors": 20,
+        "baysX": 20,
+        "profile": "haussmann",
+        "groundUse": "shops",
+        "floorVariety": true
+      },
+      "rooms": 1131,
+      "cores": 3,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1",
+        "cores:2:stair:0",
+        "cores:2:stair:1"
+      ],
+      "apartments": 105,
+      "maxNearest": 21.266272501992017,
+      "maxSecond": 24.20943608913888,
+      "diagnostics": 5,
+      "ms": 889.356499999998
+    },
+    {
+      "fixture": {
+        "floors": 20,
+        "baysX": 20,
+        "profile": "uniform",
+        "groundUse": "residential",
+        "floorVariety": true
+      },
+      "rooms": 1131,
+      "cores": 3,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1",
+        "cores:2:stair:0",
+        "cores:2:stair:1"
+      ],
+      "apartments": 110,
+      "maxNearest": 21.266272501992017,
+      "maxSecond": 24.20943608913888,
+      "diagnostics": 0,
+      "ms": 955.296542
+    },
+    {
+      "fixture": {
+        "floors": 20,
+        "baysX": 20,
+        "profile": "haussmann",
+        "groundUse": "residential",
+        "floorVariety": true
+      },
+      "rooms": 1131,
+      "cores": 3,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1",
+        "cores:2:stair:0",
+        "cores:2:stair:1"
+      ],
+      "apartments": 110,
+      "maxNearest": 21.266272501992017,
+      "maxSecond": 24.20943608913888,
+      "diagnostics": 0,
+      "ms": 901.1442090000019
+    },
+    {
+      "fixture": {
+        "baysX": 8,
+        "ballroom": false,
+        "floors": 7
+      },
+      "rooms": 183,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:1:stair:0"
+      ],
+      "apartments": 16,
+      "maxNearest": 12.979962808558284,
+      "maxSecond": 24.24519363956866,
+      "diagnostics": 2,
+      "ms": 45.81816700000127
+    },
+    {
+      "fixture": {
+        "baysX": 10,
+        "baysY": 6,
+        "floors": 20,
+        "ballroom": false,
+        "apartments": "two"
+      },
+      "rooms": 600,
+      "cores": 2,
+      "stairs": [
+        "cores:0:stair:0",
+        "cores:0:stair:1",
+        "cores:1:stair:0",
+        "cores:1:stair:1"
+      ],
+      "apartments": 42,
+      "maxNearest": 17.701716981530645,
+      "maxSecond": 20.701716981530645,
+      "diagnostics": 46,
+      "ms": 235.91429100000096
+    },
+    {
+      "narrow": [
+        2,
+        2,
+        20
+      ],
+      "reason": [
+        {
+          "code": "core-capacity",
+          "message": "核心配置至少需要 8 個結構欄，現有 2；無法同時保留雙梯、公共走廊與完整住戶"
+        }
+      ]
+    },
+    {
+      "narrow": [
+        2,
+        20,
+        20
+      ],
+      "reason": [
+        {
+          "code": "core-capacity",
+          "message": "核心配置至少需要 8 個結構欄，現有 2；無法同時保留雙梯、公共走廊與完整住戶"
+        }
+      ]
+    },
+    {
+      "narrow": [
+        20,
+        2,
+        20
+      ],
+      "reason": [
+        {
+          "code": "core-capacity",
+          "message": "兩側房間帶無法容納實際樓梯踏步、平台與公共走廊"
+        }
+      ]
+    }
+  ],
+  "negativeChecks": [
+    "concave visibility path excludes exterior shortcuts",
+    {
+      "name": "ceremonial 1F→2F cannot be second high-rise stair",
+      "issues": [
+        "樓梯 cores:1:stair:0：平台／踏步／服務範圍或一樓對外公共路徑不連續",
+        "1F：住戶 0 只能到 1 座有效樓梯，需要 2 座",
+        "1F：住戶 0 取樣動線超過 45 m",
+        "1F：住戶 1 只能到 1 座有效樓梯，需要 2 座"
+      ]
+    },
+    {
+      "name": "elevators cannot replace both stairs",
+      "issues": [
+        "樓梯間沒有對應的獨立樓梯"
+      ]
+    },
+    {
+      "name": "same stair identity cannot count twice",
+      "issues": [
+        "樓梯 ID 缺少或重複"
+      ]
+    },
+    {
+      "name": "missing elevator in core metadata",
+      "issues": [
+        "核心 cores:0：樓梯／電梯／電梯廳數量或識別不完整"
+      ]
+    },
+    {
+      "name": "actual ground exit removed",
+      "issues": [
+        "樓梯 cores:0:stair:0：平台／踏步／服務範圍或一樓對外公共路徑不連續",
+        "樓梯 cores:1:stair:0：平台／踏步／服務範圍或一樓對外公共路徑不連續",
+        "1F：電梯廳 cores:0:liftHall:0 沒有公共通道",
+        "1F：電梯廳 cores:1:liftHall:0 沒有公共通道"
+      ]
+    },
+    {
+      "name": "public corridor relabelled as foreign apartment",
+      "issues": [
+        "1F：住戶 999 缺少客廳、廚房、廁所、臥室",
+        "2F：住戶 999 缺少客廳、廚房、廁所、臥室",
+        "3F：住戶 999 缺少客廳、廚房、廁所、臥室",
+        "4F：住戶 999 缺少客廳、廚房、廁所、臥室"
+      ]
+    },
+    {
+      "name": "broken intermediate flight",
+      "issues": [
+        "樓梯 cores:0:stair:0：平台／踏步／服務範圍或一樓對外公共路徑不連續",
+        "1F：住戶 0 只能到 1 座有效樓梯，需要 2 座",
+        "1F：住戶 0 取樣動線超過 45 m",
+        "1F：住戶 1 只能到 1 座有效樓梯，需要 2 座"
+      ]
+    },
+    {
+      "name": "landing moved to rear of cage",
+      "issues": [
+        "5F：門未連接實際房間輪廓",
+        "樓梯 cores:1:stair:0：平台／踏步／服務範圍或一樓對外公共路徑不連續",
+        "1F：住戶 0 只能到 1 座有效樓梯，需要 2 座",
+        "1F：住戶 0 取樣動線超過 45 m"
+      ]
+    },
+    {
+      "name": "shaft drift despite positive rectangle",
+      "issues": [
+        "5F：井道 cores:1:shaft:0 垂直位置／樓板孔洞不一致"
+      ]
+    },
+    {
+      "name": "asymmetric door",
+      "issues": [
+        "1F：門 1F-01/missing 共牆／雙側參照無效",
+        "1F：門 1F-17/1F-01 共牆／雙側參照無效",
+        "1F：住戶 0 只能到 0 座有效樓梯，需要 2 座",
+        "1F：住戶 0 取樣動線超過 45 m"
+      ]
+    }
+  ],
+  "legacyGoldens": 11,
+  "geometryVertices": 240024,
+  "timings": [
+    {
+      "fixture": [
+        14,
+        5,
+        10
+      ],
+      "warmup": 3,
+      "samples": 10,
+      "p50Ms": 50.29529100000218,
+      "p95Ms": 51.0400410000002,
+      "scope": "Node SSR pure opt-in plan/signatures/retries/weighted route checker; excludes topology/generation/3D/furniture/labels/GPU"
+    },
+    {
+      "fixture": [
+        14,
+        5,
+        20
+      ],
+      "warmup": 3,
+      "samples": 10,
+      "p50Ms": 273.1191250000011,
+      "p95Ms": 288.73354200000176,
+      "scope": "Node SSR pure opt-in plan/signatures/retries/weighted route checker; excludes topology/generation/3D/furniture/labels/GPU"
+    }
+  ],
+  "editLifecycle": "rename, undo, actual merge, replay and protected shaft/stair geometry passed",
+  "rotatedGraphChecks": [
+    1.5707963267948966,
+    3.141592653589793,
+    -1.5707963267948966
+  ]
+}

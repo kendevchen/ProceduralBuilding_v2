@@ -72,6 +72,8 @@ try {
     { floorVariety: true, seed: 2 },
     { floorVariety: true, baysX: 10, baysY: 3, floors: 6, seed: 7, ballroom: false, apartments: 'one' },
     { floorVariety: true, type: 'corner', cornerStyle: 'panCoupe', seed: 8 },
+    { layoutMode: 'auto', baysX: 14, baysY: 5, floors: 10, floorVariety: true },
+    { layoutMode: 'auto', baysX: 14, baysY: 5, floors: 20, ballroom: false },
   ]) {
     const params = { ...defaultParams(), ...overrides }, building = generateBuilding(params, kit);
     const plan = planBuilding(building, params), cutaway = new Cutaway();

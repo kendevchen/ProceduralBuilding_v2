@@ -114,13 +114,13 @@ try {
   assert.equal(ready({ type: "row", dimensionVersion: "legacy", depth: 12.345 }).length, rowLegacy.length);
   assert.equal(ready({ type: "row", dimensionVersion: "bays-v2", baysY: 20, depth: NaN }).length, 61);
   assert.equal(ready({ type: "row", dimensionVersion: "bays-v2", baysY: 3, depth: -1 }).length, 10);
-  assert.equal(resolve({ type: "row", dimensionVersion: "bays-v2", baysY: 8, layoutMode: "auto" }).status, "unsupported");
+  assert.equal(resolve({ type: "row", dimensionVersion: "bays-v2", baysY: 8, layoutMode: "auto" }).status, "infeasible");
   for (const overrides of [
     { layoutMode: "courtyard" }, { layoutMode: "lightwell" },
     { layoutMode: "auto", baysX: 20 }, { layoutMode: "auto", floors: 20 },
   ]) {
     const r = resolve(overrides);
-    assert.equal(r.status, "unsupported");
+    assert.equal(r.status, overrides.layoutMode === "auto" ? "infeasible" : "unsupported");
     assert.equal(r.requestedMode, overrides.layoutMode);
     assert.throws(() => generateBuilding({ ...base, ...overrides }, kit), TopologyResolutionError);
   }

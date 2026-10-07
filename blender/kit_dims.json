@@ -45,7 +45,15 @@
     "planning": {
       "_doc": "P1 API policy only; GUI caps stay unchanged until P8. Missing dimensionVersion/layoutMode retains legacy inputs.",
       "legacyLimits": { "baysX": 10, "baysY": 8, "floors": 6, "rowDepth": 20 },
-      "inputLimits": { "baysMin": 2, "baysMax": 20, "floorsMin": 1, "floorsMax": 20 }
+      "inputLimits": { "baysMin": 2, "baysMax": 20, "floorsMin": 1, "floorsMax": 20 },
+      "cores": {
+        "_doc": "P3 shallow-core candidate only, metres between wall axes except clear minima. Deep auto candidates follow in P4/P5. Route distances are sampled polygon visibility paths, not regulatory certification.",
+        "doubleStairFrom": 7, "doubleLiftFrom": 15, "serviceBays": 8,
+        "minColumns": 8, "maxDepth": 20, "corridor": 2.9,
+        "minStairDepth": 5.6, "liftHallDepth": 2.0,
+        "liftClearWidth": 2.0, "liftClearDepth": 2.0, "shaftClearWidth": 0.3,
+        "minApartmentCells": 4, "maxTravel": 50.0, "highMaxTravel": 45.0, "routeSampleStep": 2.0, "routeInset": 0.02
+      }
     },
     "variety": {
       "maxRetries": 8, "receptionMergeChance": 0.3, "bedroomMergeChance": 0.3,
