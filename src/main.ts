@@ -132,6 +132,7 @@ interface BuildingRuntime {
   edited: EditedPlan | null;
   bounds: { min: Vector3; max: Vector3 }; site: typeof site; lamps: typeof lampSources;
 }
+let cityEditMode = false;
 const city = new BuildingScene<BuildingRuntime>(dims.street.block.clearance);
 city.add("right", null, new Box3(new Vector3(-8, 0, -6), new Vector3(8, 22, 6)), 12);
 scene.add(city.active.root);
@@ -154,7 +155,7 @@ function bindBuildingEditors(): void {
 
 function selectBuilding(id: string, animate = false): void {
   const next = city.buildings.find(b => b.id === id);
-  if (!next || id === city.activeId || !materials || view.gallery || view.furnitureGallery || interiorView.plan) return;
+  if (!cityEditMode || !next || id === city.activeId || !materials || view.gallery || view.furnitureGallery || interiorView.plan) return;
   const cameraFrom = camera.position.clone(), targetFrom = controls.target.clone();
   const previous = city.active, saved = captureBuilding();
   previous.state = saved;
@@ -226,7 +227,7 @@ function selectBuilding(id: string, animate = false): void {
 }
 
 function addBuilding(side: AddDirection): void {
-  if (!materials || view.gallery || view.furnitureGallery || interiorView.plan || unfoldActive()) return;
+  if (!cityEditMode || !materials || view.gallery || view.furnitureGallery || interiorView.plan || unfoldActive()) return;
   const source = city.active;
   const oldPositions = new Map(city.buildings.map(entry => [entry.id, entry.position.clone()]));
   const entry = city.add(side, null, source.localBounds, source.length);
@@ -575,19 +576,40 @@ function frameHome(): void {
 
 // ---- GUI ----
 const gui = new GUI({ title: "european building kit" });
+// Keep the mode switch outside the collapsible controls so it remains available.
+const cityEditButton = document.createElement("button");
+cityEditButton.className = "city-edit-toggle";
+cityEditButton.type = "button";
+cityEditButton.title = "開啟城市編輯模式";
+cityEditButton.setAttribute("aria-pressed", "false");
+cityEditButton.innerHTML = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 20h4l12-12-4-4L4 16v4zM14 6l4 4M4 20h16"/></svg><span>編輯模式</span>`;
+gui.domElement.querySelector(":scope > .title")!.after(cityEditButton);
+const fCity = gui.addFolder("城市編輯");
+fCity.hide();
+cityEditButton.onclick = () => {
+  cityEditMode = !cityEditMode;
+  cityEditButton.classList.toggle("on", cityEditMode);
+  cityEditButton.setAttribute("aria-pressed", String(cityEditMode));
+  cityEditButton.title = cityEditMode ? "關閉城市編輯模式" : "開啟城市編輯模式";
+  fCity.show(cityEditMode);
+  if (cityEditMode) { gui.open(); fCity.open(); }
+  cityPointer.set(-10000, -10000);
+  cityDown = null;
+  updateCityUI();
+};
 const citySelection = { building: city.activeId };
-const cityController = gui.add(citySelection, "building", { "建築 1": "1" }).name("目前建築").onChange((id: string) => {
+const cityController = fCity.add(citySelection, "building", { "建築 1": "1" }).name("目前建築").onChange((id: string) => {
   selectBuilding(id, true); citySelection.building = city.activeId; cityController.updateDisplay();
 });
 function refreshCityChoices(): void {
   cityController.options(Object.fromEntries(city.buildings.map(b => [b.name, b.id])));
 }
-gui.add({ left: () => addBuilding("left") }, "left").name("＋ 左側新增建築");
-gui.add({ right: () => addBuilding("right") }, "right").name("＋ 右側新增建築");
-gui.add({ front: () => addBuilding("front") }, "front").name("＋ 前方新增建築");
-gui.add({ back: () => addBuilding("back") }, "back").name("＋ 後方新增建築");
-gui.add({ overview: () => {
-  if (view.gallery || view.furnitureGallery || interiorView.plan) return;
+fCity.add({ left: () => addBuilding("left") }, "left").name("＋ 左側新增建築");
+fCity.add({ right: () => addBuilding("right") }, "right").name("＋ 右側新增建築");
+fCity.add({ front: () => addBuilding("front") }, "front").name("＋ 前方新增建築");
+fCity.add({ back: () => addBuilding("back") }, "back").name("＋ 後方新增建築");
+fCity.add({ overview: () => {
+  if (!cityEditMode || view.gallery || view.furnitureGallery || interiorView.plan) return;
   const box = city.bounds(); if (unfoldView) box.union(unfoldView.bounds());
   const target = box.getCenter(new Vector3());
   const forward = new Vector3(0.25, 0.3, 1).normalize();
@@ -621,7 +643,7 @@ gui.add(view, "furnitureGallery").name("家具總覽").listen().onChange((on: bo
 const fBuilding = gui.addFolder("🏛 建築 (Building)");
 fBuilding.add(params, "type", { "獨棟": "freestanding", "街角": "corner", "連棟": "row" }).name("建築類型").onChange(update);
 fBuilding.add(params, "cornerStyle", { "直角": "pier", "斜切": "panCoupe" }).name("街角轉角").onChange(update);
-fBuilding.add(city, "clearance", 0, 20, 0.5).name("每棟間距 m").onChange(() => {
+fCity.add(city, "clearance", 0, 20, 0.5).name("每棟間距 m").onChange(() => {
   const oldPositions = new Map(city.buildings.map(entry => [entry.id, entry.position.clone()]));
   city.layout();
   syncDormantPositions(oldPositions);
@@ -732,6 +754,7 @@ const windows = new WindowEditor({
 const cityEvents = new WeakSet<Event>();
 const cityBadge = document.createElement("div");
 cityBadge.style.cssText = "position:fixed;left:16px;top:16px;color:white;background:#24282bcc;padding:8px 12px;border-radius:8px;pointer-events:none;z-index:5;font:14px sans-serif";
+cityBadge.hidden = true;
 document.body.append(cityBadge);
 const cityNavigation = document.createElement("div");
 cityNavigation.style.cssText = "position:fixed;right:340px;top:16px;display:flex;gap:5px;z-index:10";
@@ -748,6 +771,7 @@ const cityArrows = ([-1, 1] as const).map(step => {
   };
   cityNavigation.append(button); return { step, button };
 });
+cityNavigation.hidden = true;
 document.body.append(cityNavigation);
 let cityNavigationWidth = -1;
 const cityPointer = new Vector2(-10000, -10000);
@@ -772,7 +796,8 @@ addEventListener("pointermove", e => cityPointer.set(e.clientX, e.clientY));
 function updateCityUI(): void {
   const badge = `${city.active.name} · 共 ${city.buildings.length} 棟`;
   if (cityBadge.textContent !== badge) cityBadge.textContent = badge;
-  const enabled = !!materials && !view.gallery && !view.furnitureGallery && !interiorView.plan;
+  cityBadge.hidden = cityNavigation.hidden = !cityEditMode;
+  const enabled = cityEditMode && !!materials && !view.gallery && !view.furnitureGallery && !interiorView.plan;
   cityController.enable(enabled);
   const activeIndex = city.buildings.findIndex(b => b.id === city.activeId);
   if (cityNavigationWidth !== innerWidth) {
@@ -810,7 +835,7 @@ renderer.domElement.addEventListener("pointerdown", e => {
 renderer.domElement.addEventListener("pointercancel", () => { cityDown = null; }, true);
 renderer.domElement.addEventListener("pointerup", e => {
   const down = cityDown; cityDown = null;
-  if (!down || down.distanceTo(new Vector2(e.clientX, e.clientY)) > 5 || roomEditor.consumedEvent(e)
+  if (!cityEditMode || !down || down.distanceTo(new Vector2(e.clientX, e.clientY)) > 5 || roomEditor.consumedEvent(e)
     || view.gallery || view.furnitureGallery || interiorView.plan) return;
   const rect = renderer.domElement.getBoundingClientRect();
   const ray = new Raycaster();
