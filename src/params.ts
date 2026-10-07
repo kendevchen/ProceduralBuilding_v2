@@ -109,7 +109,7 @@ export function defaultParams(): BuildingParams {
   return {
     type: "freestanding", cornerStyle: "pier", depth: 12, groundUse: "mixed",
     baysX: 5, baysY: 3, floors: 4, profile: "haussmann", dormerEvery: 1, dormerStyle: "mixed", cresting: true, chimneys: 0.5,
-    seed: 1, doorStyle: "arched", groundWindow: "arched", otherBalcony: "gardecorps", consoles: true,
+    seed: 1, doorStyle: "arched", groundWindow: "arched", otherBalcony: "alternate", consoles: true,
     ornament: 2, pediment: "alternate", detailPattern: "off", detailStyle: "pilasters",
     shutterClosed: 0.03, shutterHalf: 0.03,
     curtainNone: 0.5, curtainClosed: 0, curtainOpen: 0.5, windowOpen: 1, windowDir: "in", windowAngle: 75,
