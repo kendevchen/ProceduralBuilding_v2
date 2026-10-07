@@ -10,6 +10,9 @@ export type DetailStyle = "refends" | "pilasters" | "panels";
 export type DormerStyle = "zinc" | "oeil" | "segment" | "triangle" | "mixed";
 export type BuildingType = "freestanding" | "corner" | "row";
 export type GroundUse = "residential" | "mixed" | "shops";
+/** Missing version retains exact metre-based row depth in saved legacy inputs. */
+export type DimensionVersion = "legacy" | "bays-v2";
+export type LayoutMode = "legacy" | "auto" | "courtyard" | "lightwell";
 
 /** one window's own facade details, set by clicking it (main.ts); a field left out follows the global setting */
 export interface WindowOverride {
@@ -36,6 +39,9 @@ export interface WindowOverride {
 export type Apartments = "auto" | "one" | "two";
 
 export interface BuildingParams {
+  dimensionVersion?: DimensionVersion;
+  /** Omitted means legacy. New modes are resolved explicitly before generation. */
+  layoutMode?: LayoutMode;
   /** freestanding (4 street facades), corner (2 streets, 2 party walls),
    *  row (street front, court back, party walls both sides) */
   type: BuildingType;

@@ -153,6 +153,10 @@
 
 ### 5.1 原則
 
+20 上限 P1 的共用結構已接入：`resolveBuildingTopology` 在外牆零件生成前解析尺寸、樓層、四面與斜切立面、固定格子／鄰接、核心與宴會廳孔洞；`generateBuilding` 與 `planBuilding` 共用同一份不可變拓撲。舊格子演算法在 `planning/legacyGrid.ts`，每層僅建立自己的可變房間單元。公開平面陣列、排序及外側 `side/windowKey` 保留；舊基線完整雜湊不變。
+
+`dimensionVersion` 未填或 `legacy` 時，連棟仍精確使用 `depth` 公尺值；明確指定 `bays-v2` 才由 `baysY × bay + 兩端角柱餘量` 決定長度。`layoutMode` 未填為 `legacy`；`auto` 在舊尺寸／高度範圍走原結構，大型自動／明選中庭或採光井目前回傳 `unsupported`，不默默改選。非法參數或失效外牆內縮輪廓回傳 `infeasible`；可解析者為 `ready`。這是 API 基礎，GUI 仍為 10／8／6，尚未實作新配置、電梯、雙梯或新版採光檢查。
+
 1. **隔間牆只落在窗間壁上**：牆碰到外牆的位置，一定在兩扇窗之間（開間邊界左右 0.6 m 以內），不會擋到窗。
 2. **上下對齊**：每層的隔間位置相同，像真實建築的承重牆。只有合併房間時才拿掉其中一道，例如兩個開間寬的客廳。
 3. **每扇窗剛好屬於一個房間；每個房間都走得到**：從樓梯出發，經過走廊或相鄰房間的門，就能到達每個房間。
@@ -611,6 +615,9 @@ GUI「室內呈現」切換，只影響剖開時的室內：
 
 ```
 src/
+  buildingTopology.ts 共用尺寸／模式解析與不可變結構（純資料）：立面、格子、核心、孔洞       ✅ 20 上限 P1
+  planning/legacyGrid.ts 外牆生成前建立的舊結構格子／分區／樓梯配置                          ✅ 20 上限 P1
+  planning/edgeIndex.ts  矩形邊索引；保留舊 pair／axis 順序與精確容差                         ✅ 20 上限 P1
   plan.ts       平面配置（純資料，不碰 three）：樓層、分區、樓梯、房間、門、宴會廳；checkPlan()   ✅ I1
                 樓梯的踏步（StairLayout）                                                ✅ I3
   planView.ts   平面檢視：一層的彩色平面、切在 1.2 m 的牆、窗、名稱                         ✅ I1
@@ -671,6 +678,10 @@ generateBuilding(params, kit)  → Building（新增：sides 每個立面的開�
 `npm run check:plans` 可獨立執行完整 25,920 組矩陣，不依賴房間編輯回歸先通過；也驗證 `scripts/baselines/plans-v1.json` 的 11 組舊結構、參數及完整平面 SHA-256。CLI 與 `window.__app.planCheckAll`、`check:rooms -- --plans` 共用 `src/planChecks.ts` 的場景與報告；CLI 使用預設參數，瀏覽器沿用當前非矩陣參數。原主控台呼叫與 `total/failed/kinds/sample` 欄位保留，新增 `byMode` 分戶數統計。
 
 `npm run bench:plans` 使用 SSR，預設每場景暖機 5 次、量測 30 次；分開記錄 `generateBuilding` 配置資料與 `planBuilding`（含 `checkPlan`）的 p50／p95。`-- --json 路徑` 保存原始報告，`--samples`／`--warmup` 可調樣本；不含實際 mesh、室內／家具／標籤、瀏覽器及 GPU。大型參數僅作後續優化基線，不代表已通過高層或採光檢查。
+
+`npm run check:topology` 驗證尺寸版本、模式結果、結構不可變與穩定 ID；8,640 組舊 envelope 加上分割／部分共邊／容差邊界等案例，共 9,037 次索引與舊 O(n²) 鄰接 oracle 比對。牆與鄰居查詢使用索引，開門後增量更新可達集合；窗戶按樓層、開間與內縮邊索引，仍保留原順序。
+
+`npm run bench:interior` 使用本地 GLB 包圍盒及 manifest 開口，量測實際寫實室內、樓梯、家具、標籤物件與「只含室內」的展開；預設暖機 1 次／取樣 3 次，可用同樣的 `--samples`、`--warmup`、`--json`。不含資產載入、Canvas 真正繪字／畫圖、外牆 mesh 實例化及 GPU。輸出幾何 buffers、面數與標籤 RGBA 基礎貼圖估算；後者不是實測 GPU 記憶體。結果見 [P1 執行紀錄](Guide/room-planning_v2/P1執行紀錄.md)，整棟家具／標籤／展開尚未達大型重建目標；以下既有預算仍是目標，不能以平面 CPU 達標代替整棟驗收。
 
 | 項目 | 預算 |
 |---|---|

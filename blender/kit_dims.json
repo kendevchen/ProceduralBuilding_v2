@@ -42,6 +42,11 @@
     "tree": { "offset": 0.66, "count": 2, "scale": 2.6, "clear": 1.8, "grate": 0.55, "ring": 0.3 }
   },
   "interior": {
+    "planning": {
+      "_doc": "P1 API policy only; GUI caps stay unchanged until P8. Missing dimensionVersion/layoutMode retains legacy inputs.",
+      "legacyLimits": { "baysX": 10, "baysY": 8, "floors": 6, "rowDepth": 20 },
+      "inputLimits": { "baysMin": 2, "baysMax": 20, "floorsMin": 1, "floorsMax": 20 }
+    },
     "_doc": "Floor plans and interior volumes (INTERIOR_SPEC.md). floor: finished floor above an upper floor line; groundFloor: 1F floor above the street; ceiling: below the next floor line; atticCeiling: below the top of the steep slope; atticLining: how far (horizontally) the attic's sloping inner face sits inside the zinc. corridor and bands are between wall centre lines; bands.double / bands.core: interior depth from which a corridor / a central zone with a second corridor appear. doors: [width, height].",
     "floor": 0.2,
     "groundFloor": 0.15,

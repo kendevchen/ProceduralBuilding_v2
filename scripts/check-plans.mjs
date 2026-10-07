@@ -53,7 +53,7 @@ try {
     result = {
       mode: "benchmark", environment: { node: process.version, platform: platform(), arch: arch(), cpu: cpus()[0]?.model },
       warmup: options.warmup, samples: options.samples,
-      scope: "Vite SSR CPU: generateBuilding uses a key-only PartIndex; planBuilding includes checkPlan. Excludes kit meshes, interiors, furniture, labels, browser and GPU.",
+      scope: "Vite SSR CPU: generateBuilding includes topology resolution and uses a key-only PartIndex; planBuilding includes checkPlan. Excludes kit meshes, interiors, furniture, labels, browser and GPU.",
       baseParams: defaultParams(), cases: [],
     };
     for (const fixture of [
@@ -96,7 +96,7 @@ try {
     assert.equal(baseline.schemaVersion, 1);
     assert.deepEqual(defaultParams(), baseline.baseParams, "legacy default parameters changed; review the baseline explicitly");
     for (const fixture of baseline.cases) {
-      const params = { ...baseline.baseParams, ...fixture.overrides };
+      const params = { ...baseline.baseParams, ...fixture.overrides, dimensionVersion: "legacy", layoutMode: "legacy" };
       const b = generateBuilding(params, kit), plan = planBuilding(b, params);
       assert.deepEqual(plan.issues, [], `${fixture.name}: generated plan issues`);
       assert.deepEqual(structureOf(b, plan), fixture.structure, `${fixture.name}: legacy structure changed`);

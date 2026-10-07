@@ -17,15 +17,15 @@ import type { BuildingParams, DetailStyle, DormerStyle, PedimentStyle, WindowOve
 import { PURPOSE, rand } from "./rng";
 import type { RoomKind, RoomSlot } from "./interiors";
 import { type EdgeKind, type V2, roofShape } from "./roof";
+import { resolveBuildingTopology, TopologyResolutionError, type BuildingTopology, type Row, type SideKind, type CornerKind } from "./buildingTopology";
+export { upperRows, ballroomBays } from "./buildingTopology";
+export type { UpperClass, Row, SideKind, CornerKind } from "./buildingTopology";
 
 export interface PartIndex {
   key(collection: string, variant: string): string;
 }
 
-export type UpperClass = "N" | "S" | "A";
 type Balcony = "continuous" | "balconnet" | "gardecorps";
-export type SideKind = "street" | "court" | "party";
-export type CornerKind = "pier" | "pc" | "endL" | "endR" | "none";
 
 /** one bay of a facade, for the floor plans (plan.ts) */
 export interface BayInfo {
@@ -53,16 +53,9 @@ export interface SideInfo {
   diag: (BayInfo & { frame: Matrix4 }) | null;
 }
 
-export interface Row {
-  cls: UpperClass;
-  /** floor level */
-  z: number;
-  height: number;
-  /** continuous balcony along the street facades */
-  continuous: boolean;
-}
-
 export interface Building {
+  /** Shared immutable structure, created before exterior placements. */
+  topology: BuildingTopology;
   placements: Placement[];
   style: Style;
   width: number;
@@ -135,27 +128,6 @@ const CONSOLES: Record<Exclude<Balcony, "gardecorps">, number[]> = {
   continuous: [-1.1, 1.1],
   balconnet: [-0.75, 0.75],
 };
-const SIDE_KINDS: Record<BuildingParams["type"], SideKind[]> = {
-  freestanding: ["street", "street", "street", "street"],
-  corner: ["street", "street", "party", "party"],
-  row: ["street", "party", "court", "party"],
-};
-
-/** upper floors with their height classes (KIT_SPEC.md §3.2): the first and the
- *  last floor carry the continuous balconies */
-export function upperRows(p: BuildingParams): Row[] {
-  const profile = dims.heightProfiles[p.profile];
-  const rows: Row[] = [];
-  let z = dims.classes.G.height;
-  for (let i = 0; i < p.floors; i++) {
-    const cls = (i === 0 ? profile.first : i === p.floors - 1 ? profile.last : profile.middle) as UpperClass;
-    const height = dims.classes[cls].height;
-    rows.push({ cls, z, height, continuous: i === 0 || i === p.floors - 1 });
-    z += height;
-  }
-  return rows;
-}
-
 /** the building's colours and railing pattern (KIT_SPEC.md §6.6) */
 export function buildingStyle(p: BuildingParams): Style {
   return {
@@ -182,47 +154,18 @@ function dormer(style: DormerStyle, si: number, i: number): string {
   return si === 2 ? "zinc" : "oeil";
 }
 
-/** front bays of the ballroom (INTERIOR_SPEC.md §5.6): centred on the front
- *  between the two corner rooms, 2 to 4 bays wide; it needs two upper floors
- *  and a plan deep enough for a corridor behind it */
-export function ballroomBays(p: BuildingParams, n: number, left: CornerKind, right: CornerKind, upperFloors: number, length: number): number[] | null {
-  const B = dims.interior;
-  if (!p.ballroom || upperFloors < 2 || length - 2 * dims.wall < B.bands.double) return null;
-  // the first and last bays share their column with a square corner or end pier
-  const first = left === "pc" ? 0 : 1;
-  const last = right === "pc" ? n - 1 : n - 2;
-  const mid = last - first + 1;
-  const w = mid <= B.ballroom.maxBays ? mid : mid % 2 === 1 ? B.ballroom.maxBays - 1 : B.ballroom.maxBays;
-  if (w < B.ballroom.minBays) return null;
-  const s = first + Math.floor((mid - w) / 2);
-  return Array.from({ length: w }, (_, k) => s + k);
-}
-
 export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
-  const { bay, corner, endPier } = dims;
+  const resolved = resolveBuildingTopology(p);
+  if (resolved.status !== "ready") throw new TopologyResolutionError(resolved);
+  const topology = resolved.topology;
+  const { bay, corner } = dims;
   const leg = dims.panCoupe.leg;
   const style = buildingStyle(p);
-  const kinds = SIDE_KINDS[p.type];
-  const rows = upperRows(p);
-  const last = rows[rows.length - 1];
-  const wallTop = last ? last.z + last.height : dims.classes.G.height;
-  const roofBase = wallTop + dims.cornice.height;
+  const kinds = topology.facades.map(s => s.kind);
+  const rows = topology.rows.map(r => ({ ...r }));
+  const { wallTop, roofBase, width: W, length: L, door: doorBay } = topology;
+  const ballroom = topology.ballroom ? [...topology.ballroom] : null;
   const seed = p.seed;
-
-  // corner c joins side c - 1 and side c; side c owns it (its left end)
-  const cornerKind = (c: number): CornerKind => {
-    const prev = kinds[(c + 3) % 4], own = kinds[c];
-    if (prev === "party" && own === "party") return "none";
-    if (prev === "party") return "endL";
-    if (own === "party") return "endR";
-    return prev === "street" && own === "street" && p.cornerStyle === "panCoupe" ? "pc" : "pier";
-  };
-  const ck = [0, 1, 2, 3].map(cornerKind);
-  const allowance = (k: CornerKind) => (k === "pier" || k === "pc" ? corner : k === "none" ? 0 : endPier);
-  const W = allowance(ck[0]) + bay * p.baysX + allowance(ck[1]);
-  const L = p.type === "row" ? p.depth : allowance(ck[1]) + bay * p.baysY + allowance(ck[2]);
-  const frontBays = p.baysX - (ck[0] === "pc" ? 1 : 0) - (ck[1] === "pc" ? 1 : 0);
-  const ballroom = ballroomBays(p, frontBays, ck[0], ck[1], rows.length, L);
   /** front bays whose two floors are one tall window (INTERIOR_SPEC.md §8) */
   const tallBays = new Set(p.ballroomFacade === "tall" ? ballroom ?? [] : []);
 
@@ -237,7 +180,6 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
     return d ? (d === "none" ? null : d) : rule;
   };
   const MIRROR = new Matrix4().makeScale(-1, 1, 1);
-  const DIAG = new Matrix4().makeRotationZ(-Math.PI / 4).setPosition(leg / 2, leg / 2, 0);
   type Put = (collection: string, variant: string, x: number, z: number, opts?: { mirror?: boolean; angle?: number; y?: number }) => Matrix4;
   const putter = (frame: Matrix4): Put => (collection, variant, x, z, opts = {}) => {
     const m = frame.clone().multiply(new Matrix4().makeTranslation(x, opts.y ?? 0, z));
@@ -401,12 +343,7 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
   const awningFor = (shop: string, si: number, i: number) =>
     shop === "shop_cafe" || rand(seed, si, i, PURPOSE.awning) < 0.5 ? "open" : "retracted";
 
-  const sideFrames = [
-    new Matrix4().setPosition(0, 0, 0),
-    new Matrix4().makeRotationZ(Math.PI / 2).setPosition(W, 0, 0),
-    new Matrix4().makeRotationZ(Math.PI).setPosition(W, L, 0),
-    new Matrix4().makeRotationZ(-Math.PI / 2).setPosition(0, L, 0),
-  ];
+  const sideFrames = topology.facades.map(s => new Matrix4().fromArray(s.frame));
   const ends = (put: Put, kind: SideKind, x: number, mirror: boolean) => {
     put("G_end", "pier", x, 0, { mirror });
     for (const r of rows) {
@@ -418,10 +355,9 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
   };
 
   const sides: SideInfo[] = [];
-  let doorBay = -1;
   kinds.forEach((kind, si) => {
-    const left = ck[si], right = ck[(si + 1) % 4];
-    const length = si % 2 === 0 ? W : L;
+    const structural = topology.facades[si];
+    const { left, right, length } = structural;
     const side: SideInfo = { kind, frame: sideFrames[si], length, left, right, x0: 0, bays: [], diag: null };
     sides.push(side);
     if (kind === "party") return;
@@ -455,7 +391,7 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
         put("R_ridge", "post", t - run, roofBase, { y: 0 });
       }
       // the diagonal's middle bay: standard modules turned -45 degrees
-      const dput = putter(sideFrames[si].clone().multiply(DIAG));
+      const dput = putter(new Matrix4().fromArray(structural.diagonal!.frame));
       const ground = p.groundUse !== "residential" ? "shop_cafe" : `window_${own(windowKey(si, -1, "g")).ground ?? p.groundWindow}`;
       const diag: Geo = { along: 500, length: 1000, depth: 1.8 };
       tag = windowKey(si, -1, "g");
@@ -464,26 +400,25 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
       tag = undefined;
       const diagDormer = dormerOf(si, -1, p.dormerStyle === "mixed" ? "oeil" : p.dormerStyle);
       upperBay(dput, "street", si, -1, 1, 0, diagDormer, diag);
-      side.diag = { x: 0, ground, dormer: diagDormer, frame: sideFrames[si].clone().multiply(DIAG) };
+      side.diag = { x: 0, ground, dormer: diagDormer, frame: new Matrix4().fromArray(structural.diagonal!.frame) };
     } else if (left === "endL") {
       ends(put, kind, 0, false);
     }
     if (right === "endR") ends(put, kind, length, true);
 
     // ---- the bays
-    const n = (si % 2 === 0 ? p.baysX : p.baysY) - (left === "pc" ? 1 : 0) - (right === "pc" ? 1 : 0);
-    const x0 = allowance(left) + (left === "pc" ? bay : 0);
+    const n = structural.bays.length;
+    const x0 = structural.x0;
     // door on the middle bay of the front; on an even facade left or right of the centre
-    const door = si !== 0 || !street ? -1 : n % 2 === 1 ? (n - 1) / 2 : n / 2 - (rand(seed, PURPOSE.doorBay) < 0.5 ? 1 : 0);
+    const door = si === 0 && street ? doorBay : -1;
     const doorVariant = p.doorStyle === "random"
       ? DOORS[Math.floor(rand(seed, PURPOSE.doorStyle) * DOORS.length)]
       : `door_${p.doorStyle}`;
     const shops = street ? shopsOf(si, n, door) : [];
     const depth = Math.min(4.6, (si % 2 === 0 ? L : W) / 2 - 0.45);
     side.x0 = x0;
-    if (si === 0) doorBay = door;
     for (let i = 0; i < n; i++) {
-      const x = x0 + bay * (i + 0.5);
+      const x = structural.bays[i].x;
       const geo: Geo = { along: x, length, depth };
       const o = own(windowKey(si, i, "g"));
       const variant = i === door ? (o.door ? `door_${o.door}` : doorVariant)
@@ -499,21 +434,8 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
     }
   });
 
-  // ---- footprint (pan coupés chamfered) and its edge kinds, for the roof
-  const corners: V2[] = [[0, 0], [W, 0], [W, L], [0, L]];
-  const dirs: V2[] = [[1, 0], [0, 1], [-1, 0], [0, -1]];
-  const footprint: V2[] = [];
-  const edgeKinds: EdgeKind[] = [];
-  for (let c = 0; c < 4; c++) {
-    const [ox, oy] = corners[c];
-    if (ck[c] === "pc") {
-      const pd = dirs[(c + 3) % 4], td = dirs[c];
-      footprint.push([ox - pd[0] * leg, oy - pd[1] * leg]);
-      edgeKinds.push("slope");
-      footprint.push([ox + td[0] * leg, oy + td[1] * leg]);
-    } else footprint.push([ox, oy]);
-    edgeKinds.push(kinds[c] === "party" ? "party" : "slope");
-  }
+  const footprint = topology.footprint.map(q => [...q] as V2);
+  const edgeKinds = [...topology.edgeKinds];
 
   // ---- roof top: finials at the flat top's corners between slopes, chimneys
   // along its middle and on the party walls
@@ -542,7 +464,7 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
     chimneys.push({ at: [cx, cy], key: kit.key("R_chimney", kind), angle: along ? 0 : Math.PI / 2 });
   }
   return {
-    placements, style, width: W, length: L, rows, wallTop, roofBase, footprint, edgeKinds, rooms,
+    topology, placements, style, width: W, length: L, rows, wallTop, roofBase, footprint, edgeKinds, rooms,
     sides, door: doorBay, ballroom, tall: [...tallBays], chimneys, windows,
   };
 }

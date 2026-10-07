@@ -4,7 +4,9 @@
 
 ## 1. 已完成
 
-- **20 上限 P0（2026-10-07）**：完成前置基線與合併通行檢查修正。預設 `1F-04`／`1F-05` 店面合併成臥室後，原街面入口仍在；`checkPlan` 改依一樓實際門／店面開口及歸屬判斷街道入口，改名不會消除入口，內部房間僅改名店面也不會憑空可達。`src/planChecks.ts` 共用矩陣與報告，新增 `check:plans` 獨立入口及 `bench:plans`。修正前擷取 11 組舊結構與完整平面雜湊，修正後全部一致。tsc、build、房間編輯 1,059 次合併／512 個非矩形輪廓、三種戶數共 25,920 組平面矩陣通過。CPU 基線（M3 Pro，Node SSR，暖機 5／取樣 30）：20×20×20 平面含 checker p95 261.37 ms；不含室內／家具／GPU，尚未達 100 ms 目標。GUI 仍為 10／8／6；P1–P8 尚未實作。詳見 [P0 執行紀錄](Guide/room-planning_v2/P0執行紀錄.md) 與 [20 上限實作計畫](Guide/room-planning_v2/20上限實作計畫.md)。本次未做瀏覽器視覺驗收。
+- **20 上限 P1（2026-10-07）**：新增 `buildingTopology.ts` 與 `planning/legacyGrid.ts`，在外牆生成前解析尺寸／樓層、立面、固定格子／鄰接、核心與宴會廳孔洞；平面共用不可變結構。矩形共邊、牆／鄰居、窗戶查詢索引化，開門增量更新可達性。尺寸版本未填仍保留連棟 `depth` 公尺值，明選 `bays-v2` 才讓 `baysY` 控制長度；模式有 ready／unsupported／infeasible 結果，大型 auto／中庭／井尚未支援，不默默退回。25,920 組完整平面與 P0 完全一致，11 組完整外牆輸出一致；9,037 次新舊鄰接 oracle 比對、房間編輯／七種展開／多棟／透明度、tsc 與 build 通過。20×20×20 純結構＋平面含 checker p95 約 47 ms；寫實家具 p50 約 12.9 秒，室內／樓梯／家具約 1,244 萬面、974 MiB buffers，標籤 RGBA 估算 808 MiB，整棟 CPU／瀏覽器性能尚未達標。GUI 維持 10／8／6，P2–P8 尚未實作，本次未做瀏覽器視覺驗收。詳見 [P1 執行紀錄](Guide/room-planning_v2/P1執行紀錄.md)。下一階段 P2：GPT-6.1 Sol / high。
+
+- **20 上限 P0（2026-10-07）**：完成前置基線與合併通行檢查修正。預設 `1F-04`／`1F-05` 店面合併成臥室後，原街面入口仍在；`checkPlan` 改依一樓實際門／店面開口及歸屬判斷街道入口，改名不會消除入口，內部房間僅改名店面也不會憑空可達。`src/planChecks.ts` 共用矩陣與報告，新增 `check:plans` 獨立入口及 `bench:plans`。修正前擷取 11 組舊結構與完整平面雜湊，修正後全部一致。tsc、build、房間編輯 1,059 次合併／512 個非矩形輪廓、三種戶數共 25,920 組平面矩陣通過。CPU 基線（M3 Pro，Node SSR，暖機 5／取樣 30）：20×20×20 平面含 checker p95 261.37 ms；不含室內／家具／GPU，尚未達 100 ms 目標。GUI 仍為 10／8／6；P0 當時的量測範圍只含配置資料與平面。詳見 [P0 執行紀錄](Guide/room-planning_v2/P0執行紀錄.md) 與 [20 上限實作計畫](Guide/room-planning_v2/20上限實作計畫.md)。本次未做瀏覽器視覺驗收。
 
 - **外牆透明度（2026-10-07）**：剖切面板新增 0–100% 滑桿，普通剖切／三段展開共用，按棟保存；外牆內襯與隔間分批，僅外殼（含門窗、窗簾與屋頂）透明，隔間／家具／樓板維持原狀。預設不透明、100% 隱藏外殼；關閉內部或切換離開恢復外觀。拖動不重建幾何，半透明不寫深度／投影；建置、`check:facade`、`check:buildings` 與七種 `check:unfold` 回歸通過，瀏覽器視覺驗收尚待確認。
 
@@ -28,7 +30,7 @@
 
 ## 2. 還沒做、已知問題
 
-- **選擇性退回 `2436899`**：正面／側面開間與上層 GUI 上限恢復為 10／8／6，原房間配置規則不變。保留四向（前／後／左／右）新增＋鏡頭重新對準動畫、二維列／欄排列及「每棟間距 m」全域淨距（0–20 m），間距調整只移動模型不重建。大型配置交接計畫與 `f0ec2b2` 備份保留為未來工作參考，20×20 規劃尚未實作，亦非目前 GUI 範圍。
+- **選擇性退回 `2436899`**：正面／側面開間與上層 GUI 上限恢復為 10／8／6，原房間配置規則不變。保留四向（前／後／左／右）新增＋鏡頭重新對準動畫、二維列／欄排列及「每棟間距 m」全域淨距（0–20 m），間距調整只移動模型不重建。大型配置交接計畫與 `f0ec2b2` 備份保留為未來工作參考，20×20 的新中庭／井與高層規則尚未實作，亦非目前 GUI 範圍。
 
 - **城市編輯模式（2026-10-07）**：預設關閉，底部 `.tb` 工具列「顯示內部」後方新增鉛筆 icon＋「編輯模式」按鈕。啟用才顯示四向新增、左上棟數與左右切換；目前建築／四向新增／街區總覽／每棟間距收進「城市編輯」資料夾。關閉保留所有建築，隱藏控制並停用大門與選單／箭頭切換。建置及 `check:buildings` 通過；瀏覽器驗證預設隱藏、新增兩棟、箭頭切換、關閉／再開保留棟群，以及收合時模式按鈕仍可使用。
 
@@ -82,7 +84,9 @@
 | `npm run build` | 建置 |
 | `npm run check:rooms` | 房間編輯回歸；加 `-- --plans` 執行完整平面矩陣 |
 | `npm run check:plans` | 獨立驗證 11 組舊配置基線與 25,920 組平面矩陣；`-- --baseline-only` 只驗基線，`-- --json 路徑` 輸出報告 |
-| `npm run bench:plans` | SSR CPU 計時（暖機 5／取樣 30），含生成與平面檢查；可用 `-- --json 路徑` 保存，不含室內／家具／GPU |
+| `npm run bench:plans` | SSR CPU 計時（暖機 5／取樣 30），含結構解析、生成與平面檢查；可用 `-- --json 路徑` 保存，不含室內／家具／GPU |
+| `npm run check:topology` | 尺寸版本、模式、不可變結構與穩定 ID；9,037 次索引／舊鄰接 oracle 比對 |
+| `npm run bench:interior` | 寫實室內／家具／樓梯／標籤物件／室內展開成本（暖機 1／取樣 3）；本地 kit 開口與包圍盒，不含真正 Canvas 畫圖、外牆 mesh 與 GPU |
 | `npm run check:unfold` | 三段展開：七種配置、座標／裁切、燈光、標籤、點選、收合及資源釋放回歸 |
 | `npm run kit` | 重建零件、匯出 `public/assets/kit.glb` 與 manifest |
 | `npm run tex` | 烘焙貼圖 |
@@ -97,7 +101,7 @@
 | 加／改家具 | INTERIOR_SPEC 6.8 | `src/furniture.ts`、`src/lampLights.ts` |
 | 家具總覽、中英文名稱 | INTERIOR_SPEC 6.9 | `src/furnitureGallery.ts`、`src/furniture.ts` 的 `buildFurnitureItems`、`src/main.ts` |
 | 房間的地板與牆面 | INTERIOR_SPEC 6.7 | `src/finishes.ts` |
-| 房間種類、門、樓梯間大小（平面規則） | INTERIOR_SPEC 5 | `src/plan.ts` |
+| 房間種類、門、樓梯間大小（平面規則） | INTERIOR_SPEC 5 | `src/plan.ts`；共用結構／格子另讀 `src/buildingTopology.ts`、`src/planning/legacyGrid.ts` |
 | 點房間名稱、改房型、合併與復原 | INTERIOR_SPEC 5.9 | `src/roomEditor.ts`、`src/roomEdits.ts`、`src/roomGeometry.ts`、`src/roomLabels.ts`；`src/main.ts` 的 `rebuild` |
 | 樓梯 | INTERIOR_SPEC 7 | `src/stairs.ts`、`plan.ts` 的 `layoutStair` |
 | 剖切、工具列、顯示內部 | INTERIOR_SPEC 2 | `src/cutaway.ts`、`src/toolbar.ts`、`src/main.ts`（`applyCut`） |
