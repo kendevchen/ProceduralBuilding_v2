@@ -1,0 +1,58 @@
+import assert from 'node:assert/strict';
+import { createServer } from 'vite';
+import { BoxGeometry, Group, Mesh, MeshStandardMaterial, ShaderLib } from 'three';
+
+const server = await createServer({ server: { middlewareMode: true, ws: false }, appType: 'custom' });
+try {
+  const load = name => server.ssrLoadModule(`/src/${name}.ts`);
+  const { FacadeTransparency } = await load('facadeTransparency');
+  const { Cutaway } = await load('cutaway');
+  const { UnfoldView } = await load('unfold');
+  const { defaultParams } = await load('params');
+  const { generateBuilding } = await load('generator');
+  const { planBuilding } = await load('plan');
+  const { buildRooms3d } = await load('rooms3d');
+  const params = defaultParams(), kit = { key: (c, v) => `${c}/${v}`, info: () => undefined };
+  const building = generateBuilding(params, kit), plan = planBuilding(building, params), cutaway = new Cutaway();
+  const rooms = buildRooms3d(plan, building, kit, cutaway.interior, 'real');
+  const lining = rooms.children.find(mesh => mesh.userData.facadeShell);
+  assert.ok(lining?.geometry.getAttribute('position').count > 0, 'exterior lining is a separate batch');
+  assert.ok(rooms.children.some(mesh => !mesh.userData.facadeShell && mesh.material === lining.material), 'partitions share source material, but must not fade');
+  const root = new Group(), geometry = new BoxGeometry(), base = new MeshStandardMaterial({ name: 'stone' });
+  const shell = new Mesh(geometry, base), neighbour = new Mesh(geometry, base);
+  shell.userData.facadeShell = true; shell.castShadow = true;
+  root.add(shell, rooms);
+  cutaway.apply(root, true);
+  const original = shell.material, roomMaterials = rooms.children.map(mesh => mesh.material);
+  const fade = new FacadeTransparency();
+  fade.apply(root, 0.5);
+  const half = shell.material, shader = { uniforms: {}, fragmentShader: ShaderLib.standard.fragmentShader };
+  half.onBeforeCompile(shader, {});
+  assert.equal(shader.uniforms.uFacadeFade.value, 0.5);
+  assert.ok(shader.fragmentShader.indexOf('gl_FragColor.a *= uFacadeFade') > shader.fragmentShader.indexOf('if (!gl_FrontFacing)'), 'black cut faces also fade');
+  assert.equal(half.transparent, true); assert.equal(half.depthWrite, false);
+  assert.equal(shell.castShadow, false); assert.equal(neighbour.material, base);
+  assert.equal(base.transparent, false); assert.equal(original.transparent, false);
+  rooms.children.forEach((mesh, i) => {
+    if (mesh !== lining) assert.equal(mesh.material, roomMaterials[i], 'interior and door frames remain unchanged');
+  });
+  fade.apply(root, 0.8);
+  assert.equal(shell.material, half, 'dragging reuses the material');
+  assert.equal(shader.uniforms.uFacadeFade.value, 1 - 0.8);
+  fade.apply(root, 1); assert.equal(shell.visible, false);
+  fade.apply(root, 0);
+  assert.equal(shell.material, original); assert.equal(shell.visible, true); assert.equal(shell.castShadow, true);
+  let disposed = 0; half.addEventListener('dispose', () => disposed++);
+  fade.dispose(); assert.equal(disposed, 1);
+  const unfold = new UnfoldView(root, plan, cutaway);
+  assert.ok(unfold.group.children.some(part => part.children.some(mesh => mesh.userData.facadeShell)), 'unfold retains shell tags');
+  const unfoldMaterials = [];
+  unfold.group.traverse(mesh => { if (mesh instanceof Mesh && !mesh.userData.facadeShell) unfoldMaterials.push([mesh, mesh.material]); });
+  fade.apply(unfold.group, 0.6);
+  for (const [mesh, material] of unfoldMaterials) assert.equal(mesh.material, material);
+  fade.dispose(); unfold.dispose();
+  assert.equal(neighbour.material, base);
+  rooms.traverse(mesh => { if (mesh instanceof Mesh) mesh.geometry.dispose(); });
+  geometry.dispose(); base.dispose();
+  console.log('Facade transparency checks passed: inner lining, independent variants, slider reuse, cut alpha, unfold, restoration and disposal.');
+} finally { await server.close(); }

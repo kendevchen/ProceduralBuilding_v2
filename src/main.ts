@@ -39,6 +39,7 @@ import { UnfoldView, type UnfoldFocus } from "./unfold";
 import dims from "../blender/kit_dims.json";
 import { BuildingScene, type AddDirection } from "./buildingScene";
 import { bindBuildingOrigin } from "./shaderVariant";
+import { FacadeTransparency } from "./facadeTransparency";
 
 const renderer = new WebGLRenderer({ antialias: true, powerPreference: "high-performance", logarithmicDepthBuffer: true });
 const DEFAULT_PIXEL_RATIO = Math.min(devicePixelRatio, 1.25);
@@ -98,7 +99,8 @@ let lastFurniture: Group | null = null;
 let lastEdited: EditedPlan | null = null;
 
 /** cutting the building open (INTERIOR_SPEC.md §2): t is the plane's place, 0..1 within the bounds */
-const cut = { on: false, mode: "horizontal" as CutMode, axis: "across" as CutAxis, flip: false, t: 1, sweep: false, dir: 1 };
+const cut = { on: false, mode: "horizontal" as CutMode, axis: "across" as CutAxis, flip: false, t: 1, sweep: false, dir: 1, facadeTransparency: 0 };
+const facadeTransparency = new FacadeTransparency();
 let cutaway = new Cutaway();
 /** world bounds of the building (all it is made of, a little beyond), for placing the plane and framing the camera */
 const bounds = { min: new Vector3(-8, 0, -6), max: new Vector3(8, 22, 6) };
@@ -156,6 +158,7 @@ function selectBuilding(id: string, animate = false): void {
   const cameraFrom = camera.position.clone(), targetFrom = controls.target.clone();
   const previous = city.active, saved = captureBuilding();
   previous.state = saved;
+  facadeTransparency.dispose();
   roomEditor.clearSelection(); windows.update(null, null);
   releaseUnfold();
   if (shown) { cutaway.apply(shown, false); shown.visible = true; previous.root.add(shown); }
@@ -202,7 +205,7 @@ function selectBuilding(id: string, animate = false): void {
     materials.setLook(saved.facadeLook); facadeSettings.look = saved.facadeLook;
     street = new StreetLife(); Object.assign(street.params, streetSettings); street.group.position.copy(next.position); scene.add(street.group);
     shown = null; interior = null; roomBoxes = null; labels = null; lastBuilding = null; lastPlan = null; lastFurniture = null;
-    Object.assign(cut, { on: false, sweep: false, t: 1 });
+    Object.assign(cut, { on: false, sweep: false, t: 1, facadeTransparency: 0 });
     Object.assign(unfold, { selected: false, amount: dims.interior.unfold.initialAmount, depth: dims.interior.unfold.frontDepth, focus: "all" });
     unfoldCurrent = 0; unfoldSpacing = null; interiorView.plan = false;
     rebuild();
@@ -244,6 +247,7 @@ controls.addEventListener("start", () => { cameraMotion = null; });
 
 function releaseUnfold(): void {
   if (!unfoldView) return;
+  facadeTransparency.dispose();
   if (labels && shown) shown.add(labels.group);
   unfoldView.dispose(); unfoldView = null;
   if (shown) shown.visible = true;
@@ -334,6 +338,7 @@ function frameGallery(width: number, front: number): void {
 
 function rebuild(frame = false): void {
   if (!kit || !materials) return;
+  facadeTransparency.dispose();
   releaseUnfold();
   const overview = view.gallery || view.furnitureGallery || interiorView.plan;
   root.position.copy(view.gallery || view.furnitureGallery ? new Vector3() : city.active.position);
@@ -401,6 +406,8 @@ function rebuild(frame = false): void {
   const curtains = new Mesh(inside.curtains, materials.voile);
   curtains.receiveShadow = true;
   g.add(curtains);
+  // Only the exterior shell: never mark furniture, stairs or internal partitions.
+  g.traverse(object => { if (object instanceof Mesh && object !== roomBoxes) object.userData.facadeShell = true; });
   if (cut.on) {
     interior = buildRooms3d(plan, b, kit, cutaway.interior, interiorView.look);
     // the stairs' railing: the kit's first lace pattern (欄杆與圓環)
@@ -481,6 +488,8 @@ function cutPosition(): { at: number } {
  * plane past the building leaves it whole, with the interior still in place (the toggle hides it).
  */
 function applyCut(force = false): void {
+  facadeTransparency.restore();
+  toolbar.showFacadeTransparency(cut.facadeTransparency);
   if (cut.on && !interior && !view.gallery && !view.furnitureGallery && !interiorView.plan && kit) {
     rebuild(); return;
   }
@@ -502,6 +511,7 @@ function applyCut(force = false): void {
     cutShown = true; lampLights.on = true;
     unfold.depth = Math.min(unfold.depth, site.length * dims.interior.unfold.maxDepthRatio);
     updateUnfold();
+    facadeTransparency.apply(unfoldView.group, cut.facadeTransparency);
     toolbar.show("unfold", cut.axis, cut.t, cut.flip);
     toolbar.showUnfold(unfold.amount, unfold.depth, site.length * dims.interior.unfold.maxDepthRatio, unfold.focus);
     toolbar.showUnfoldSpacing(unfoldView.spacing, unfoldView.spacingRange);
@@ -536,6 +546,7 @@ function applyCut(force = false): void {
   const own = cut.mode === "horizontal" ? at : cut.axis === "across" ? at - root.position.x + site.width / 2 : site.length / 2 - (at - root.position.z);
   labels?.update(on && interiorView.labels, cut.mode, cut.axis, own, cut.flip);
   labels?.setClip(on ? cutaway.plane : null);
+  if (on && shown) facadeTransparency.apply(shown, cut.facadeTransparency);
 }
 
 /** name of the floor a height (m) is in, for the horizontal cut */
@@ -876,6 +887,11 @@ const toolbar = new Toolbar({
     if (m === "unfold") frameUnfold();
   },
   unfoldAmount: setUnfoldAmount,
+  facadeTransparency: t => {
+    cut.facadeTransparency = t;
+    cut.on = true;
+    applyCut();
+  },
   unfoldSpacing: t => {
     if (!unfoldView) return;
     cameraMotion = null;

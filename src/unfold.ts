@@ -136,6 +136,7 @@ export class UnfoldView {
         mesh.name = object.name;
         // Retain source identity even when geometry is an index view.
         mesh.userData.unfoldSource = object.uuid;
+        if (object.userData.facadeShell) mesh.userData.facadeShell = true;
         mesh.matrixAutoUpdate = false; mesh.matrix.copy(local);
         mesh.castShadow = object.castShadow; mesh.receiveShadow = object.receiveShadow;
         mesh.renderOrder = object.renderOrder;

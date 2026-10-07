@@ -21,6 +21,7 @@ export interface ToolbarActions {
   unfoldDepth(t: number): void;
   unfoldSpacing(t: number): void;
   unfoldFocus(focus: UnfoldFocus): void;
+  facadeTransparency(t: number): void;
   axis(a: CutAxis): void;
   /** vertical cuts: keep the other side of the plane */
   flip(on: boolean): void;
@@ -75,6 +76,9 @@ const CSS = /* css */ `
 .cut .head { flex-wrap: wrap; }
 .cut .seg button { padding: 7px 10px; }
 .cut .unfold label { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+.cut .facade-control { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+.cut .facade-control input { min-width: 0; }
+.cut .facade-control output { min-width: 3.8em; text-align: right; font-variant-numeric: tabular-nums; }
 .cut .unfold input { min-width: 0; }
 .cut .unfold output { min-width: 3.8em; text-align: right; font-variant-numeric: tabular-nums; }
 .cut .focus { flex-wrap: wrap; gap: 6px; }
@@ -162,6 +166,7 @@ export class Toolbar {
         <button class="close" title="關閉">✕</button>
       </div>
       <div class="row cut-position"><span class="end lo"></span><input aria-label="剖切位置" type="range" min="0" max="1000" step="1"><span class="end hi"></span></div>
+      <label class="facade-control">外牆透明度<input aria-label="外牆透明度" class="facade-transparency" type="range" min="0" max="100" step="1" value="0"><output class="facade-value">0%</output></label>
       <div class="unfold" hidden>
         <label>展開程度<input aria-label="展開程度" class="amount" type="range" min="0" max="1000" step="1"><output class="amount-value"></output></label>
         <label>正面開口<input aria-label="正面開口深度" class="depth" type="range" min="0" max="1000" step="1"><output class="depth-value"></output></label>
@@ -177,6 +182,8 @@ export class Toolbar {
     document.body.appendChild(this.panel);
     const q = <E extends Element>(s: string) => this.panel.querySelector(s) as E;
     this.slider = q<HTMLInputElement>("input");
+    const facade = q<HTMLInputElement>(".facade-transparency");
+    facade.oninput = () => actions.facadeTransparency(Number(facade.value) / 100);
     this.lo = q<HTMLSpanElement>(".lo");
     this.hi = q<HTMLSpanElement>(".hi");
     this.levelLabel = q<HTMLSpanElement>(".level");
@@ -254,6 +261,12 @@ export class Toolbar {
   showUnfoldSpacing(distance: number, [min, max]: [number, number]): void {
     this.panel.querySelector<HTMLInputElement>(".spacing")!.value = String(Math.round((distance - min) / Math.max(1e-6, max - min) * 1000));
     this.panel.querySelector(".spacing-value")!.textContent = `${distance.toFixed(1)} m`;
+  }
+
+  showFacadeTransparency(t: number): void {
+    const percent = Math.round(t * 100);
+    this.panel.querySelector<HTMLInputElement>(".facade-transparency")!.value = String(percent);
+    this.panel.querySelector(".facade-value")!.textContent = `${percent}%`;
   }
 
   /** whether the interior is on show: the button lights up */

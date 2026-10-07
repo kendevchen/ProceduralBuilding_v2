@@ -30,6 +30,7 @@
 | 改房型／合併／復原 | `src/roomEdits.ts`、`src/roomEditor.ts` | roomGeometry、plan、roomLabels、main rebuild；INTERIOR_SPEC §5.9 | 核心編輯與 UI 分開搬；注意通行性問題 |
 | 地板／牆面／家具花紋 | `src/finishes.ts`：`stampOf()`、`stampAttributes()`、`finishMaterial()` | stamp 頂點屬性、shaderVariant；INTERIOR_SPEC §6.7 | 保留 stamping 機制，換材質與房型映射 |
 | 普通水平／縱向剖切 | `src/cutaway.ts`：`Cutaway`；`src/main.ts`：`applyCut()` | shaderVariant、材質分類、renderer clipping；INTERIOR_SPEC §2、§6.6 | 詳見第 5 節，不只是複製裁切平面 |
+| 外牆透明度 | `src/facadeTransparency.ts`：`FacadeTransparency` | rooms3d 的外牆內襯分批、facadeShell 標籤、shaderVariant、toolbar；INTERIOR_SPEC §2.1 | 外殼與隔間須分開；變體不修改共享材質，展開保留標籤；`npm run check:facade` 驗證 |
 | 左中右三段展開 | `src/unfold.ts`：`UnfoldView`、`unfoldCuts()` | sectionGeometry、cutaway、plan、labels、燈光；INTERIOR_SPEC §2.4 | 依 Bunker 形狀重訂切線，保留幾何／展示分離 |
 | 分段索引與 shader 座標 | `src/sectionGeometry.ts`：`sectionGeometry()`；`src/shaderVariant.ts` | 原 geometry 所有權、SOURCE_FRAME_GLSL、材質 clone | 展開效能與花紋穩定的必要搭配 |
 | 樓梯與紅毯／欄杆 | `src/stairs.ts`：`buildStairs()`；plan 的 `layoutStair` | InteriorMaterials、Tris、dims；INTERIOR_SPEC §7 | 方法可取，樓梯形式與尺寸依 v3 決定 |

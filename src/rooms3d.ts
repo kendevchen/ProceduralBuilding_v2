@@ -127,7 +127,9 @@ function shrink(poly: V2[]): V2[] {
 }
 
 export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: InteriorMaterials, look: Look = "white"): Group {
-  const walls = new Tris(), floors = new Tris(), ceilings = new Tris(), finishFloors = new Tris();
+  const partitionWalls = new Tris(), shellWalls = new Tris();
+  let walls = partitionWalls;
+  const floors = new Tris(), ceilings = new Tris(), finishFloors = new Tris();
   const finished = look !== "white";
   /** the wall faces, wearing a room's finish (or plain paint; the white model: nothing) */
   const paint = (room: PlanRoom | null) => {
@@ -227,6 +229,7 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
   };
 
   // ---- inner faces of the outer walls, floor to ceiling, with the openings and their reveals
+  walls = shellWalls;
   const edges = inner.map((a, i) => {
     const c = inner[(i + 1) % inner.length];
     const len = Math.hypot(c[0] - a[0], c[1] - a[1]);
@@ -317,6 +320,7 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
   // ---- walls between the rooms: floor to ceiling, on through the slab where a
   // side is open (that side's face white, the other inside the slab), and the
   // ballroom's walls on up through its upper floor
+  walls = partitionWalls;
   const section = new Tris();
   /** the room on the wall's left (+normal) side, and on its right */
   const sidesOf = (w: PlanWall): [string | null, string | null] => {
@@ -352,6 +356,7 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
   }
 
   // ---- the attic under the mansard
+  walls = shellWalls;
   const { rise, run } = dims.mansard;
   const rb = b.roofBase;
   const F = b.footprint;
@@ -433,6 +438,7 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
   }
 
   // the attic's walls end under the slope
+  walls = partitionWalls;
   const ceilingAt = atticCeiling(b, zc);
   const under = (p: V2) => ceilingAt(p) - 0.02;
   for (const w of plan.walls) {
@@ -462,11 +468,13 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
 
   const group = new Group();
   const parts: [Tris, Material][] = [[walls, finished ? mats.finishWall : mats.wall], [floors, mats.floor], [ceilings, mats.ceiling],
-    [section, mats.section], [finishFloors, mats.finishFloor], [frames, finished ? mats.finishWall : mats.wall]];
+    [section, mats.section], [finishFloors, mats.finishFloor], [frames, finished ? mats.finishWall : mats.wall],
+    [shellWalls, finished ? mats.finishWall : mats.wall]];
   for (const [t, m] of parts) {
     if (!t.pos.length) continue;
     const mesh = new Mesh(t.geometry(), m);
     if (t === frames) mesh.name = "interior_door_frames";
+    if (t === shellWalls) { mesh.name = "facade_inner_lining"; mesh.userData.facadeShell = true; }
     mesh.castShadow = mesh.receiveShadow = true;
     group.add(mesh);
   }
