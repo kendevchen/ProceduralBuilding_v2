@@ -157,8 +157,8 @@ export class WindowEditor {
   private buildFolder(slot: WindowSlot): void {
     const p = this.host.params;
     const [side, bay, row] = slot.key.split("|");
-    const floor = row === "g" ? "1F" : row === "r" ? "閣樓（老虎窗）" : `${Number(row) + 2}F`;
-    const where = `${SIDES[Number(side)] ?? ""} ${bay === "-1" ? "斜切轉角" : `第 ${Number(bay) + 1} 開間`} · ${floor}`;
+    const floor = row === "g" ? "1F" : row === "r" ? slot.facadeId ? "閣樓" : "閣樓（老虎窗）" : `${Number(row) + 2}F`;
+    const where = `${slot.facadeId ? "採光井內側" : SIDES[Number(side)] ?? ""} ${bay === "-1" ? "斜切轉角" : `第 ${Number(bay) + 1} 開間`} · ${floor}`;
     const f = this.host.gui.addFolder(`🎯 選取的窗戶：${where}`);
     this.folder = f;
     // at the top of the GUI, which opens if it was folded
@@ -182,11 +182,13 @@ export class WindowEditor {
     const plain = (field: Field, name: string) => choice(field, name, o => o[field as keyof WindowOverride], v => v);
 
     if (slot.kind === "upper") {
-      choice("ornament", "裝飾層級", o => o.ornament, v => Number(v));
-      plain("head", "窗楣");
-      plain("balcony", "陽台");
-      choice("consoles", "陽台托架", o => (o.consoles === undefined ? undefined : o.consoles ? "on" : "off"), v => v === "on");
-      plain("detail", "窗間壁裝飾");
+      if (!slot.facadeId) {
+        choice("ornament", "裝飾層級", o => o.ornament, v => Number(v));
+        plain("head", "窗楣");
+        plain("balcony", "陽台");
+        choice("consoles", "陽台托架", o => (o.consoles === undefined ? undefined : o.consoles ? "on" : "off"), v => v === "on");
+        plain("detail", "窗間壁裝飾");
+      }
       plain("shutters", "百葉");
       plain("window", "窗戶");
       plain("dir", "開窗方向");

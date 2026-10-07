@@ -120,7 +120,7 @@ try {
     { layoutMode: "auto", baysX: 20 }, { layoutMode: "auto", floors: 20 },
   ]) {
     const r = resolve(overrides);
-    assert.equal(r.status, overrides.layoutMode === "auto" ? "infeasible" : "unsupported");
+    assert.equal(r.status, overrides.layoutMode === "courtyard" ? "unsupported" : "infeasible");
     assert.equal(r.requestedMode, overrides.layoutMode);
     assert.throws(() => generateBuilding({ ...base, ...overrides }, kit), TopologyResolutionError);
   }

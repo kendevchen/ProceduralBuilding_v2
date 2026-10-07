@@ -43,7 +43,7 @@ export interface RoomSlot {
   curtainMode?: "none" | "closed" | "open";
   curtainOpen?: number;
   /** the window on the floor plan: facade side, bay (-1 the pan coupé), level */
-  at?: { side: number; bay: number; level: number };
+  at?: { facadeId?: string; side: number; bay: number; level: number };
   /** stable random key */
   seed: number[];
 }
@@ -77,11 +77,11 @@ export function planRule(plan: BuildingPlan): RoomRule {
   const behind = new Map<string, PlanRoom>();
   for (const w of plan.windows) {
     const r = w.room ? rooms.get(w.room) : undefined;
-    if (r) behind.set(`${w.level}|${w.side}|${w.bay}`, r);
+    if (r) behind.set(`${w.level}|${w.facadeId ?? w.side}|${w.bay}`, r);
   }
   const attic = plan.levels[plan.levels.length - 1].index;
   return s => {
-    const r = s.at && behind.get(`${s.at.level}|${s.at.side}|${s.at.bay}`);
+    const r = s.at && behind.get(`${s.at.level}|${s.at.facadeId ?? s.at.side}|${s.at.bay}`);
     if (!r) return null;
     if (r.type === "wc" || r.type === "bathroom" || r.type === "elevator" || r.type === "shaft") return { cells: CELLS[s.kind], closed: true };
     if (r.type === "storage") return { cells: r.level === attic ? [10] : [6] };

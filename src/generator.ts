@@ -39,6 +39,7 @@ export interface BayInfo {
 
 /** a side of the building: its frame and bays (none on party walls) */
 export interface SideInfo {
+  facadeId?: string;
   kind: SideKind;
   /** facade plane at y = 0, outside -Y (Blender space) */
   frame: Matrix4;
@@ -73,6 +74,7 @@ export interface Building {
   rooms: RoomSlot[];
   /** the four sides counterclockwise from the front, with their bays */
   sides: SideInfo[];
+  innerSides?: SideInfo[];
   /** front bay with the entrance door */
   door: number;
   /** front bays of the double-height ballroom on the first two upper floors, or null */
@@ -88,8 +90,16 @@ export interface Building {
 /** the key of a window: facade side, bay (-1 the pan coupé's diagonal), and "g" for the ground floor or the upper row */
 export const windowKey = (side: number, bay: number, row: number | "g" | "r") => `${side}|${bay}|${row}`;
 
+/** Resolve either an unchanged outer side or a geometry-identified inner facade. */
+export function buildingFacade(b: Building, side: number, facadeId?: string): SideInfo | undefined {
+  const found = side < 4 ? b.sides[side] : b.innerSides?.[side - 4];
+  return facadeId && found?.facadeId !== facadeId ? undefined : found;
+}
+export const innerWindowKey = (facadeId: string, bay: number, row: number | 'g' | 'r') => `${facadeId}|${bay}|${row}`;
+
 /** a window that can be picked and set on its own (main.ts): its opening in its module's frame */
 export interface WindowSlot {
+  facadeId?: string;
   key: string;
   /** the module's frame (Blender space) */
   matrix: Matrix4;
@@ -161,7 +171,7 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
   const { bay, corner } = dims;
   const leg = dims.panCoupe.leg;
   const style = buildingStyle(p);
-  const kinds = topology.facades.map(s => s.kind);
+  const kinds = topology.facades.slice(0, 4).map(s => s.kind);
   const rows = topology.rows.map(r => ({ ...r }));
   const { wallTop, roofBase, width: W, length: L, door: doorBay } = topology;
   const ballroom = topology.ballroom ? [...topology.ballroom] : null;
@@ -332,7 +342,7 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
     let run: string | null = null;
     for (let i = 0; i < n; i++) {
       // mixed use keeps the front's left corner for the study (INTERIOR_SPEC.md §5.4)
-      const shop = i !== door && p.groundUse !== "residential" && !(p.groundUse === "mixed" && si === 0 && i === 0) &&
+      const shop = !(topology.deepLayout && si % 2 === 1) && i !== door && p.groundUse !== "residential" && !(p.groundUse === "mixed" && si === 0 && i === 0) &&
         (p.groundUse === "shops" || rand(seed, si, i, PURPOSE.shop) < 0.5);
       if (!shop) run = null;
       else if (!run) run = SHOPS[Math.floor(rand(seed, si, i, PURPOSE.shopKind) * SHOPS.length)];
@@ -343,7 +353,7 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
   const awningFor = (shop: string, si: number, i: number) =>
     shop === "shop_cafe" || rand(seed, si, i, PURPOSE.awning) < 0.5 ? "open" : "retracted";
 
-  const sideFrames = topology.facades.map(s => new Matrix4().fromArray(s.frame));
+  const sideFrames = topology.facades.slice(0, 4).map(s => new Matrix4().fromArray(s.frame));
   const ends = (put: Put, kind: SideKind, x: number, mirror: boolean) => {
     put("G_end", "pier", x, 0, { mirror });
     for (const r of rows) {
@@ -437,6 +447,48 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
   const footprint = topology.footprint.map(q => [...q] as V2);
   const edgeKinds = [...topology.edgeKinds];
 
+  const innerSides: SideInfo[] = [];
+  for (const face of topology.facades.slice(4)) {
+    const frame = new Matrix4().fromArray(face.frame), put = putter(frame);
+    const side: SideInfo = { facadeId: face.id, kind: 'court', frame, length: face.length, left: 'none', right: 'none', x0: 0,
+      bays: face.bays.map(q => ({ x: q.x, ground: `window_${own(innerWindowKey(face.id, q.bay, 'g')).ground ?? p.groundWindow}`, dormer: null })), diag: null };
+    innerSides.push(side);
+    const levels = [{ cls: 'G' as const, z: 0, height: dims.classes.G.height, row: 'g' as const, level: 0 },
+      ...rows.map((r, i) => ({ ...r, row: i, level: i + 1 })),
+      { cls: 'S' as const, z: wallTop, height: dims.classes.S.height, row: 'r' as const, level: rows.length + 1 }];
+    for (const q of face.bays) for (const lv of levels) {
+      const key = innerWindowKey(face.id, q.bay, lv.row), o = own(key);
+      tag = key;
+      const wm = put(`${lv.cls}_bay`, lv.cls === 'G' ? side.bays[q.bay].ground : 'window', q.x, lv.z);
+      if (lv.cls !== 'G') {
+        const draw = rand(seed, face.side, q.bay, lv.level, PURPOSE.shutter);
+        const closed = draw < p.shutterClosed, half = !closed && draw < p.shutterClosed + p.shutterHalf;
+        const left = rand(seed, face.side, q.bay, lv.level, PURPOSE.shutterSide) < 0.5;
+        const lc = o.shutters ? o.shutters === 'closed' || o.shutters === 'left' : closed || half && left;
+        const rc = o.shutters ? o.shutters === 'closed' || o.shutters === 'right' : closed || half && !left;
+        const wanted = o.window ? o.window === 'open' : rand(seed, face.side, q.bay, lv.level, PURPOSE.window) < p.windowOpen;
+        const opened = wanted && !lc && !rc, out = (o.dir ?? p.windowDir) === 'out';
+        const turn = opened ? (out ? -1 : 1) * (o.angle ?? p.windowAngle) * Math.PI / 180 : 0;
+        put(`${lv.cls}_leaf`, 'left', q.x - LEAF_X, lv.z, { y: HINGE_Y, angle: turn });
+        put(`${lv.cls}_leaf`, 'left', q.x + LEAF_X, lv.z, { y: HINGE_Y, angle: -turn, mirror: true });
+        if (!(opened && out)) {
+          put(`${lv.cls}_shutter`, lc ? 'closed' : 'folded', q.x, lv.z);
+          put(`${lv.cls}_shutter`, rc ? 'closed' : 'folded', q.x, lv.z, { mirror: true });
+        }
+        put('balcony', 'gardecorps', q.x, lv.z);
+      }
+      const width = lv.cls === 'G' ? dims.ground.window.width : dims.window.width;
+      const head = lv.cls === 'G' ? dims.ground.window.spring + dims.ground.window.width / 2 : dims.classes[lv.cls].head;
+      windows.push({ key, facadeId: face.id, matrix: wm, half: width / 2, z0: lv.cls === 'G' ? dims.ground.window.sill : dims.window.sill, z1: head, kind: lv.cls === 'G' ? 'ground' : 'upper' });
+      rooms.push({ matrix: wm, kind: lv.level === rows.length + 1 ? 'attic' : lv.cls === 'G' ? 'ground' : 'upper',
+        y0: 0.25, floor: lv.cls === 'G' ? dims.interior.groundFloor : dims.interior.floor, height: lv.height - dims.interior.floor - dims.interior.ceiling, half: 1.45,
+        depth: dims.interior.bands.minBack, along: q.x, length: face.length, seed: [seed, face.side, q.bay, lv.level],
+        curtain: { half: width / 2 - 0.05, sill: lv.cls === "G" ? dims.ground.window.sill : dims.window.sill, head: head - 0.07 },
+        at: { side: face.side, facadeId: face.id, bay: q.bay, level: lv.level }, curtainMode: o.curtain, curtainOpen: o.curtainOpen });
+      tag = undefined;
+    }
+  }
+
   // ---- roof top: finials at the flat top's corners between slopes, chimneys
   // along its middle and on the party walls
   const roof = roofShape(footprint, edgeKinds, roofBase);
@@ -456,6 +508,7 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
     const t = corner + bay * (i + 0.5);
     const cx = along ? t : (rx0 + rx1) / 2, cy = along ? (ry0 + ry1) / 2 : t;
     if (cx < rx0 + 0.8 || cx > rx1 - 0.8 || cy < ry0 + 0.5 || cy > ry1 - 0.5) continue;
+    if (topology.deepLayout?.wells.some(w => cx >= w.rect[0] - bay / 2 && cx <= w.rect[2] + bay / 2 && cy >= w.rect[1] - bay / 2 && cy <= w.rect[3] + bay / 2)) continue;
     if (rand(seed, i, PURPOSE.chimney) >= p.chimneys) continue;
     const kind = CHIMNEYS[Math.floor(rand(seed, i, PURPOSE.chimneyKind) * CHIMNEYS.length)];
     const mm = new Matrix4().makeTranslation(cx, cy, roof.z2);
@@ -465,7 +518,7 @@ export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
   }
   return {
     topology, placements, style, width: W, length: L, rows, wallTop, roofBase, footprint, edgeKinds, rooms,
-    sides, door: doorBay, ballroom, tall: [...tallBays], chimneys, windows,
+    sides, ...(innerSides.length ? { innerSides } : {}), door: doorBay, ballroom, tall: [...tallBays], chimneys, windows,
   };
 }
 

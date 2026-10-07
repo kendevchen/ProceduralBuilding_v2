@@ -84,6 +84,8 @@ export interface PlanLevel {
 }
 
 export interface PlanWindow {
+  facadeId?: string;
+  openingKey?: string;
   openingRole?: "maintenance";
   level: number;
   side: number;
@@ -212,6 +214,8 @@ export interface FloorProgramDiagnostic {
 }
 
 export interface BuildingPlan {
+  daylightDiagnostics?: { level: number; residentialCells: number; windowlessCells: number; ratio: number; serviceArea: number }[];
+  innerBoundaries?: { id: string; polygon: V2[] }[];
   circulation?: CirculationMetadata;
   /** Candidate diagnostics are separate from validation issues; signatures describe generation, before edits. */
   programDiagnostics?: FloorProgramDiagnostic[];
@@ -225,7 +229,7 @@ export interface BuildingPlan {
   windows: PlanWindow[];
   stairs: PlanStair[];
   /** floor openings besides the stair wells: the ballroom's upper half */
-  voids: { level: number; polygon: V2[]; id?: string; kind?: "elevator" | "shaft"; ceiling?: boolean }[];
+  voids: { level: number; polygon: V2[]; id?: string; kind?: "elevator" | "shaft" | "lightwell"; ceiling?: boolean }[];
   issues: string[];
 }
 
@@ -290,6 +294,7 @@ export function edgeAt(poly: V2[], p: V2, tol = 0.02): number {
 // ------------------------------------------------------------------ the grid
 
 interface FacadeBay {
+  facadeId?: string;
   side: number;
   bay: number;
   frame: Matrix4;
@@ -305,9 +310,9 @@ interface Grid extends LegacyGrid {
 /** Geometry comes from the topology; only actual opening variants come from the facade. */
 export function buildingGrid(b: Building): Grid {
   const bays: FacadeBay[] = [];
-  b.sides.forEach((s, side) => {
+  [...b.sides, ...(b.innerSides ?? [])].forEach((s, side) => {
     if (s.kind === "party") return;
-    s.bays.forEach((info, bay) => bays.push({ side, bay, frame: s.frame, x: info.x, info }));
+    s.bays.forEach((info, bay) => bays.push({ side, bay, frame: s.frame, x: info.x, info, ...(s.facadeId ? { facadeId: s.facadeId } : {}) }));
     if (s.diag) bays.push({ side, bay: -1, frame: s.diag.frame, x: 0, info: s.diag });
   });
   const bayByKey = new Map(bays.map(bay => [`${bay.side}|${bay.bay}`, bay]));
@@ -351,6 +356,8 @@ export function facadeWindows(g: Grid, levels: PlanLevel[]): PlanWindow[] {
         else if (v === "door_glazed") [kind, width] = ["door", GLAZED_DOOR];
         else if (v.startsWith("door")) [kind, width] = ["door", dims.ground.door.width];
         else if (v.startsWith("shop")) [kind, width] = ["shop", SHOP];
+      } else if (lv.cls === "R" && fb.facadeId) {
+        [kind, width] = ["window", dims.window.width];
       } else if (lv.cls === "R") {
         if (fb.info.dormer) {
           const big = fb.info.dormer === "atelier" ? dims.dormer.atelier : fb.info.dormer === "studio" ? dims.dormer.studio : null;
@@ -360,7 +367,7 @@ export function facadeWindows(g: Grid, levels: PlanLevel[]): PlanWindow[] {
       if (!kind) continue;
       const at = toWorld(fb.frame, fb.x, T);
       const r = toWorld(fb.frame, fb.x + 1, T);
-      out.push({ level: lv.index, side: fb.side, bay: fb.bay, kind, at, dir: [r[0] - at[0], r[1] - at[1]], width, room: null });
+      out.push({ ...(fb.facadeId ? { facadeId: fb.facadeId, openingKey: `${fb.facadeId}|${fb.bay}|${lv.cls === "G" ? "g" : lv.cls === "R" ? "r" : lv.index - 1}` } : {}), level: lv.index, side: fb.side, bay: fb.bay, kind, at, dir: [r[0] - at[0], r[1] - at[1]], width, room: null });
     }
   }
   return out;
@@ -1186,10 +1193,12 @@ export function checkPlan(plan: BuildingPlan, checkUses = true): string[] {
   for (const w of plan.windows) {
     if (!w.room) issues.push(`${name(w.level)}：第 ${w.side} 面第 ${w.bay} 開間的${KIND_NAME[w.kind]}沒有房間`);
   }
+  const boundaries = [plan.inner, ...(plan.innerBoundaries?.map(v => v.polygon) ?? [])];
+  const boundaryEdge = (q: V2) => { for (let i = 0; i < boundaries.length; i++) { const e = edgeAt(boundaries[i], q); if (e >= 0) return `${i}:${e}`; } return null; };
   const windowsByEdge = new Map<string, PlanWindow[]>();
   const roomsByLevel = new Map<number, PlanRoom[]>();
   for (const w of plan.windows) {
-    const k = `${w.level}|${edgeAt(plan.inner, w.at)}`, list = windowsByEdge.get(k) ?? [];
+    const k = `${w.level}|${boundaryEdge(w.at)}`, list = windowsByEdge.get(k) ?? [];
     list.push(w);
     windowsByEdge.set(k, list);
   }
@@ -1201,8 +1210,8 @@ export function checkPlan(plan: BuildingPlan, checkUses = true): string[] {
   // walls meet the outer walls only between windows
   for (const wall of plan.walls) {
     for (const end of [wall.a, wall.b]) {
-      const e = edgeAt(plan.inner, end);
-      if (e < 0) continue;
+      const e = boundaryEdge(end);
+      if (e === null) continue;
       for (const w of windowsByEdge.get(`${wall.level}|${e}`) ?? []) {
         const d = Math.abs((end[0] - w.at[0]) * w.dir[0] + (end[1] - w.at[1]) * w.dir[1]);
         if (d < w.width / 2 + wall.thickness / 2 + 0.02) {
@@ -1270,6 +1279,33 @@ export function checkPlan(plan: BuildingPlan, checkUses = true): string[] {
     if (rooms.length < 4 && !plan.circulation) continue;
     const missing = (["salon", "kitchen", "wc", "bedroom"] as RoomType[]).filter(t => !rooms.some(r => r.type === t));
     if (missing.length) issues.push(`${name(Number(k.split("|")[0]))}：住戶 ${k.split("|")[1]} 缺少${missing.map(t => ROOM_INFO[t].name).join("、")}`);
+  }
+  if (plan.innerBoundaries) {
+    for (const d of plan.daylightDiagnostics ?? []) if (d.ratio > I.planning.deep.maxWindowlessRatio) issues.push(`${name(d.level)}：結構住宅格無窗比例 ${(d.ratio * 100).toFixed(1)}% 超過 10%`);
+    const keys = plan.windows.filter(w => w.facadeId).map(w => w.openingKey);
+    if (new Set(keys).size !== keys.length || keys.some(k => !k)) issues.push("井窗識別不唯一");
+    const byId = new Map(plan.rooms.map(r => [r.id, r]));
+    for (const r of plan.rooms) {
+      for (const v of plan.voids.filter(v => v.level === r.level && v.kind === "lightwell")) if (Math.abs(polygonArea(clipConvex(r.polygon, v.polygon))) > EPS) issues.push(`${name(r.level)}：房間 ${r.id} 跨入採光井`);
+      const endColumn = r.rect[0] <= dims.wall + EPS || r.rect[2] >= plan.width - dims.wall - EPS;
+      const sharedService = r.apartment === null && r.circulation === "private" && ["bathroom", "closet", "storage", "wc"].includes(r.type);
+      if (!endColumn && !sharedService) continue;
+      // Minimum number of OTHER rooms before a public corridor, staying within
+      // one apartment. End-column rooms never require traversing a foreign flat.
+      const visited = new Set([r.id]), queue = [{ room: r, depth: 0 }]; let best = Infinity;
+      while (queue.length) {
+        const { room, depth } = queue.shift()!;
+        if (room.circulation === "public") { best = depth; break; }
+        for (const door of room.doors) {
+          const next = byId.get(door.to);
+          if (!next || visited.has(next.id) || next.circulation === "equipment" || next.apartment !== null && next.apartment !== r.apartment) continue;
+          visited.add(next.id); queue.push({ room: next, depth: depth + (next.circulation === "public" ? 0 : 1) });
+        }
+        queue.sort((a, b) => a.depth - b.depth);
+      }
+      if (sharedService && !Number.isFinite(best)) issues.push(`${name(r.level)}：共享服務空間 ${r.id} 到公共走廊需穿越住戶`);
+      if (endColumn && best > 1 && r.type !== "shop") issues.push(`${name(r.level)}：端欄 ${r.id} 到公共走廊需穿越 ${best} 間其他房間`);
+    }
   }
   if (plan.circulation) issues.push(...checkCirculation(plan));
   return issues;

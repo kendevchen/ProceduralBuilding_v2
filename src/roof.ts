@@ -84,10 +84,18 @@ export interface RoofCap {
 }
 
 class Tris {
+  constructor(private holes: V2[][] = []) {}
   pos: number[] = [];
   uv: number[] = [];
   /** points are [x, y, z, u, v] */
   tri(a: number[], b: number[], c: number[]) {
+    if (this.holes.length) {
+      let fragments = [[a, b, c]];
+      for (const hole of this.holes) fragments = fragments.flatMap(poly => subtractConvex(poly, hole));
+      const plain = new Tris();
+      for (const poly of fragments) for (let i = 1; i + 1 < poly.length; i++) plain.tri(poly[0], poly[i], poly[i + 1]);
+      this.pos.push(...plain.pos); this.uv.push(...plain.uv); return;
+    }
     this.pos.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]);
     this.uv.push(a[3], a[4], b[3], b[4], c[3], c[4]);
   }
@@ -104,10 +112,33 @@ class Tris {
   }
 }
 
-export function roofCap(footprint: V2[], kinds: EdgeKind[], roofBase: number): RoofCap {
+/** Clip each roof patch independently; intersections interpolate height and UV.
+ * Also supports a well crossing a terrasson seam without bridging the opening. */
+function subtractConvex(poly: number[][], hole: V2[]): number[][][] {
+  const fragments: number[][][] = [];
+  let remainder = poly;
+  for (let i = 0; i < hole.length && remainder.length >= 3; i++) {
+    const a = hole[i], b = hole[(i + 1) % hole.length];
+    const side = (p: number[]) => (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]);
+    const cut = (inside: boolean) => {
+      const out: number[][] = [];
+      for (let j = 0; j < remainder.length; j++) {
+        const p = remainder[j], q = remainder[(j + 1) % remainder.length], sp = side(p), sq = side(q);
+        const pin = inside ? sp >= 0 : sp <= 0, qin = inside ? sq >= 0 : sq <= 0;
+        if (pin) out.push(p);
+        if (pin !== qin) { const t = sp / (sp - sq); out.push(p.map((v, k) => v + t * (q[k] - v))); }
+      }
+      return out;
+    };
+    const outside = cut(false); if (outside.length >= 3) fragments.push(outside);
+    remainder = cut(true);
+  }
+  return fragments;
+}
+export function roofCap(footprint: V2[], kinds: EdgeKind[], roofBase: number, holes: V2[][] = []): RoofCap {
   const { p1, p2, z1, z2, run: tr } = roofShape(footprint, kinds, roofBase);
   const slope = tr / Math.cos((dims.terrasson.pitchDeg * Math.PI) / 180);
-  const out = new Tris();
+  const out = new Tris(holes);
   const n = p1.length;
   for (let i = 0; i < n; i++) {
     if (kinds[i] === "party") continue;
@@ -126,7 +157,7 @@ const FIREWALL = 0.3; // gable rise above the roof line, and its thickness
 
 /** height of the roof surface at a point of the footprint (top of the cornice
  *  at the facades, the steep slope, the terrasson, the flat top) */
-function roofHeight(footprint: V2[], kinds: EdgeKind[], shape: RoofShape, roofBase: number, q: V2): number {
+export function roofHeight(footprint: V2[], kinds: EdgeKind[], shape: RoofShape, roofBase: number, q: V2): number {
   const { rise, run } = dims.mansard;
   const tan = Math.tan((dims.terrasson.pitchDeg * Math.PI) / 180);
   let h = shape.z2;

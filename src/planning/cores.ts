@@ -16,7 +16,7 @@ export interface CorePart {
 export interface CoreLayout {
   parts: CorePart[];
   publicCells: number[];
-  serviceAreas: { coreId: string; columns: number[] }[];
+  serviceAreas: { moduleId?: string; coreId: string; columns: number[]; cellIds?: number[] }[];
 }
 export const coreCellId = (id: number) => `cores:block:cell:${id}`;
 export const coreWorld = (f: CoreFrame, q: V2): V2 => [

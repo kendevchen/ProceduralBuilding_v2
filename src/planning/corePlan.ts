@@ -8,7 +8,7 @@ import { buildingGrid, planLevels, facadeWindows, program, fuse, clipConvex, pol
 import type { CirculationMetadata } from './circulation';
 import { sharedEdges, type Rect } from './edgeIndex';
 import { varyApartment, type ProgramUnit } from './program';
-import { coreLocal, rectLoop } from './cores';
+import { coreLocal, coreWorld, rectLoop } from './cores';
 
 const I = dims.interior, C = I.planning.cores, EPS = 1e-6;
 const rect = (u: ProgramUnit): Rect => [u.x0, u.y0, u.x1, u.y1];
@@ -18,7 +18,9 @@ const publicType = (u: ProgramUnit) => ['corridor', 'liftHall', 'vestibule', 'st
 export function buildCorePlan(b: Building, p: BuildingParams, retries: ReadonlyMap<number, number>, fallback: ReadonlySet<number>): BuildingPlan {
   const g = buildingGrid(b), levels = planLevels(b), windows = facadeWindows(g, levels), layout = b.topology.coreLayout!;
   const rooms: PlanRoom[] = [], walls: PlanWall[] = [], voids: BuildingPlan['voids'] = [];
+  const daylightDiagnostics: NonNullable<BuildingPlan["daylightDiagnostics"]> = [];
   const diagnostics: FloorProgramDiagnostic[] = [], apartmentDiagnostics: string[] = [];
+  const deep = b.topology.deepLayout;
   const byCell = new Map(layout.parts.map(part => [part.cell, part]));
   const allStairRooms = new Map<string, PlanRoom[]>();
   let ballroomRoom: PlanRoom | null = null;
@@ -30,7 +32,7 @@ export function buildCorePlan(b: Building, p: BuildingParams, retries: ReadonlyM
       units: g.cells.filter(c => !(b.ballroom && lv.index === 2 && g.ballroom.includes(c.id))).map(c => {
         const part = byCell.get(c.id);
         return { cells: [c], x0: c.x0, y0: c.y0, x1: c.x1, y1: c.y1, apartment: null, win: [],
-          type: part?.role ?? (layout.publicCells.includes(c.id) ? 'corridor' : null), part: part?.id } as ProgramUnit;
+          type: part?.role ?? (layout.publicCells.includes(c.id) ? 'corridor' : deep?.serviceCells.includes(c.id) ? (c.id % 3 === 0 ? 'bathroom' : c.id % 3 === 1 ? 'closet' : 'storage') : null), part: part?.id } as ProgramUnit;
       }) };
     const levelWindows = windows.flatMap((w, i) => w.level === lv.index ? [i] : []);
     for (const wi of levelWindows) {
@@ -39,18 +41,24 @@ export function buildCorePlan(b: Building, p: BuildingParams, retries: ReadonlyM
       if (u) u.win.push(wi);
       else if (ballroomRoom && lv.index === 2) { w.room = ballroomRoom.id; ballroomRoom.windows.push(wi); }
     }
-    fuse(ctx, ctx.units.filter(u => u.type === 'corridor'), 'corridor');
+    if (deep) {
+      const residential = ctx.units.filter(u => u.cells.some(c => deep.residentialCells.includes(c.id)));
+      const blind = residential.filter(u => !u.win.length).length;
+      daylightDiagnostics.push({ level: lv.index, residentialCells: residential.length, windowlessCells: blind, ratio: blind / residential.length, serviceArea: deep.daylight.serviceArea });
+      for (const group of deep.groups) fuse(ctx, ctx.units.filter(u => u.type === 'corridor' && Math.abs(u.y0 - group.corridor[0]) < EPS && Math.abs(u.y1 - group.corridor[1]) < EPS), 'corridor');
+    } else fuse(ctx, ctx.units.filter(u => u.type === 'corridor'), 'corridor');
     if (lv.cls === 'G') {
       const entry = ctx.units.find(u => u.win.some(i => windows[i].kind === 'door'));
       if (entry && !entry.type) entry.type = 'vestibule';
       for (const u of ctx.units) if (!u.type && u.win.some(i => windows[i].kind === 'shop')) u.type = 'shop';
     }
     if (b.ballroom && lv.index === 1) fuse(ctx, ctx.units.filter(u => u.cells.some(c => g.ballroom.includes(c.id))), 'ballroom');
+    const apartmentCore = new Map<number, string>();
     let apartment = 0;
     for (const area of layout.serviceAreas) {
       const before = apartment;
       const diagnosticBefore = apartmentDiagnostics.length;
-      const belongs = (u: ProgramUnit) => u.cells.every(c => area.columns.includes(c.col));
+      const belongs = (u: ProgramUnit) => u.cells.every(c => area.cellIds ? area.cellIds.includes(c.id) : area.columns.includes(c.col));
       const available = ctx.units.filter(u => belongs(u) && u.type === null);
       const count = (us: ProgramUnit[]) => us.filter(u => u.win.length).length;
       const ballroom = ctx.units.find(u => u.type === 'ballroom' && belongs(u));
@@ -74,6 +82,7 @@ export function buildCorePlan(b: Building, p: BuildingParams, retries: ReadonlyM
         const ids = new Set(us.flatMap(u => u.cells.map(c => c.id)));
         const localStairs = layout.parts.filter(q => q.coreId === area.coreId && q.role === 'stair').map(q => q.cell);
         ctx.g = { ...g, cage: localStairs.slice(0, 1), service: localStairs.length > 1 ? localStairs.slice(1, 2) : null };
+        apartmentCore.set(apartment, area.coreId);
         program(ctx, ids, apartment);
         if (ballroom) ballroom.apartment = apartment;
         if (variation) varyApartment({ get units() { return ctx.units; }, choices: ctx.choices, windows,
@@ -82,8 +91,26 @@ export function buildCorePlan(b: Building, p: BuildingParams, retries: ReadonlyM
           fuse: (us, type) => fuse(ctx, us, type) });
         apartment++;
       }
-      circulation.apartmentCounts.push({ level: lv.index, coreId: area.coreId, requested: wanted, actual: apartment - before,
+      circulation.apartmentCounts.push({ ...(area.moduleId ? { moduleId: area.moduleId } : {}), level: lv.index, coreId: area.coreId, requested: wanted, actual: apartment - before,
         reason: ballroom ? "宴會廳服務區採一戶；其餘核心獨立分戶" : apartmentDiagnostics.slice(diagnosticBefore).join("；") || null });
+    }
+    if (deep) {
+      // A service component either opens to public circulation or belongs to
+      // one adjacent flat. A shared wet room must never require entering a flat.
+      const edges = sharedEdges(ctx.units.map(rect)), service = new Set(ctx.units.flatMap((u, i) => u.cells.some(c => deep.serviceCells.includes(c.id)) ? [i] : []));
+      const neighbours = (i: number) => edges.filter(e => (e.i === i || e.j === i) && Math.hypot(e.b[0] - e.a[0], e.b[1] - e.a[1]) >= I.doors.single[0] + I.walls.spine + EPS).map(e => e.i === i ? e.j : e.i);
+      while (service.size) {
+        const component = [service.values().next().value!]; service.delete(component[0]);
+        for (let k = 0; k < component.length; k++) for (const j of neighbours(component[k])) if (service.delete(j)) component.push(j);
+        const adjacent = [...new Set(component.flatMap(neighbours))].filter(i => !component.includes(i));
+        if (adjacent.some(i => publicType(ctx.units[i]) && ctx.units[i].type !== 'stair')) continue;
+        const landings = layout.parts.filter(part => part.role === 'stair').map(part => coreWorld(part.frame, [(part.localRect[2] - part.localRect[0]) / 2, 0]));
+        const owners = adjacent.map(i => ctx.units[i]).filter(u => u.apartment !== null && !equipment(u) && !u.access);
+        const nearLanding = (u: ProgramUnit) => Math.min(...landings.map(q => Math.hypot((u.x0 + u.x1) / 2 - q[0], (u.y0 + u.y1) / 2 - q[1])));
+        owners.sort((a, c) => nearLanding(a) - nearLanding(c));
+        const owner = owners[0];
+        if (owner) for (const i of component) ctx.units[i].apartment = owner.apartment;
+      }
     }
     if (lv.cls === 'R') for (const u of ctx.units) if (u.type === 'bedroom') u.type = 'maid';
     const units = ctx.units.sort((a, c) => a.y0 - c.y0 || a.x0 - c.x0);
@@ -125,7 +152,7 @@ export function buildCorePlan(b: Building, p: BuildingParams, retries: ReadonlyM
         ceilingZ: type === 'ballroom' ? levels[lv.index + 1].ceilingZ : lv.ceilingZ,
         windows: [...u.win], doors: [], cellIds: [...new Set(u.cells.map(c => b.topology.cells[c.id].id))],
         circulation: equipment(u) ? 'equipment' : publicType(u) ? 'public' : 'private',
-        ...(part ? { structuralId: part.id, coreId: part.coreId } : u.apartment !== null ? { coreId: layout.serviceAreas.find(a => u.cells.every(c => a.columns.includes(c.col)))?.coreId } : {}),
+        ...(part ? { structuralId: part.id, coreId: part.coreId } : u.apartment !== null ? { coreId: apartmentCore.get(u.apartment) } : {}),
         ...(u.part ? { part: u.part } : {}), ...(u.access ? { programTargets: u.access.map(v => v.id!) } : {}) };
       for (const wi of u.win) { windows[wi].room = r.id; if (equipment(u)) windows[wi].openingRole = 'maintenance'; }
       floorWalls.forEach((w, wi) => {
@@ -138,6 +165,7 @@ export function buildCorePlan(b: Building, p: BuildingParams, retries: ReadonlyM
       if (equipment(u)) voids.push({ level: lv.index, polygon, id: part!.id, kind: r.type as 'elevator' | 'shaft', ceiling: lv.cls !== 'R' });
     }
     if (b.ballroom && lv.index === 2 && ballroomRoom) voids.push({ level: lv.index, polygon: ballroomRoom.polygon });
+    if (deep) for (const well of deep.wells) voids.push({ level: lv.index, id: well.id, kind: 'lightwell', polygon: well.polygon.map(q => [...q]), ceiling: true });
     diagnostics.push({ level: lv.index, status: !eligible ? 'exempt' : fallback.has(lv.index) ? 'legacy-fallback' : 'varied',
       retries: ctx.retry, choices: ctx.choices, generatedSignature: '', rejectedIssues: [] });
   }
@@ -155,7 +183,7 @@ export function buildCorePlan(b: Building, p: BuildingParams, retries: ReadonlyM
     const len = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
     if (len >= I.doors.landing[0] + I.walls.cage) w.openings.push({ at: len / 2, width: I.doors.landing[0], height: I.doors.landing[1], role: "equipment" });
   }
-  const plan: BuildingPlan = { width: g.W, length: g.L, inner: g.inner.map(q => [...q]), levels, rooms, walls, windows, stairs, voids, circulation, issues: [] };
+  const plan: BuildingPlan = { ...(deep ? { daylightDiagnostics, innerBoundaries: deep.wells.map(w => ({ id: w.id, polygon: [[w.rect[0] - dims.wall, w.rect[3] + dims.wall], [w.rect[2] + dims.wall, w.rect[3] + dims.wall], [w.rect[2] + dims.wall, w.rect[1] - dims.wall], [w.rect[0] - dims.wall, w.rect[1] - dims.wall]] as V2[] })) } : {}), width: g.W, length: g.L, inner: g.inner.map(q => [...q]), levels, rooms, walls, windows, stairs, voids, circulation, issues: [] };
   plan.issues = [];
   if (p.floorVariety) plan.programDiagnostics = diagnostics;
   plan.issues = checkPlan(plan);

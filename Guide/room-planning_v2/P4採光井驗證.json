@@ -1,0 +1,875 @@
+{
+  "cases": [
+    {
+      "size": [
+        10,
+        10,
+        6
+      ],
+      "seed": 1,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 2,
+      "wellDepth": 3,
+      "wells": 2,
+      "cores": 1,
+      "stairs": 1,
+      "rooms": 326,
+      "windowlessRatio": 0,
+      "serviceArea": 55.48000000000003,
+      "maxNearest": 44.328308725375635,
+      "maxSecond": 0
+    },
+    {
+      "size": [
+        10,
+        10,
+        6
+      ],
+      "seed": 2,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 2,
+      "wellDepth": 3,
+      "wells": 2,
+      "cores": 1,
+      "stairs": 1,
+      "rooms": 326,
+      "windowlessRatio": 0,
+      "serviceArea": 55.48000000000003,
+      "maxNearest": 44.328308725375635,
+      "maxSecond": 0
+    },
+    {
+      "size": [
+        10,
+        10,
+        6
+      ],
+      "seed": 3,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 2,
+      "wellDepth": 3,
+      "wells": 2,
+      "cores": 1,
+      "stairs": 1,
+      "rooms": 326,
+      "windowlessRatio": 0,
+      "serviceArea": 55.48000000000003,
+      "maxNearest": 44.328308725375635,
+      "maxSecond": 0
+    },
+    {
+      "size": [
+        10,
+        10,
+        6
+      ],
+      "seed": 4,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 2,
+      "wellDepth": 3,
+      "wells": 2,
+      "cores": 1,
+      "stairs": 1,
+      "rooms": 326,
+      "windowlessRatio": 0,
+      "serviceArea": 55.48000000000003,
+      "maxNearest": 44.328308725375635,
+      "maxSecond": 0
+    },
+    {
+      "size": [
+        10,
+        10,
+        6
+      ],
+      "seed": 5,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 2,
+      "wellDepth": 3,
+      "wells": 2,
+      "cores": 1,
+      "stairs": 1,
+      "rooms": 326,
+      "windowlessRatio": 0,
+      "serviceArea": 55.48000000000003,
+      "maxNearest": 44.328308725375635,
+      "maxSecond": 0
+    },
+    {
+      "size": [
+        10,
+        10,
+        6
+      ],
+      "seed": 6,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 2,
+      "wellDepth": 3,
+      "wells": 2,
+      "cores": 1,
+      "stairs": 1,
+      "rooms": 326,
+      "windowlessRatio": 0,
+      "serviceArea": 55.48000000000003,
+      "maxNearest": 44.328308725375635,
+      "maxSecond": 0
+    },
+    {
+      "size": [
+        10,
+        10,
+        6
+      ],
+      "seed": 7,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 2,
+      "wellDepth": 3,
+      "wells": 2,
+      "cores": 1,
+      "stairs": 1,
+      "rooms": 326,
+      "windowlessRatio": 0,
+      "serviceArea": 55.48000000000003,
+      "maxNearest": 44.328308725375635,
+      "maxSecond": 0
+    },
+    {
+      "size": [
+        10,
+        10,
+        6
+      ],
+      "seed": 8,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 2,
+      "wellDepth": 3,
+      "wells": 2,
+      "cores": 1,
+      "stairs": 1,
+      "rooms": 326,
+      "windowlessRatio": 0,
+      "serviceArea": 55.48000000000003,
+      "maxNearest": 44.328308725375635,
+      "maxSecond": 0
+    },
+    {
+      "size": [
+        10,
+        10,
+        6
+      ],
+      "seed": 9,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 2,
+      "wellDepth": 3,
+      "wells": 2,
+      "cores": 1,
+      "stairs": 1,
+      "rooms": 326,
+      "windowlessRatio": 0,
+      "serviceArea": 55.48000000000003,
+      "maxNearest": 44.328308725375635,
+      "maxSecond": 0
+    },
+    {
+      "size": [
+        10,
+        10,
+        6
+      ],
+      "seed": 10,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 2,
+      "wellDepth": 3,
+      "wells": 2,
+      "cores": 1,
+      "stairs": 1,
+      "rooms": 326,
+      "windowlessRatio": 0,
+      "serviceArea": 55.48000000000003,
+      "maxNearest": 44.328308725375635,
+      "maxSecond": 0
+    },
+    {
+      "size": [
+        10,
+        20,
+        6
+      ],
+      "seed": 1,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 4,
+      "wellDepth": 3,
+      "wells": 6,
+      "cores": 3,
+      "stairs": 3,
+      "rooms": 662,
+      "windowlessRatio": 0,
+      "serviceArea": 166.44,
+      "maxNearest": 41.458510820036516,
+      "maxSecond": 56.458510820036516
+    },
+    {
+      "size": [
+        10,
+        20,
+        6
+      ],
+      "seed": 2,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 4,
+      "wellDepth": 3,
+      "wells": 6,
+      "cores": 3,
+      "stairs": 3,
+      "rooms": 662,
+      "windowlessRatio": 0,
+      "serviceArea": 166.44,
+      "maxNearest": 41.458510820036516,
+      "maxSecond": 56.458510820036516
+    },
+    {
+      "size": [
+        10,
+        20,
+        6
+      ],
+      "seed": 3,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 4,
+      "wellDepth": 3,
+      "wells": 6,
+      "cores": 3,
+      "stairs": 3,
+      "rooms": 662,
+      "windowlessRatio": 0,
+      "serviceArea": 166.44,
+      "maxNearest": 41.458510820036516,
+      "maxSecond": 56.458510820036516
+    },
+    {
+      "size": [
+        10,
+        20,
+        6
+      ],
+      "seed": 4,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 4,
+      "wellDepth": 3,
+      "wells": 6,
+      "cores": 3,
+      "stairs": 3,
+      "rooms": 662,
+      "windowlessRatio": 0,
+      "serviceArea": 166.44,
+      "maxNearest": 41.458510820036516,
+      "maxSecond": 56.458510820036516
+    },
+    {
+      "size": [
+        10,
+        20,
+        6
+      ],
+      "seed": 5,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 4,
+      "wellDepth": 3,
+      "wells": 6,
+      "cores": 3,
+      "stairs": 3,
+      "rooms": 662,
+      "windowlessRatio": 0,
+      "serviceArea": 166.44,
+      "maxNearest": 41.458510820036516,
+      "maxSecond": 56.458510820036516
+    },
+    {
+      "size": [
+        10,
+        20,
+        6
+      ],
+      "seed": 6,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 4,
+      "wellDepth": 3,
+      "wells": 6,
+      "cores": 3,
+      "stairs": 3,
+      "rooms": 662,
+      "windowlessRatio": 0,
+      "serviceArea": 166.44,
+      "maxNearest": 41.458510820036516,
+      "maxSecond": 56.458510820036516
+    },
+    {
+      "size": [
+        10,
+        20,
+        6
+      ],
+      "seed": 7,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 4,
+      "wellDepth": 3,
+      "wells": 6,
+      "cores": 3,
+      "stairs": 3,
+      "rooms": 662,
+      "windowlessRatio": 0,
+      "serviceArea": 166.44,
+      "maxNearest": 41.458510820036516,
+      "maxSecond": 56.458510820036516
+    },
+    {
+      "size": [
+        10,
+        20,
+        6
+      ],
+      "seed": 8,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 4,
+      "wellDepth": 3,
+      "wells": 6,
+      "cores": 3,
+      "stairs": 3,
+      "rooms": 662,
+      "windowlessRatio": 0,
+      "serviceArea": 166.44,
+      "maxNearest": 41.458510820036516,
+      "maxSecond": 56.458510820036516
+    },
+    {
+      "size": [
+        10,
+        20,
+        6
+      ],
+      "seed": 9,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 4,
+      "wellDepth": 3,
+      "wells": 6,
+      "cores": 3,
+      "stairs": 3,
+      "rooms": 662,
+      "windowlessRatio": 0,
+      "serviceArea": 166.44,
+      "maxNearest": 41.458510820036516,
+      "maxSecond": 56.458510820036516
+    },
+    {
+      "size": [
+        10,
+        20,
+        6
+      ],
+      "seed": 10,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 4,
+      "wellDepth": 3,
+      "wells": 6,
+      "cores": 3,
+      "stairs": 3,
+      "rooms": 662,
+      "windowlessRatio": 0,
+      "serviceArea": 166.44,
+      "maxNearest": 41.458510820036516,
+      "maxSecond": 56.458510820036516
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "seed": 1,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 3,
+      "wellDepth": 9,
+      "wells": 4,
+      "cores": 4,
+      "stairs": 8,
+      "rooms": 3862,
+      "windowlessRatio": 0,
+      "serviceArea": 235.20000000000016,
+      "maxNearest": 37.205980905488715,
+      "maxSecond": 38.707549413562816
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "seed": 2,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 3,
+      "wellDepth": 9,
+      "wells": 4,
+      "cores": 4,
+      "stairs": 8,
+      "rooms": 3862,
+      "windowlessRatio": 0,
+      "serviceArea": 235.20000000000016,
+      "maxNearest": 37.205980905488715,
+      "maxSecond": 38.707549413562816
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "seed": 3,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 3,
+      "wellDepth": 9,
+      "wells": 4,
+      "cores": 4,
+      "stairs": 8,
+      "rooms": 3862,
+      "windowlessRatio": 0,
+      "serviceArea": 235.20000000000016,
+      "maxNearest": 37.205980905488715,
+      "maxSecond": 38.707549413562816
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "seed": 4,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 3,
+      "wellDepth": 9,
+      "wells": 4,
+      "cores": 4,
+      "stairs": 8,
+      "rooms": 3862,
+      "windowlessRatio": 0,
+      "serviceArea": 235.20000000000016,
+      "maxNearest": 37.205980905488715,
+      "maxSecond": 38.707549413562816
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "seed": 5,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 3,
+      "wellDepth": 9,
+      "wells": 4,
+      "cores": 4,
+      "stairs": 8,
+      "rooms": 3862,
+      "windowlessRatio": 0,
+      "serviceArea": 235.20000000000016,
+      "maxNearest": 37.205980905488715,
+      "maxSecond": 38.707549413562816
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "seed": 6,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 3,
+      "wellDepth": 9,
+      "wells": 4,
+      "cores": 4,
+      "stairs": 8,
+      "rooms": 3862,
+      "windowlessRatio": 0,
+      "serviceArea": 235.20000000000016,
+      "maxNearest": 37.205980905488715,
+      "maxSecond": 38.707549413562816
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "seed": 7,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 3,
+      "wellDepth": 9,
+      "wells": 4,
+      "cores": 4,
+      "stairs": 8,
+      "rooms": 3862,
+      "windowlessRatio": 0,
+      "serviceArea": 235.20000000000016,
+      "maxNearest": 37.205980905488715,
+      "maxSecond": 38.707549413562816
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "seed": 8,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 3,
+      "wellDepth": 9,
+      "wells": 4,
+      "cores": 4,
+      "stairs": 8,
+      "rooms": 3862,
+      "windowlessRatio": 0,
+      "serviceArea": 235.20000000000016,
+      "maxNearest": 37.205980905488715,
+      "maxSecond": 38.707549413562816
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "seed": 9,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 3,
+      "wellDepth": 9,
+      "wells": 4,
+      "cores": 4,
+      "stairs": 8,
+      "rooms": 3862,
+      "windowlessRatio": 0,
+      "serviceArea": 235.20000000000016,
+      "maxNearest": 37.205980905488715,
+      "maxSecond": 38.707549413562816
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "seed": 10,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 3,
+      "wellDepth": 9,
+      "wells": 4,
+      "cores": 4,
+      "stairs": 8,
+      "rooms": 3862,
+      "windowlessRatio": 0,
+      "serviceArea": 235.20000000000016,
+      "maxNearest": 37.205980905488715,
+      "maxSecond": 38.707549413562816
+    },
+    {
+      "size": [
+        10,
+        20,
+        6
+      ],
+      "seed": 1,
+      "type": "row",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 4,
+      "wellDepth": 3,
+      "wells": 6,
+      "cores": 3,
+      "stairs": 3,
+      "rooms": 662,
+      "windowlessRatio": 0,
+      "serviceArea": 337.3200000000001,
+      "maxNearest": 38.704897083261976,
+      "maxSecond": 56.704897083261976
+    },
+    {
+      "size": [
+        10,
+        10,
+        6
+      ],
+      "seed": 1,
+      "type": "freestanding",
+      "corner": "panCoupe",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 2,
+      "wellDepth": 3,
+      "wells": 2,
+      "cores": 1,
+      "stairs": 1,
+      "rooms": 326,
+      "windowlessRatio": 0,
+      "serviceArea": 55.48000000000003,
+      "maxNearest": 44.04268843638418,
+      "maxSecond": 0
+    },
+    {
+      "size": [
+        10,
+        20,
+        6
+      ],
+      "seed": 1,
+      "type": "freestanding",
+      "corner": "panCoupe",
+      "profile": "haussmann",
+      "variety": false,
+      "groups": 4,
+      "wellDepth": 3,
+      "wells": 6,
+      "cores": 3,
+      "stairs": 3,
+      "rooms": 662,
+      "windowlessRatio": 0,
+      "serviceArea": 166.44,
+      "maxNearest": 41.11000599247205,
+      "maxSecond": 56.11000599247205
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "seed": 1,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "uniform",
+      "variety": false,
+      "groups": 3,
+      "wellDepth": 9,
+      "wells": 4,
+      "cores": 4,
+      "stairs": 8,
+      "rooms": 3858,
+      "windowlessRatio": 0,
+      "serviceArea": 235.20000000000016,
+      "maxNearest": 37.205980905488715,
+      "maxSecond": 38.707549413562816
+    },
+    {
+      "size": [
+        10,
+        10,
+        6
+      ],
+      "seed": 7,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": true,
+      "groups": 2,
+      "wellDepth": 3,
+      "wells": 2,
+      "cores": 1,
+      "stairs": 1,
+      "rooms": 328,
+      "windowlessRatio": 0,
+      "serviceArea": 55.48000000000003,
+      "maxNearest": 44.5939547092536,
+      "maxSecond": 0
+    },
+    {
+      "size": [
+        10,
+        20,
+        6
+      ],
+      "seed": 3,
+      "type": "freestanding",
+      "corner": "pier",
+      "profile": "haussmann",
+      "variety": true,
+      "groups": 4,
+      "wellDepth": 3,
+      "wells": 6,
+      "cores": 3,
+      "stairs": 3,
+      "rooms": 664,
+      "windowlessRatio": 0,
+      "serviceArea": 166.44,
+      "maxNearest": 41.458510820036516,
+      "maxSecond": 56.458510820036516
+    }
+  ],
+  "negativeChecks": [
+    {
+      "narrow": [
+        2,
+        2,
+        20
+      ],
+      "reason": [
+        {
+          "code": "core-capacity",
+          "message": "深平面寬度不足以同時保留採光井、公共連通及有效核心"
+        }
+      ]
+    },
+    {
+      "narrow": [
+        2,
+        20,
+        20
+      ],
+      "reason": [
+        {
+          "code": "core-capacity",
+          "message": "深平面寬度不足以同時保留採光井、公共連通及有效核心"
+        }
+      ]
+    },
+    {
+      "narrow": [
+        20,
+        2,
+        20
+      ],
+      "reason": [
+        {
+          "code": "core-capacity",
+          "message": "對齊後無法同時容納至少兩組房間、9 m 通天井列、公共連通與有效核心；未以無窗住宅替代"
+        }
+      ]
+    },
+    "room enters sky well",
+    "shared service cannot require a private flat",
+    "duplicate inner opening key",
+    "pre-program blind residential ratio cannot be hidden as storage",
+    "roof-patch seam clipping leaves no bridge"
+  ],
+  "geometry": [
+    {
+      "size": [
+        10,
+        10,
+        6
+      ],
+      "roofTriangles": 92,
+      "skyRays": 10,
+      "realLiningOpeningRays": 24
+    },
+    {
+      "size": [
+        10,
+        20,
+        6
+      ],
+      "roofTriangles": 360,
+      "skyRays": 30,
+      "realLiningOpeningRays": 72
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "roofTriangles": 190,
+      "skyRays": 20,
+      "realLiningOpeningRays": 48
+    }
+  ],
+  "scope": "P4 explicit lightwell; auto courtyard selection P5, D/V6 diversity P6, full CPU/GPU performance P7"
+}

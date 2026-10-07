@@ -29,13 +29,15 @@ function sourceKey(plan: BuildingPlan, r: PlanRoom): string {
   const polygon = [...points.slice(start), ...points.slice(0, start)];
   const walls = plan.walls.filter(w => w.rooms.includes(r.id)).map(w =>
     [pointKey(w.a), pointKey(w.b), w.kind, coord(w.thickness), w.openings.map(o => [coord(o.at), coord(o.width), coord(o.height)])]).sort();
-  const windows = r.windows.map(i => { const w = plan.windows[i]; return [pointKey(w.at), w.kind, coord(w.width)]; }).sort();
+  const windows = r.windows.map(i => { const w = plan.windows[i]; return [pointKey(w.at), w.kind, coord(w.width), ...(w.openingKey ? [w.openingKey] : [])]; }).sort();
   return JSON.stringify([plan.levels[r.level].cls === "R" ? "attic" : r.level, r.levels, r.apartment,
     editableRoom(r) ? "room" : r.type, polygon, walls, windows]);
 }
 
 function clonePlan(plan: BuildingPlan): BuildingPlan {
   return { ...plan,
+    ...(plan.daylightDiagnostics ? { daylightDiagnostics: structuredClone(plan.daylightDiagnostics) } : {}),
+    ...(plan.innerBoundaries ? { innerBoundaries: structuredClone(plan.innerBoundaries) } : {}),
     ...(plan.circulation ? { circulation: structuredClone(plan.circulation) } : {}),
     ...(plan.programDiagnostics ? { programDiagnostics: structuredClone(plan.programDiagnostics) } : {}),
     rooms: plan.rooms.map(r => ({ ...r, ...(r.cellIds ? { cellIds: [...r.cellIds] } : {}), ...(r.programTargets ? { programTargets: [...r.programTargets] } : {}), polygon: r.polygon.map(p => [...p] as V2), rect: [...r.rect], windows: [...r.windows], doors: r.doors.map(d => ({ ...d })) })),

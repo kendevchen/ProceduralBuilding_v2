@@ -392,7 +392,7 @@ function rebuild(frame = false): void {
   const flat = roofShape(b.footprint, b.edgeKinds, b.roofBase).z2;
   Object.assign(street.params, streetSettings);
   const g = kit.buildGroup(b.placements.concat(partyChimneys(params, kit, b.style, walls.edges, flat)), materials);
-  const cap = roofCap(b.footprint, b.edgeKinds, b.roofBase);
+  const cap = roofCap(b.footprint, b.edgeKinds, b.roofBase, b.topology.deepLayout?.wells.map(w => w.polygon));
   const roof = new Mesh(cap.geometry, materials.byName.get("zinc:noao"));
   roof.castShadow = roof.receiveShadow = true;
   g.add(roof);

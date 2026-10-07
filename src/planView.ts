@@ -114,19 +114,20 @@ export function buildPlanView(plan: BuildingPlan, level: number, opts: PlanViewO
     }
   }
   // outer walls, open at the windows, doors and shopfronts of this floor
-  const n = plan.inner.length;
+  for (const boundary of [plan.inner, ...(plan.innerBoundaries?.map(v => v.polygon) ?? [])]) {
+  const n = boundary.length;
   const out = (i: number): V2 => {
-    const a = plan.inner[i], b = plan.inner[(i + 1) % n];
+    const a = boundary[i], b = boundary[(i + 1) % n];
     const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
     return [(b[1] - a[1]) / len, -(b[0] - a[0]) / len];
   };
   const T = dims.wall;
   for (let i = 0; i < n; i++) {
-    const a = plan.inner[i], b = plan.inner[(i + 1) % n];
+    const a = boundary[i], b = boundary[(i + 1) % n];
     const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
     const u: V2 = [(b[0] - a[0]) / len, (b[1] - a[1]) / len];
     const o = out(i);
-    const ops = plan.windows.filter(w => w.level === level && edgeAt(plan.inner, w.at) === i)
+    const ops = plan.windows.filter(w => w.level === level && edgeAt(boundary, w.at) === i)
       .map(w => ({ at: (w.at[0] - a[0]) * u[0] + (w.at[1] - a[1]) * u[1], width: w.width, kind: w.kind }));
     const at = (s: number, d: number): V2 => [a[0] + u[0] * s + o[0] * d, a[1] + u[1] * s + o[1] * d];
     // (counterclockwise: inner face, then outward)
@@ -141,6 +142,7 @@ export function buildPlanView(plan: BuildingPlan, level: number, opts: PlanViewO
     const k = T / (1 + o[0] * o2[0] + o[1] * o2[1]);
     walls.prism([b, [b[0] + o[0] * T, b[1] + o[1] * T], [b[0] + (o[0] + o2[0]) * k, b[1] + (o[1] + o2[1]) * k],
       [b[0] + o2[0] * T, b[1] + o2[1] * T]], z, z + CUT, WALL_COLOR);
+  }
   }
   group.add(new Mesh(plates.geometry(), m.plate));
   group.add(new Mesh(walls.geometry(), m.wall));
@@ -157,7 +159,7 @@ export function buildPlanView(plan: BuildingPlan, level: number, opts: PlanViewO
     group.add(new LineLoop(line, m.line));
     if (opts.labels) {
       const c = centroid(v.polygon);
-      const s = textSprite("宴會廳挑空", 2.4);
+      const s = textSprite(v.kind === "lightwell" ? "採光井" : v.kind === "elevator" ? "電梯井" : v.kind === "shaft" ? "管道井" : "宴會廳挑空", 2.4);
       s.position.set(c[0], c[1], z + CUT + 0.6);
       group.add(s);
     }

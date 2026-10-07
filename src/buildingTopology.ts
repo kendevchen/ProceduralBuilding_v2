@@ -3,9 +3,10 @@ import { Matrix4 } from "three";
 import dims from "../blender/kit_dims.json";
 import type { BuildingParams, DimensionVersion, LayoutMode } from "./params";
 import { PURPOSE, rand } from "./rng";
-import { type EdgeKind, type V2, insetEdges } from "./roof";
+import { type EdgeKind, type V2, insetEdges, roofShape } from "./roof";
 import { buildLegacyGrid, type GridSide, type LegacyGrid } from "./planning/legacyGrid";
 import { resolveCores, coreCellId, type CoreLayout } from "./planning/cores";
+import { resolveDeep, deepModulePolygon, type DeepLayout } from "./planning/deep";
 import { sharedEdges, type Rect } from "./planning/edgeIndex";
 
 export type UpperClass = "N" | "S" | "A";
@@ -60,11 +61,13 @@ export interface TopologyVoid {
   toLevel: number;
   z0: number;
   z1: number;
+  polygon?: V2[];
 }
 export interface BuildingTopology {
   schemaVersion: 1;
   dimensionVersion: DimensionVersion;
-  mode: "legacy" | "cores";
+  mode: "legacy" | "cores" | "lightwell";
+  deepLayout?: DeepLayout;
   coreLayout?: CoreLayout;
   width: number;
   length: number;
@@ -73,7 +76,7 @@ export interface BuildingTopology {
   roofBase: number;
   footprint: V2[];
   edgeKinds: EdgeKind[];
-  boundaryLoops: { id: string; role: "outer"; points: V2[]; facadeIds: string[] }[];
+  boundaryLoops: { id: string; role: "outer" | "hole"; points: V2[]; facadeIds: string[] }[];
   facades: FacadeSegment[];
   modules: { id: string; frame: number[]; polygon: V2[]; facadeIds: string[] }[];
   cells: TopologyCell[];
@@ -210,7 +213,7 @@ export function resolveBuildingTopology(p: BuildingParams): TopologyResult {
   const old = dims.interior.planning.legacyLimits;
   const inOldEnvelope = p.baysX <= old.baysX && p.floors <= old.floors &&
     (p.type === "row" ? L <= old.rowDepth : p.baysY <= old.baysY);
-  if (requestedMode !== "legacy" && requestedMode !== "auto") {
+  if (requestedMode === "courtyard") {
     return { status: "unsupported", requestedMode, diagnostics: [{ code: "mode-not-implemented", message:
       `${requestedMode} 配置尚待後續階段實作；目前不改選其他模式` }] };
   }
@@ -219,17 +222,21 @@ export function resolveBuildingTopology(p: BuildingParams): TopologyResult {
   const n = facades[0].bays.length;
   const door = n % 2 === 1 ? (n - 1) / 2 : n / 2 - (rand(p.seed, PURPOSE.doorBay) < 0.5 ? 1 : 0);
   let ballroom = ballroomBays(p, n, ck[0], ck[1], rows.length, L);
-  const useCores = requestedMode === "auto" && !inOldEnvelope;
+  const useDeep = requestedMode === "lightwell";
+  const useCores = useDeep || requestedMode === "auto" && !inOldEnvelope;
   const envelope = { width: W, length: L, footprint, sides: facades, door, ballroom };
-  const candidate = useCores ? resolveCores(envelope, p) : null;
+  const deepResult = useDeep ? resolveDeep(envelope, p, wallTop) : null;
+  const deepCandidate = deepResult?.status === "ready" ? deepResult : null;
+  const candidate = deepResult ?? (useCores ? resolveCores(envelope, p) : null);
   if (candidate && candidate.status !== "ready") return { status: candidate.status, requestedMode,
     diagnostics: [{ code: candidate.status === "infeasible" ? "core-capacity" : "mode-not-implemented", message: candidate.message }] };
   const coreCandidate = candidate?.status === "ready" ? candidate : null;
+  if (deepCandidate) facades.push(...deepCandidate.facades);
   const grid = coreCandidate?.grid ?? buildLegacyGrid(envelope, p);
   if (coreCandidate) ballroom = coreCandidate.ballroom;
   const cellId = useCores ? coreCellId : (i: number) => `legacy:block:cell:${i}`;
   const cells: TopologyCell[] = grid.cells.map(c => ({
-    id: cellId(c.id), legacyIndex: c.id, moduleId: useCores ? "cores:block" : "legacy:block", zone: c.zone,
+    id: cellId(c.id), legacyIndex: c.id, moduleId: deepCandidate ? deepCandidate.deep.groups.find(g => g.cellIds.includes(c.id))?.id ?? "deep:service" : useCores ? "cores:block" : "legacy:block", zone: c.zone,
     rect: [c.x0, c.y0, c.x1, c.y1], neighbours: [],
   }));
   for (const e of sharedEdges(cells.map(c => c.rect))) {
@@ -247,12 +254,13 @@ export function resolveBuildingTopology(p: BuildingParams): TopologyResult {
     voids.push({ id: part.id, kind: part.role, cellIds: [cellId(part.cell)], fromLevel: 0, toLevel: p.floors + 1,
       z0: dims.interior.groundFloor, z1: roofBase + dims.mansard.rise - dims.interior.atticCeiling });
   }
+  if (deepCandidate) for (const w of deepCandidate.deep.wells) voids.push({ id: w.id, kind: "lightwell", polygon: w.polygon, cellIds: [], fromLevel: 0, toLevel: p.floors + 1, z0: 0, z1: roofShape(footprint, edgeKinds, roofBase).z2 });
   const topology: BuildingTopology = {
-    schemaVersion: 1, dimensionVersion: version, mode: useCores ? "cores" : "legacy", ...(coreCandidate ? { coreLayout: coreCandidate.layout } : {}), width: W, length: L, rows, wallTop, roofBase,
-    footprint, edgeKinds, boundaryLoops: [{ id: "outer", role: "outer", points: footprint, facadeIds }], facades,
-    modules: [{ id: useCores ? "cores:block" : "legacy:block", frame: new Matrix4().toArray(), polygon: grid.inner, facadeIds }],
+    schemaVersion: 1, dimensionVersion: version, mode: useDeep ? "lightwell" : useCores ? "cores" : "legacy", ...(deepCandidate ? { deepLayout: deepCandidate.deep } : {}), ...(coreCandidate ? { coreLayout: coreCandidate.layout } : {}), width: W, length: L, rows, wallTop, roofBase,
+    footprint, edgeKinds, boundaryLoops: [{ id: "outer", role: "outer", points: footprint, facadeIds }, ...(deepCandidate?.deep.wells.map(w => ({ id: w.id, role: "hole" as const, points: w.polygon.slice().reverse(), facadeIds: w.facadeIds })) ?? [])], facades,
+    modules: deepCandidate ? deepCandidate.deep.groups.map(g => ({ id: g.id, frame: new Matrix4().toArray(), polygon: deepModulePolygon(grid.inner, g.y0, g.y1), facadeIds: facades.filter(f => f.side === 1 || f.side === 3 || f.side === 0 && g.y0 === dims.wall || f.side === 2 && g.y1 === L - dims.wall || f.side >= 4 && (Math.abs(f.start[1] - f.end[1]) < 1e-6 && (Math.abs(f.start[1] - g.y0 + dims.wall) < 1e-6 || Math.abs(f.start[1] - g.y1 - dims.wall) < 1e-6))).map(f => f.id) })) : [{ id: useCores ? "cores:block" : "legacy:block", frame: new Matrix4().toArray(), polygon: grid.inner, facadeIds }],
     cells, cores, voids, door, ballroom, grid,
-    diagnostics: coreCandidate ? ["P3 淺平面核心候選；深平面／中庭候選仍待 P4/P5，未作法規認證"] : inOldEnvelope ? [] : ["舊演算法的大型試算；不代表已通過新版採光、電梯或雙梯需求"],
+    diagnostics: deepCandidate ? ["P4 採光井配置；auto 的 O／U／採光井候選順序待 P5", ...(p.ballroom ? ["深平面首版不設宴會廳挑空，保留完整採光與核心"] : [])] : coreCandidate ? ["P3 淺平面核心候選；深平面／中庭候選仍待 P4/P5，未作法規認證"] : inOldEnvelope ? [] : ["舊演算法的大型試算；不代表已通過新版採光、電梯或雙梯需求"],
   };
   return { status: "ready", topology: freezeData(topology) };
 }

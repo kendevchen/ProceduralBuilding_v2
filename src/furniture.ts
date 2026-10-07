@@ -18,7 +18,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { CanvasTexture, Color, Group, type Material, Matrix4, Mesh, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace, Vector3 } from "three";
 import { type Look, type Stamp, atticWoodStamp, atticBooksStamp, atticFabricStamp, atticGlassStamp, booksStamp, carpetStamp, salonRugStamp, diningRugStamp, kitchenBacksplashStamp, kitchenWorktopStamp, banquetWoodStamp, banquetFabricStamp, cafeWoodStamp, cafeFurnitureStamp, cafeStoneStamp, cafeWickerStamp, stampOf } from "./finishes";
 import type { BuildingPlan, PlanRoom } from "./plan";
-import type { Building } from "./generator";
+import { buildingFacade, type Building } from "./generator";
 import type { CafeTheme } from "./cafes";
 import type { AtticTheme } from "./attics";
 import { ballroomPainting, ballroomHighPainting, banquetPlaceCard } from "./ballroomArt";
@@ -1506,8 +1506,8 @@ export function buildCafeTerrace(plan: BuildingPlan, b: Building, mats: Interior
   for (const room of plan.rooms.filter(r => r.level === 0 && r.type === "shop" && r.cafeTheme !== undefined)) {
     rooms[room.id] = 0;
     for (const wi of room.windows) {
-      const w = plan.windows[wi], side = b.sides[w.side];
-      if (w.kind !== "shop" || side.kind !== "street" || w.bay < 0) continue;
+      const w = plan.windows[wi], side = buildingFacade(b, w.side, w.facadeId);
+      if (w.kind !== "shop" || !side || side.kind !== "street" || w.bay < 0) continue;
       const bay = side.bays[w.bay], centre = side.x0 + dims.bay * (w.bay + 0.5);
       if (!bay) continue;
       // Three tables across the frontage, chairs towards the facade/street.

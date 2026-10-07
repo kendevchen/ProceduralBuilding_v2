@@ -15,11 +15,11 @@
 import { BufferGeometry, Float32BufferAttribute, Group, type Material, Matrix4, Mesh, ShapeUtils, Vector2, Vector3 } from "three";
 import dims from "../blender/kit_dims.json";
 import { inRoom, roomEdgeSpans } from "./roomGeometry";
-import type { Building } from "./generator";
+import { buildingFacade, type Building } from "./generator";
 import type { Kit } from "./kit";
 import { type Look, type Stamp, doorOakStamp, thresholdWoodStamp, stampAttributes, stampOf } from "./finishes";
 import { type BuildingPlan, type PlanRoom, type PlanWall, type PlanWindow, edgeAt } from "./plan";
-import { type V2, insetEdges } from "./roof";
+import { type V2, insetEdges, roofShape, roofHeight } from "./roof";
 
 const T = dims.wall;
 const I = dims.interior;
@@ -182,16 +182,17 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
     const k = lv.index;
     const below = [
       ...plan.stairs.filter(s => k > s.from && k <= s.to).map(s => s.polygon),
-      ...plan.voids.filter(v => v.level === k && (!v.kind || k > 0)).map(v => v.polygon),
+      ...plan.voids.filter(v => v.level === k && (v.kind !== "lightwell" && (!v.kind || k > 0))).map(v => v.polygon),
     ];
-    floors.polygon(inner, below.map(shrink), p => v3(p, lv.floorZ), UP);
+    const skyHoles = plan.voids.filter(v => v.level === k && v.kind === "lightwell").map(v => v.polygon);
+    floors.polygon(inner, [...below.map(shrink), ...skyHoles], p => v3(p, lv.floorZ), UP);
     if (lv.cls === "R") continue;
     const above = [
       ...plan.stairs.filter(s => k >= s.from && k < s.to).map(s => s.polygon),
       ...(ballroom && ballroom.level === k ? [ballroom.polygon] : []),
-      ...plan.voids.filter(v => v.level === k && v.ceiling).map(v => v.polygon),
+      ...plan.voids.filter(v => v.level === k && v.ceiling && v.kind !== "lightwell").map(v => v.polygon),
     ];
-    ceilings.polygon(inner, above.map(shrink), p => v3(p, lv.ceilingZ), DOWN);
+    ceilings.polygon(inner, [...above.map(shrink), ...skyHoles], p => v3(p, lv.ceilingZ), DOWN);
   }
   // each room's floor finish laid on the slab (the stairs only on the ground floor, where they stand on it)
   if (finished) {
@@ -204,11 +205,13 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
 
   // ---- the kit module behind each opening, and where its outline sits
   const moduleOf = (w: PlanWindow): { key: string; z: number } | null => {
-    const side = b.sides[w.side];
+    const side = buildingFacade(b, w.side, w.facadeId);
+    if (!side) return null;
     const bay = w.bay === -1 ? side.diag : side.bays[w.bay];
     if (!bay) return null;
     const cls = levels[w.level].cls;
     if (cls === "G") return { key: kit.key("G_bay", bay.ground), z: 0 };
+    if (cls === "R" && w.facadeId) return { key: kit.key("S_bay", "window"), z: b.wallTop };
     if (cls === "R") return bay.dormer ? { key: kit.key("R_mansard", `dormer_${bay.dormer}`), z: b.roofBase } : null;
     // the ballroom's tall windows reach over its two floors
     if (w.side === 0 && w.level <= 2 && b.tall.includes(w.bay)) {
@@ -232,17 +235,19 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
 
   // ---- inner faces of the outer walls, floor to ceiling, with the openings and their reveals
   walls = shellWalls;
-  const edges = inner.map((a, i) => {
-    const c = inner[(i + 1) % inner.length];
+  const boundaries = [inner, ...(plan.innerBoundaries?.map(v => v.polygon) ?? [])];
+  const boundaryEdges = boundaries.flatMap((poly, boundary) => poly.map((a, i) => {
+    const c = poly[(i + 1) % poly.length];
     const len = Math.hypot(c[0] - a[0], c[1] - a[1]);
     const dir: V2 = [(c[0] - a[0]) / len, (c[1] - a[1]) / len];
-    return { a, len, dir, inward: new Vector3(-dir[1], dir[0], 0), along: new Vector3(dir[0], dir[1], 0) };
-  });
+    return { boundary, edge: i, a, len, dir, inward: new Vector3(-dir[1], dir[0], 0), along: new Vector3(dir[0], dir[1], 0) };
+  }));
+  const edges = boundaryEdges.filter(e => e.boundary === 0);
   /** a level's openings on edge i, clipped to s0..s1, z0..z1 of the edge's face */
   const holesOn = (e: (typeof edges)[number], i: number, k: number, s0: number, s1: number, z0: number, z1: number) => {
     const holes: { loop: V2[]; reveal: number; atFloor: boolean }[] = [];
     for (const w of plan.windows) {
-      if (w.level !== k || edgeAt(inner, w.at) !== i) continue;
+      if (w.level !== k || edgeAt(boundaries[e.boundary], w.at) !== e.edge) continue;
       const mod = moduleOf(w);
       const info = mod && kit.info(mod.key);
       if (!mod || !info?.openings) continue;
@@ -298,7 +303,8 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
     if (lv.cls === "R") continue;
     const z0 = lv.floorZ, z1 = lv.ceilingZ, z2 = levels[lv.index + 1].floorZ;
     const open = plan.rooms.filter(r => r.level === lv.index && openAbove(r.id, lv.index));
-    edges.forEach((e, i) => {
+    boundaryEdges.forEach((e, i) => {
+      if (e.boundary > 0) lining(e, i, lv.index, 0, e.len, z1, z2, null);
       // on up through the slab beside the stair wells and the ballroom (its tall windows cross it)
       for (const r of open) {
         const on = onEdge(r.polygon, e);
@@ -403,7 +409,22 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
     const slopeFacing = inward.clone().multiplyScalar(rise).addScaledVector(UP, -run).normalize();
     walls.polygon([[sOf(P0[i]), zk], [sOf(P0[j]), zk], [sOf(Pc[j]), zc], [sOf(Pc[i]), zc]], cut(zk, zc), at(insetAt), slopeFacing);
   });
-  ceilings.polygon(Pc, [], p => v3(p, zc), DOWN);
+  ceilings.polygon(Pc, plan.voids.filter(v => v.level === attic.index && v.kind === "lightwell").map(v => v.polygon), p => v3(p, zc), DOWN);
+
+  // Vertical well facades continue through the attic to the clipped roof cap.
+  // Kit window bays face the well; this lining faces the actual occupied room.
+  const roof = roofShape(b.footprint, b.edgeKinds, b.roofBase);
+  for (const e of boundaryEdges.filter(e => e.boundary > 0)) {
+    lining(e, 0, attic.index, 0, e.len, attic.floorZ, attic.ceilingZ, null);
+    const face = b.topology.facades.find(f => f.id === plan.innerBoundaries![e.boundary - 1].id + ':face:' + e.edge);
+    if (!face) continue;
+    const a = face.start, c = face.end, topA = roofHeight(b.footprint, b.edgeKinds, roof, b.roofBase, a), topC = roofHeight(b.footprint, b.edgeKinds, roof, b.roofBase, c);
+    const z0 = b.wallTop + dims.classes.S.height;
+    walls.quad(v3(a, z0), v3(c, z0), v3(c, topC), v3(a, topA), e.inward.clone().negate());
+    const ia: V2 = [a[0] + face.inward[0] * T, a[1] + face.inward[1] * T], ic: V2 = [c[0] + face.inward[0] * T, c[1] + face.inward[1] * T];
+    walls.quad(v3(ic, attic.ceilingZ), v3(ia, attic.ceilingZ), v3(ia, topA), v3(ic, topC), e.inward);
+    walls.quad(v3(a, topA), v3(c, topC), v3(ic, topC), v3(ia, topA), UP);
+  }
 
   // dormer recesses: a short tunnel from the window back to the slope
   for (const w of dormers) {

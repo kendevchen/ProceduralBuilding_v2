@@ -7,7 +7,7 @@ import { inRoom, roomContains } from '../roomGeometry';
 import { coreWorld, coreLocal, rectLoop } from './cores';
 
 const EPS = 1e-6, C = dims.interior.planning.cores;
-export interface CirculationMetadata { requiredStairs: number; cores: TopologyCore[]; apartmentDiagnostics: string[]; apartmentCounts: { level: number; coreId: string; requested: number; actual: number; reason: string | null }[] }
+export interface CirculationMetadata { requiredStairs: number; cores: TopologyCore[]; apartmentDiagnostics: string[]; apartmentCounts: { moduleId?: string; level: number; coreId: string; requested: number; actual: number; reason: string | null }[] }
 const onLandingEdge = (s: PlanStair, at: V2): boolean => {
   if (!s.landingEdge) return false;
   const [a, b] = s.landingEdge, dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy);
