@@ -47,6 +47,13 @@
       "legacyLimits": { "baysX": 10, "baysY": 8, "floors": 6, "rowDepth": 20 },
       "inputLimits": { "baysMin": 2, "baysMax": 20, "floorsMin": 1, "floorsMax": 20 }
     },
+    "variety": {
+      "maxRetries": 8, "receptionMergeChance": 0.3, "bedroomMergeChance": 0.3,
+      "suiteChance": 0.3, "foyerChance": 0.3, "pantryChance": 0.3,
+      "maxReceptionBays": 3, "minBedrooms": 2, "smallFrontCells": 3,
+      "minServiceWidth": 1.5, "minServiceArea": 3.0,
+      "suiteDepth": 1.8, "minSuiteDepth": 5.0, "suitePartWidth": 2.2, "foyerDepth": 1.8, "pantryDepth": 1.8
+    },
     "_doc": "Floor plans and interior volumes (INTERIOR_SPEC.md). floor: finished floor above an upper floor line; groundFloor: 1F floor above the street; ceiling: below the next floor line; atticCeiling: below the top of the steep slope; atticLining: how far (horizontally) the attic's sloping inner face sits inside the zinc. corridor and bands are between wall centre lines; bands.double / bands.core: interior depth from which a corridor / a central zone with a second corridor appear. doors: [width, height].",
     "floor": 0.2,
     "groundFloor": 0.15,

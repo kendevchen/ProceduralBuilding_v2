@@ -31,6 +31,10 @@ type Pattern = (typeof P)[keyof typeof P];
 interface Finish { pattern: Pattern; a: string; b: string }
 
 const FLOORS: Record<RoomType, Finish> = {
+  bathroom: { pattern: P.hexSparse, a: "#e9e6df", b: "#2f2f33" },
+  closet: { pattern: P.boards, a: "#8f7a63", b: "#6b5a48" },
+  foyer: { pattern: P.marble, a: "#e6e1d6", b: "#33302d" },
+  pantry: { pattern: P.hexMixed, a: "#a8553a", b: "#924630" },
   salon: { pattern: P.herringbone, a: "#a57447", b: "#7a5130" },
   dining: { pattern: P.herringbone, a: "#9c6a40", b: "#74492a" },
   study: { pattern: P.herringbone, a: "#8a5a36", b: "#5e3a22" },
@@ -49,6 +53,10 @@ const FLOORS: Record<RoomType, Finish> = {
 };
 
 const WALLS: Record<RoomType, Finish> = {
+  bathroom: { pattern: P.tiles, a: "#eef2f2", b: "#cfdde0" },
+  closet: { pattern: P.paint, a: "#d9d3c7", b: "#b8b0a2" },
+  foyer: { pattern: P.boiserie, a: "#e2d6be", b: "#bfae8c" },
+  pantry: { pattern: P.tiles, a: "#f2f0ea", b: "#e7e1d0" },
   salon: { pattern: P.boiserie, a: "#ebe3d1", b: "#c9bea6" },
   dining: { pattern: P.boiserie, a: "#dde2d4", b: "#b9c0ad" },
   ballroom: { pattern: P.banquetPanels, a: "#d6ddd3", b: "#c3a04c" },

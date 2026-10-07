@@ -183,7 +183,7 @@ function selectBuilding(id: string, animate = false): void {
   cameraMotion = null; unfoldMotion = null; beforeUnfold = null; cutShown = false;
   const state = next.state;
   if (state) {
-    Object.assign(params, structuredClone(state.params)); roomEdits = state.edits;
+    Object.assign(params, structuredClone(state.params)); params.floorVariety = state.params.floorVariety ?? false; roomEdits = state.edits;
     street = state.street; materials = state.materials; cutaway = state.cutaway;
     Object.assign(streetSettings, street.params); Object.assign(cut, state.cut); Object.assign(unfold, state.unfold);
     Object.assign(interiorView, state.interiorView); facadeSettings.look = state.facadeLook;
@@ -200,7 +200,7 @@ function selectBuilding(id: string, animate = false): void {
     if (lastPlan) syncLevels(lastPlan);
     applyCut(true);
   } else {
-    Object.assign(params, structuredClone(saved.params)); params.seed = Math.max(...city.buildings.map(b => b.state?.params.seed ?? 0)) + 1;
+    Object.assign(params, structuredClone(saved.params)); params.floorVariety = saved.params.floorVariety ?? false; params.seed = Math.max(...city.buildings.map(b => b.state?.params.seed ?? 0)) + 1;
     params.facade = {};
     roomEdits = new RoomEdits(); cutaway = new Cutaway(); materials = forkKitMaterials(sharedMaterials!, next.position);
     for (const material of new Set(Object.values(cutaway.interior))) bindBuildingOrigin(material, next.position);
@@ -707,6 +707,8 @@ fInterior.add(interiorView, "area").name("顯示面積").onChange(update);
 fInterior.add(params, "ballroom").name("宴會廳").onChange(update);
 fInterior.add(params, "ballroomFacade", { "兩排窗": "rows", "跨兩層高窗": "tall" }).name("宴會廳立面").onChange(update);
 fInterior.add(params, "apartments", { "自動": "auto", "一戶": "one", "兩戶": "two" }).name("每層戶數").onChange(update);
+const floorProgramming = { get enabled() { return !!params.floorVariety; }, set enabled(on: boolean) { params.floorVariety = on; } };
+fInterior.add(floorProgramming, "enabled").name("樓層配置多樣性").listen().onChange(update);
 fInterior.add(interiorView, "check").name("平面檢查").disable().listen();
 
 /** the level slider follows the building's floors and shows the level's name */

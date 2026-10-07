@@ -43,4 +43,11 @@ export const PURPOSE = {
   treeSize: 20,
   cafeTheme: 21,
   atticTheme: 22,
+  planSalon: 23,
+  planKitchenSide: 24,
+  planReceptionMerge: 25,
+  planBedroomMerge: 26,
+  planSuite: 27,
+  planFoyer: 28,
+  planPantry: 29,
 } as const;

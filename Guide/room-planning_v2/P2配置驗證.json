@@ -1,0 +1,201 @@
+{
+  "date": "2026-10-07T12:09:05.797Z",
+  "matrix": true,
+  "cases": 25948,
+  "levels": 136266,
+  "retries": 5583,
+  "maxRetries": 8,
+  "repeated": 330,
+  "fallback": 0,
+  "newRooms": {
+    "foyer": 21734,
+    "pantry": 97,
+    "bathroom": 1,
+    "closet": 1
+  },
+  "examples": {
+    "foyer": {
+      "overrides": {
+        "type": "freestanding",
+        "cornerStyle": "pier",
+        "baysX": 5,
+        "baysY": 3,
+        "depth": 12,
+        "floors": 4,
+        "ballroom": true,
+        "groundUse": "mixed",
+        "seed": 2,
+        "apartments": "auto"
+      },
+      "room": "4F-04",
+      "area": 14.462500000000004
+    },
+    "pantry": {
+      "overrides": {
+        "type": "corner",
+        "cornerStyle": "pier",
+        "baysX": 10,
+        "baysY": 2,
+        "depth": 12,
+        "floors": 4,
+        "ballroom": true,
+        "groundUse": "residential",
+        "seed": 3,
+        "apartments": "one"
+      },
+      "room": "5F-18",
+      "area": 8.62749999999997
+    },
+    "bathroom": {
+      "overrides": {
+        "type": "freestanding",
+        "cornerStyle": "pier",
+        "baysX": 10,
+        "baysY": 3,
+        "depth": 12,
+        "floors": 6,
+        "ballroom": false,
+        "groundUse": "mixed",
+        "seed": 7,
+        "apartments": "one"
+      },
+      "room": "3F-10",
+      "area": 3.4125000000000085
+    },
+    "closet": {
+      "overrides": {
+        "type": "freestanding",
+        "cornerStyle": "pier",
+        "baysX": 10,
+        "baysY": 3,
+        "depth": 12,
+        "floors": 6,
+        "ballroom": false,
+        "groundUse": "mixed",
+        "seed": 7,
+        "apartments": "one"
+      },
+      "room": "3F-11",
+      "area": 6.012500000000003
+    }
+  },
+  "outcomes": {
+    "V1:position": 106086,
+    "V2:position": 106086,
+    "V3:kept": 65513,
+    "V4:kept": 92730,
+    "V5-suite:no safe internal strip": 29548,
+    "V5-foyer:no safe corridor entrance": 27916,
+    "V5-pantry:not drawn": 86273,
+    "V4:minimum bedrooms or no legal pair": 9126,
+    "V5-suite:not drawn": 76537,
+    "V5-foyer:not drawn": 56436,
+    "V3:no legal pair": 30166,
+    "V3:salon-dining": 9548,
+    "V5-foyer:private entrance": 21734,
+    "V5-pantry:no intervening room": 19716,
+    "V4:master bedroom": 4230,
+    "V3:three-bay-salon": 859,
+    "V5-pantry:between kitchen and dining": 25,
+    "V5-pantry:internal bridge strip": 72,
+    "V5-suite:bathroom and closet": 1
+  },
+  "diagnosticExamples": [
+    {
+      "type": "freestanding",
+      "baysX": 7,
+      "baysY": 2,
+      "depth": 12,
+      "floors": 4,
+      "seed": 1,
+      "apartments": "auto",
+      "level": 2,
+      "status": "repeated",
+      "rejectedIssues": []
+    },
+    {
+      "type": "freestanding",
+      "baysX": 7,
+      "baysY": 2,
+      "depth": 12,
+      "floors": 4,
+      "seed": 1,
+      "apartments": "auto",
+      "level": 2,
+      "status": "repeated",
+      "rejectedIssues": []
+    },
+    {
+      "type": "freestanding",
+      "baysX": 7,
+      "baysY": 2,
+      "depth": 12,
+      "floors": 4,
+      "seed": 1,
+      "apartments": "auto",
+      "level": 2,
+      "status": "repeated",
+      "rejectedIssues": []
+    },
+    {
+      "type": "freestanding",
+      "baysX": 7,
+      "baysY": 2,
+      "depth": 12,
+      "floors": 4,
+      "seed": 1,
+      "apartments": "auto",
+      "level": 2,
+      "status": "repeated",
+      "rejectedIssues": []
+    },
+    {
+      "type": "freestanding",
+      "baysX": 7,
+      "baysY": 2,
+      "depth": 12,
+      "floors": 4,
+      "seed": 1,
+      "apartments": "auto",
+      "level": 2,
+      "status": "repeated",
+      "rejectedIssues": []
+    },
+    {
+      "type": "freestanding",
+      "baysX": 7,
+      "baysY": 2,
+      "depth": 12,
+      "floors": 4,
+      "seed": 1,
+      "apartments": "auto",
+      "level": 2,
+      "status": "repeated",
+      "rejectedIssues": []
+    }
+  ],
+  "benchmarks": [
+    {
+      "overrides": {},
+      "warmup": 5,
+      "samples": 30,
+      "scope": "Node SSR opt-in plan including signatures/retries/checker; excludes generation, meshes, furniture, labels and GPU",
+      "p50Ms": 0.912,
+      "p95Ms": 1.322,
+      "maxMs": 2.784
+    },
+    {
+      "overrides": {
+        "baysX": 10,
+        "baysY": 8,
+        "floors": 6
+      },
+      "warmup": 5,
+      "samples": 30,
+      "scope": "Node SSR opt-in plan including signatures/retries/checker; excludes generation, meshes, furniture, labels and GPU",
+      "p50Ms": 7.193,
+      "p95Ms": 8.361,
+      "maxMs": 8.835
+    }
+  ]
+}

@@ -23,6 +23,9 @@ import { PURPOSE, rand } from "./rng";
 import type { V2 } from "./roof";
 import type { Cell, LegacyGrid } from "./planning/legacyGrid";
 import { sharedEdges } from "./planning/edgeIndex";
+import { varyApartment, programRoll, type ProgramUnit as Unit, type ProgramChoice } from "./planning/program";
+import { floorSignature } from "./planning/signature";
+import { roomsOverlap } from "./roomGeometry";
 
 const I = dims.interior;
 const T = dims.wall;
@@ -35,7 +38,8 @@ const OEIL = 0.6;
 
 export type RoomType =
   | "vestibule" | "concierge" | "shop" | "shopBack" | "stair" | "corridor"
-  | "salon" | "dining" | "ballroom" | "study" | "bedroom" | "kitchen" | "wc" | "maid" | "storage";
+  | "salon" | "dining" | "ballroom" | "study" | "bedroom" | "kitchen" | "wc" | "maid" | "storage"
+  | "bathroom" | "closet" | "foyer" | "pantry";
 
 /** names and diagram colours (INTERIOR_SPEC.md §4) */
 export const ROOM_INFO: Record<RoomType, { name: string; color: string }> = {
@@ -54,6 +58,10 @@ export const ROOM_INFO: Record<RoomType, { name: string; color: string }> = {
   wc: { name: "廁所", color: "#9ad8e3" },
   maid: { name: "閣樓房", color: "#b8a1d9" },
   storage: { name: "儲藏間", color: "#bdb5a6" },
+  bathroom: { name: "浴室", color: "#a9cfe0" },
+  closet: { name: "衣帽間", color: "#b9c6d6" },
+  foyer: { name: "玄關", color: "#ddd5c6" },
+  pantry: { name: "備餐室", color: "#8fc7bd" },
 };
 
 export type LevelClass = "G" | "N" | "S" | "A" | "R";
@@ -94,6 +102,11 @@ export interface PlanDoor {
 }
 
 export interface PlanRoom {
+  /** Stable fixed-cell membership, present only for opt-in floor programming. */
+  cellIds?: string[];
+  part?: string;
+  /** Generated private-room door targets; retained as generation metadata during editing. */
+  programTargets?: string[];
   /** Ground-floor cafe palette: carpet/white, red checks/red, grey wood/wood. */
   cafeTheme?: 0 | 1 | 2;
   atticTheme?: 0 | 1;
@@ -175,7 +188,18 @@ export interface StairFlight {
   end: number;
 }
 
+export interface FloorProgramDiagnostic {
+  level: number;
+  status: "exempt" | "varied" | "repeated" | "legacy-fallback";
+  retries: number;
+  choices: ProgramChoice[];
+  generatedSignature: string;
+  rejectedIssues: string[];
+}
+
 export interface BuildingPlan {
+  /** Candidate diagnostics are separate from validation issues; signatures describe generation, before edits. */
+  programDiagnostics?: FloorProgramDiagnostic[];
   width: number;
   length: number;
   /** inner faces of the outer walls */
@@ -329,20 +353,6 @@ function facadeWindows(g: Grid, levels: PlanLevel[]): PlanWindow[] {
 
 // ------------------------------------------------------------------ rooms of a floor
 
-interface Unit {
-  cells: Cell[];
-  x0: number;
-  y0: number;
-  x1: number;
-  y1: number;
-  type: RoomType | null;
-  apartment: number | null;
-  /** windows of this floor (indices into the plan's windows) */
-  win: number[];
-  /** the shop front variant (1F) */
-  shop?: string;
-  id?: string;
-}
 
 const unitOf = (c: Cell): Unit => ({ cells: [c], x0: c.x0, y0: c.y0, x1: c.x1, y1: c.y1, type: null, apartment: null, win: [] });
 const cx = (u: Unit) => (u.x0 + u.x1) / 2;
@@ -374,6 +384,7 @@ interface Floor {
   units: Unit[];
   /** the ballroom's upper half (the floor above it) */
   voids: Rect[];
+  choices: ProgramChoice[];
 }
 
 interface Ctx {
@@ -383,6 +394,9 @@ interface Ctx {
   lv: PlanLevel;
   windows: PlanWindow[];
   units: Unit[];
+  variation: boolean;
+  retry: number;
+  choices: ProgramChoice[];
 }
 
 /** fuse units into one (they must make a rectangle) */
@@ -452,19 +466,26 @@ function program(ctx: Ctx, groupCells: Set<number>, apt: number) {
 
   // salon: two bays in the middle of the front on the larger floors
   let salon: Unit | null = null;
-  const mid = mine().filter(u => front(u) && !corner(u)).sort((a, b) => a.x0 - b.x0);
-  if (large) {
+  const mid = mine().filter(u => front(u) && (ctx.variation ? u !== studyCorner : !corner(u))).sort((a, b) => a.x0 - b.x0);
+  if (large || (ctx.variation && all.length >= 5)) {
     const pairs: [Unit, Unit][] = [];
     for (let k = 0; k + 1 < mid.length; k++) if (xAdjacent(mid[k], mid[k + 1])) pairs.push([mid[k], mid[k + 1]]);
     const off = (q: [Unit, Unit]) => Math.abs((q[0].x0 + q[1].x1) / 2 - centre);
     const best = pairs.filter(q => off(q) < Math.min(...pairs.map(off)) + 0.01);
-    if (best.length) salon = fuse(ctx, pick(best, 0), null);
+    const candidates = ctx.variation ? pairs.filter(pair => all.filter(u => u.win.length && !pair.includes(u)).length >= 2) : best;
+    if (candidates.length) salon = fuse(ctx, ctx.variation
+      ? candidates[Math.floor(programRoll(p.seed, lv.index, apt, PURPOSE.planSalon, ctx.retry) * candidates.length)]
+      : pick(candidates, 0), null);
   }
   if (!salon) {
     const fr = mine().filter(u => front(u) && u !== studyCorner);
-    salon = mid.length ? closest(mid) : fr.length ? closest(fr) : mine().find(u => u.win.length && u !== studyCorner) ?? mine().find(u => u.win.length) ?? null;
+    const choices = mid.length ? mid : fr;
+    salon = ctx.variation && choices.length
+      ? choices[Math.floor(programRoll(p.seed, lv.index, apt, PURPOSE.planSalon, ctx.retry, 1) * choices.length)]
+      : mid.length ? closest(mid) : fr.length ? closest(fr) : mine().find(u => u.win.length && u !== studyCorner) ?? mine().find(u => u.win.length) ?? null;
   }
   if (salon) set(salon, "salon");
+  if (ctx.variation) ctx.choices.push({ apartment: apt, feature: "V1", outcome: salon ? JSON.stringify(rectOf(salon)) : "no windowed room" });
   // kitchen and WC at the back, either side of the stairs (the kitchen by the service stair)
   const stairX = (ids: number[]) => {
     const c = g.cells[ids[0]];
@@ -476,19 +497,30 @@ function program(ctx: Ctx, groupCells: Set<number>, apt: number) {
   const backs = () => mine().filter(u => back(u) && !corner(u));
   let kitchen: Unit | null = null;
   {
-    const bk = byDist(backs(), kx);
+    let bk = byDist(backs(), kx);
+    if (ctx.variation) {
+      const side = programRoll(p.seed, lv.index, apt, PURPOSE.planKitchenSide, ctx.retry) < 0.5 ? -1 : 1;
+      const onSide = bk.filter(u => Math.sign(cx(u) - kx) === side);
+      if (onSide.length) bk = onSide;
+    }
     const near = bk.filter(u => Math.abs(Math.abs(cx(u) - kx) - Math.abs(cx(bk[0]) - kx)) < 0.01);
     kitchen = near.length ? pick(near, 3) : null;
     if (!kitchen) kitchen = mine().find(u => u.win.length && !front(u)) ?? mine().find(u => !u.win.length) ?? null;
     if (kitchen) set(kitchen, "kitchen");
+    if (ctx.variation) ctx.choices.push({ apartment: apt, feature: "V2", outcome: kitchen ? JSON.stringify(rectOf(kitchen)) : "no legal kitchen" });
   }
   {
     // the WC: a room without a window first (next to the kitchen), else at the back across the stairs
     const k = kitchen;
-    const dry = byDist(mine().filter(u => !u.win.length), k ? cx(k) : mx);
-    let cand = byDist(backs(), mx);
+    let dry = byDist(mine().filter(u => !u.win.length), k ? cx(k) : mx);
+    const wcCore = ctx.variation ? kx : mx;
+    if (ctx.variation && k) {
+      const opposite = dry.filter(u => Math.sign(cx(u) - wcCore) !== Math.sign(cx(k) - wcCore));
+      if (opposite.length) dry = opposite;
+    }
+    let cand = byDist(backs(), wcCore);
     if (k) {
-      const other = cand.filter(u => Math.sign(cx(u) - mx) !== Math.sign(cx(k) - mx));
+      const other = cand.filter(u => Math.sign(cx(u) - wcCore) !== Math.sign(cx(k) - wcCore));
       if (other.length) cand = other;
     }
     // with only street rooms left, the smallest of them (when a bedroom remains)
@@ -534,9 +566,9 @@ function program(ctx: Ctx, groupCells: Set<number>, apt: number) {
   for (const u of mine()) set(u, u.win.length ? "bedroom" : "storage");
 }
 
-function layoutFloor(g: Grid, b: Building, p: BuildingParams, lv: PlanLevel, windows: PlanWindow[], windowIndices: number[], ballroomLevel: number | null): Floor {
+function layoutFloor(g: Grid, b: Building, p: BuildingParams, lv: PlanLevel, windows: PlanWindow[], windowIndices: number[], ballroomLevel: number | null, variation = false, retry = 0): Floor {
   const voidCells = ballroomLevel !== null && lv.index === ballroomLevel + 1 ? g.ballroom : [];
-  const ctx: Ctx = { g, b, p, lv, windows, units: g.cells.filter(c => !voidCells.includes(c.id)).map(unitOf) };
+  const ctx: Ctx = { g, b, p, lv, windows, variation, retry, choices: [], units: g.cells.filter(c => !voidCells.includes(c.id)).map(unitOf) };
   const voids: Rect[] = voidCells.map(id => [g.cells[id].x0, g.cells[id].y0, g.cells[id].x1, g.cells[id].y1]);
   const unitByCell = new Map(ctx.units.map(u => [u.cells[0].id, u]));
   for (const wi of windowIndices) {
@@ -636,7 +668,7 @@ function layoutFloor(g: Grid, b: Building, p: BuildingParams, lv: PlanLevel, win
     const dry = pool.filter(u => u.type === "storage");
     const wc = (dry.length ? dry : pool).sort((a, c) => nearStair(a) - nearStair(c))[0];
     if (wc) wc.type = "wc";
-    return { units: ctx.units, voids };
+    return { units: ctx.units, voids, choices: ctx.choices };
   }
 
   // apartments: one, or one each side of the stairs
@@ -669,7 +701,16 @@ function layoutFloor(g: Grid, b: Building, p: BuildingParams, lv: PlanLevel, win
     const s = sideOf(u);
     u.apartment = s === 0 ? null : groups.length === 2 ? (s < 0 ? 0 : 1) : 0;
   }
-  return { units: ctx.units, voids };
+  if (variation) groups.forEach((_, apt) => varyApartment({
+    get units() { return ctx.units; }, windows, seed: p.seed, level: lv.index, retry, choices: ctx.choices,
+  }, apt, {
+    fuse: (us, type) => fuse(ctx, us, type),
+    interiorPoint: q => g.inner.every((a, i) => {
+      const c = g.inner[(i + 1) % g.inner.length];
+      return (c[0] - a[0]) * (q[1] - a[1]) - (c[1] - a[1]) * (q[0] - a[0]) > EPS;
+    }),
+  }));
+  return { units: ctx.units, voids, choices: ctx.choices };
 }
 
 // ------------------------------------------------------------------ walls and doors
@@ -680,6 +721,9 @@ const RECEPTION = new Set<RoomType>(["salon", "dining", "study", "ballroom"]);
 /** how well a room opens into a neighbour (higher is better) */
 function affinity(u: Unit, v: Unit): number {
   const tu = u.type!, tv = v.type!;
+  if ((tu === "bathroom" || tu === "closet") && tv === "bedroom") return 7;
+  if (tu === "foyer" && RECEPTION.has(tv)) return 8;
+  if (tu === "pantry" && (tv === "kitchen" || tv === "dining")) return 8;
   if (tv === "corridor" || tv === "vestibule") return 10;
   if (tv === "stair") return tu === "corridor" ? 10 : 6;
   if (tu === "shopBack" && tv === "shop") return 9;
@@ -779,6 +823,7 @@ function connect(units: Unit[], voids: Rect[], lv: PlanLevel, cageX: number, lan
   /** a door on the wall between a and b; mode front: near the street facade
    *  (enfilade), near: close to the stairs, else in the middle */
   const door = (a: Unit, b: Unit, kind: DoorKind, mode: "front" | "near" | "middle"): boolean => {
+    if ((a.access && !a.access.includes(b)) || (b.access && !b.access.includes(a))) return false;
     if (linked.has(key(a, b))) return true;
     const cand = byPair.get(key(a, b)) ?? [];
     const [width, height] = I.doors[kind];
@@ -815,6 +860,7 @@ function connect(units: Unit[], voids: Rect[], lv: PlanLevel, cageX: number, lan
     expand([a, b].filter(u => seen.has(u)));
     return true;
   };
+  for (const u of units) for (const v of u.access ?? []) door(u, v, "single", "middle");
   const sameFlat = (a: Unit, b: Unit) => a.apartment === null || b.apartment === null || a.apartment === b.apartment;
 
   for (const u of units) {
@@ -889,13 +935,14 @@ function connect(units: Unit[], voids: Rect[], lv: PlanLevel, cageX: number, lan
 
 // ------------------------------------------------------------------ the plan
 
-export function planBuilding(b: Building, p: BuildingParams): BuildingPlan {
+function buildPlan(b: Building, p: BuildingParams, retries: ReadonlyMap<number, number> = new Map(), fallback: ReadonlySet<number> = new Set()): BuildingPlan {
   const g = buildingGrid(b);
   const levels = planLevels(b);
   const windows = facadeWindows(g, levels);
   const windowsByLevel: number[][] = levels.map(() => []);
   windows.forEach((w, wi) => windowsByLevel[w.level].push(wi));
   const ballroomLevel = b.ballroom && g.ballroom.length ? 1 : null;
+  const diagnostics: FloorProgramDiagnostic[] = [];
   const rooms: PlanRoom[] = [];
   const walls: PlanWall[] = [];
   const voids: BuildingPlan["voids"] = [];
@@ -906,8 +953,12 @@ export function planBuilding(b: Building, p: BuildingParams): BuildingPlan {
   const stairRooms: Record<PlanStair["kind"], PlanRoom[]> = { main: [], service: [] };
 
   for (const lv of levels) {
-    const floor = layoutFloor(g, b, p, lv, windows, windowsByLevel[lv.index], ballroomLevel);
-    const diningCandidate = lv.index === 1 ? floor.units.filter(u => u.type === "bedroom")
+    const eligible = lv.cls !== "G" && lv.cls !== "R" && lv.index !== ballroomLevel;
+    const variation = !!p.floorVariety && eligible && !fallback.has(lv.index);
+    const floor = layoutFloor(g, b, p, lv, windows, windowsByLevel[lv.index], ballroomLevel, variation, retries.get(lv.index) ?? 0);
+    diagnostics.push({ level: lv.index, status: !eligible ? "exempt" : fallback.has(lv.index) ? "legacy-fallback" : "varied",
+      retries: retries.get(lv.index) ?? 0, choices: floor.choices, generatedSignature: "", rejectedIssues: [] });
+    const diningCandidate = lv.index === 1 && !variation ? floor.units.filter(u => u.type === "bedroom")
       .sort((a, c) => c.y1 - a.y1 || c.x1 - a.x1)[0] : undefined;
     // A small apartment must retain its only bedroom when bay counts change.
     const diningPrototype = diningCandidate && floor.units.some(u => u !== diningCandidate && u.type === "bedroom" &&
@@ -946,6 +997,11 @@ export function planBuilding(b: Building, p: BuildingParams): BuildingPlan {
         area: polygonArea(polygon), floorZ: lv.floorZ, ceilingZ: tall ? levels[lv.index + 1].ceilingZ : lv.ceilingZ,
         windows: [...u.win], doors: [],
       };
+      if (p.floorVariety) {
+        room.cellIds = [...new Set(u.cells.map(c => b.topology.cells[c.id].id))];
+        if (u.part) room.part = u.part;
+        if (u.access) room.programTargets = u.access.map(v => v.id!);
+      }
       for (const wi of u.win) windows[wi].room = room.id;
       (roomWalls.get(u) ?? []).forEach(({ build: w, index: k }) => {
         const other = w.edge.u === u ? w.edge.v : w.edge.v === u ? w.edge.u : undefined;
@@ -994,8 +1050,41 @@ export function planBuilding(b: Building, p: BuildingParams): BuildingPlan {
   const stairs: PlanStair[] = [stair("main", mainPoly, g.service ? top - 1 : top)];
   if (g.service) stairs.push(stair("service", servicePoly, top));
   const plan: BuildingPlan = { width: g.W, length: g.L, inner: g.inner.map(q => [...q]), levels, rooms, walls, windows, stairs, voids, issues: [] };
+  if (p.floorVariety) plan.programDiagnostics = diagnostics;
   plan.issues = checkPlan(plan);
   return plan;
+}
+
+/** Retry only eligible floors, with independent deterministic draws and a hard eight-redraw cap. */
+export function planBuilding(b: Building, p: BuildingParams): BuildingPlan {
+  if (!p.floorVariety) return buildPlan(b, p);
+  const retries = new Map<number, number>(), fallback = new Set<number>();
+  const rejected = new Map<number, string[]>();
+  const max = I.variety.maxRetries;
+  // Each retry builds fresh mutable units/windows; the topology is immutable.
+  for (let guard = 0; guard <= (max + 2) * (b.rows.length + 2); guard++) {
+    const plan = buildPlan(b, p, retries, fallback), diagnostics = plan.programDiagnostics!;
+    let again = false;
+    for (const d of diagnostics) {
+      const lv = plan.levels[d.level], previous = diagnostics[d.level - 1];
+      const masked = b.topology.voids.filter(v => v.kind === "ballroom" &&
+        (v.fromLevel === d.level || v.fromLevel === d.level - 1)).flatMap(v => v.cellIds);
+      const signature = (level: number) => floorSignature(plan.rooms.filter(r => r.level === level), b.topology.cells, masked);
+      d.generatedSignature = signature(d.level);
+      d.rejectedIssues = rejected.get(d.level) ?? [];
+      if (d.status === "exempt" || d.status === "legacy-fallback") continue;
+      const invalid = plan.issues.filter(issue => issue.startsWith(`${lv.name}：`));
+      const repeat = previous && previous.status !== "exempt" && p.baysX > I.variety.smallFrontCells &&
+        d.generatedSignature === signature(d.level - 1);
+      if (!invalid.length && !repeat) continue;
+      if (invalid.length) { rejected.set(d.level, invalid); d.rejectedIssues = invalid; }
+      if (d.retries < max) { retries.set(d.level, d.retries + 1); again = true; }
+      else if (invalid.length) { fallback.add(d.level); again = true; }
+      else d.status = "repeated";
+    }
+    if (!again) return plan;
+  }
+  throw new Error("Floor programming retry limit exceeded");
 }
 
 /**
@@ -1053,6 +1142,29 @@ const KIND_NAME: Record<PlanWindow["kind"], string> = { window: "窗", door: "�
 export function checkPlan(plan: BuildingPlan, checkUses = true): string[] {
   const issues: string[] = [];
   const name = (i: number) => plan.levels[i]?.name ?? `L${i}`;
+  if (plan.programDiagnostics) {
+    for (const lv of plan.levels) {
+      const rooms = plan.rooms.filter(r => r.level === lv.index).sort((a, b) => a.rect[0] - b.rect[0]);
+      for (let i = 0; i < rooms.length; i++) {
+        const a = rooms[i];
+        if (!(a.area > 0)) issues.push(`${lv.name}：${a.name} ${a.id} 面積必須為正`);
+        for (let j = i + 1; j < rooms.length && rooms[j].rect[0] < a.rect[2] - EPS; j++) {
+          const b = rooms[j];
+          if (Math.min(a.rect[3], b.rect[3]) - Math.max(a.rect[1], b.rect[1]) > EPS && roomsOverlap(a.polygon, b.polygon)) {
+            issues.push(`${lv.name}：房間 ${a.id} 與 ${b.id} 重疊`);
+          }
+        }
+        if (checkUses && ["salon", "dining", "study", "bedroom", "maid"].includes(a.type) &&
+          !a.windows.some(wi => plan.windows[wi]?.room === a.id && ["window", "dormer"].includes(plan.windows[wi].kind))) {
+          issues.push(`${lv.name}：${a.name} ${a.id} 缺少採光窗`);
+        }
+        if (["bathroom", "closet", "foyer", "pantry"].includes(a.type) && a.programTargets &&
+          (a.programTargets.some(id => !a.doors.some(d => d.to === id)) || a.doors.some(d => !a.programTargets!.includes(d.to)))) {
+          issues.push(`${lv.name}：${a.name} ${a.id} 私用入口不完整`);
+        }
+      }
+    }
+  }
   const M = I.minRoom;
   // every window belongs to a room
   for (const w of plan.windows) {
@@ -1111,8 +1223,10 @@ export function checkPlan(plan: BuildingPlan, checkUses = true): string[] {
     const xs = r.polygon.map(q => q[0]), ys = r.polygon.map(q => q[1]);
     const w = Math.max(...xs) - Math.min(...xs), h = Math.max(...ys) - Math.min(...ys);
     const small = Math.min(w, h), big = Math.max(w, h);
-    const min = r.type === "bedroom" || r.type === "maid" ? M.bedroom : r.type === "wc" ? M.wc : r.type === "corridor" ? M.corridor : 0;
+    const service = ["bathroom", "closet", "foyer", "pantry"].includes(r.type);
+    const min = service ? I.variety.minServiceWidth : r.type === "bedroom" || r.type === "maid" ? M.bedroom : r.type === "wc" ? M.wc : r.type === "corridor" ? M.corridor : 0;
     if (small < min - 0.01) issues.push(`${name(r.level)}：${r.name} ${r.id} 太小（${small.toFixed(2)} m）`);
+    if (service && r.area < I.variety.minServiceArea - 0.01) issues.push(`${name(r.level)}：${r.name} ${r.id} 面積不足（${r.area.toFixed(2)} m²）`);
     if (r.type === "stair" && (small < M.stair[0] - 0.01 || big < M.stair[1] - 0.01)) {
       issues.push(`${name(r.level)}：樓梯間 ${r.id} 太小（${w.toFixed(2)} × ${h.toFixed(2)} m）`);
     }

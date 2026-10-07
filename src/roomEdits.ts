@@ -4,7 +4,7 @@ import { signedArea, unionRooms } from "./roomGeometry";
 import type { V2 } from "./roof";
 import dims from "../blender/kit_dims.json";
 
-export const EDITABLE_ROOM_TYPES = ["bedroom", "study", "salon", "dining", "kitchen", "wc", "storage", "shop", "maid"] as const;
+export const EDITABLE_ROOM_TYPES = ["bedroom", "study", "salon", "dining", "kitchen", "wc", "storage", "shop", "maid", "bathroom", "closet", "foyer", "pantry"] as const;
 export type EditableRoomType = (typeof EDITABLE_ROOM_TYPES)[number];
 export const editableType = (type: RoomType): type is EditableRoomType => (EDITABLE_ROOM_TYPES as readonly string[]).includes(type);
 export const roomTypesForLevel = (level: number, attic = false) => EDITABLE_ROOM_TYPES.filter(type => (type !== "shop" || level === 0) && (type !== "maid" || attic));
@@ -36,7 +36,8 @@ function sourceKey(plan: BuildingPlan, r: PlanRoom): string {
 
 function clonePlan(plan: BuildingPlan): BuildingPlan {
   return { ...plan,
-    rooms: plan.rooms.map(r => ({ ...r, polygon: r.polygon.map(p => [...p] as V2), rect: [...r.rect], windows: [...r.windows], doors: r.doors.map(d => ({ ...d })) })),
+    ...(plan.programDiagnostics ? { programDiagnostics: structuredClone(plan.programDiagnostics) } : {}),
+    rooms: plan.rooms.map(r => ({ ...r, ...(r.cellIds ? { cellIds: [...r.cellIds] } : {}), ...(r.programTargets ? { programTargets: [...r.programTargets] } : {}), polygon: r.polygon.map(p => [...p] as V2), rect: [...r.rect], windows: [...r.windows], doors: r.doors.map(d => ({ ...d })) })),
     walls: plan.walls.map(w => ({ ...w, a: [...w.a], b: [...w.b], rooms: [...w.rooms], openings: w.openings.map(o => ({ ...o })) })),
     windows: plan.windows.map(w => ({ ...w })), issues: [...plan.issues],
   };
@@ -91,17 +92,21 @@ function mergePlan(plan: BuildingPlan, ids: [string, string], type: EditableRoom
   if (!fill.length) throw new Error("找不到可移除的共用隔間範圍");
   const polygon = unionRooms([a.polygon, b.polygon, ...fill]);
   const merged: PlanRoom = {
-    ...a, id, type, name: ROOM_INFO[type].name, polygon, area: signedArea(polygon),
+    ...a, ...(a.cellIds || b.cellIds ? { cellIds: [...new Set([...(a.cellIds ?? []), ...(b.cellIds ?? [])])], part: "edited-merge" } : {}), id, type, name: ROOM_INFO[type].name, polygon, area: signedArea(polygon),
     diningPrototype: a.diningPrototype || b.diningPrototype || undefined,
     rect: [Math.min(a.rect[0], b.rect[0]), Math.min(a.rect[1], b.rect[1]), Math.max(a.rect[2], b.rect[2]), Math.max(a.rect[3], b.rect[3])],
     windows: [...new Set([...a.windows, ...b.windows])], doors: [],
   };
+  // A manual merge creates a new room program; preserve the physical doors,
+  // rather than applying the former service room's generated target list.
+  delete merged.programTargets;
   const replaced = (room: string | null) => room && ids.includes(room) ? id : room;
   plan.rooms = plan.rooms.filter(r => !ids.includes(r.id));
   plan.rooms.push(merged);
   plan.walls = plan.walls.filter(w => !shared.includes(w));
   for (const wall of plan.walls) wall.rooms = wall.rooms.map(replaced) as PlanWall["rooms"];
   for (const window of plan.windows) window.room = replaced(window.room);
+  for (const room of plan.rooms) if (room.programTargets) room.programTargets = [...new Set(room.programTargets.map(id => replaced(id)!))];
   // Rebuild every door reference after filtering walls; update both sides symmetrically.
   const byId = new Map(plan.rooms.map(r => [r.id, r]));
   for (const room of plan.rooms) room.doors = [];

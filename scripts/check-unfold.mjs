@@ -69,6 +69,9 @@ try {
     {}, { baysX: 2, baysY: 2 }, { baysX: 3, baysY: 2, floors: 1 },
     { baysX: 9, baysY: 5 }, { baysX: 10, baysY: 8, floors: 6 },
     { type: 'corner', cornerStyle: 'panCoupe' }, { type: 'row', depth: 20, baysX: 7 },
+    { floorVariety: true, seed: 2 },
+    { floorVariety: true, baysX: 10, baysY: 3, floors: 6, seed: 7, ballroom: false, apartments: 'one' },
+    { floorVariety: true, type: 'corner', cornerStyle: 'panCoupe', seed: 8 },
   ]) {
     const params = { ...defaultParams(), ...overrides }, building = generateBuilding(params, kit);
     const plan = planBuilding(building, params), cutaway = new Cutaway();
@@ -77,7 +80,7 @@ try {
     const source = new Group(); source.position.set(-building.width / 2, -building.length / 2, 0); root.add(source);
     source.add(buildRooms3d(plan, building, kit, cutaway.interior, 'real'));
     source.add(buildStairs(plan, cutaway.interior, cutaway.interior.iron, cutaway.interior.iron, 'real'));
-    if (cases === 0) source.add(buildFurniture(plan, building, cutaway.interior, 'real'));
+    if (cases === 0 || (params.floorVariety && params.seed === 7)) source.add(buildFurniture(plan, building, cutaway.interior, 'real'));
     const geometry = new BoxGeometry(0.3, 0.3, 0.3), base = new MeshStandardMaterial();
     const instances = new InstancedMesh(geometry, base, 3);
     for (let i = 0; i < 3; i++) {

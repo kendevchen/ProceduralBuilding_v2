@@ -42,6 +42,8 @@ export interface BuildingParams {
   dimensionVersion?: DimensionVersion;
   /** Omitted means legacy. New modes are resolved explicitly before generation. */
   layoutMode?: LayoutMode;
+  /** Opt-in V1–V5 programming; missing/false preserves complete legacy plans. */
+  floorVariety?: boolean;
   /** freestanding (4 street facades), corner (2 streets, 2 party walls),
    *  row (street front, court back, party walls both sides) */
   type: BuildingType;

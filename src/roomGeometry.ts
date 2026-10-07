@@ -12,6 +12,27 @@ export function signedArea(poly: V2[]): number {
   return poly.reduce((a, p, i) => a + cross(p, poly[(i + 1) % poly.length]), 0) / 2;
 }
 
+/** Positive-area intersection; touching walls and concave bounding boxes do not count. */
+export function roomsOverlap(a: V2[], b: V2[]): boolean {
+  const triangles = (p: V2[]) => ShapeUtils.triangulateShape(p.map(q => new Vector2(...q)), []).map(t => t.map(i => p[i]));
+  for (const first of triangles(a)) for (const second of triangles(b)) {
+    let clipped = first;
+    const clip = signedArea(second) > 0 ? second : [...second].reverse();
+    for (let i = 0; i < clip.length && clipped.length; i++) {
+      const p = clip[i], q = clip[(i + 1) % clip.length], input = clipped;
+      const side = (r: V2) => cross(sub(q, p), sub(r, p));
+      clipped = [];
+      input.forEach((r, j) => {
+        const s = input[(j + 1) % input.length], dr = side(r), ds = side(s);
+        if (dr >= -EPS) clipped.push(r);
+        if ((dr >= -EPS) !== (ds >= -EPS)) clipped.push(at(r, s, dr / (dr - ds)));
+      });
+    }
+    if (Math.abs(signedArea(clipped)) > EPS) return true;
+  }
+  return false;
+}
+
 export function inRoom(poly: V2[], p: V2): boolean {
   let inside = false;
   for (let i = 0; i < poly.length; i++) {
