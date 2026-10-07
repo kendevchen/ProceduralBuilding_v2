@@ -4,6 +4,8 @@
 
 **先讀 [STATE.md](STATE.md)**（現況、規矩、任務該讀哪裡）。規格只讀相關章節，不整份讀：外牆零件 [blender/KIT_SPEC.md](blender/KIT_SPEC.md)，室內 [INTERIOR_SPEC.md](INTERIOR_SPEC.md)。`archive/` 與功能無關，不要讀，除非被指定。**如果文件裡有指向 `archive/` 的連結，而 `archive/` 不存在，不要去別的地方找，也不要猜內容；直接回覆「找不到 archive/」，等使用者放回來。**
 
+跨專案查找／移植功能（包括 `ProceduralBuilding_v3_Bunker`）先讀 [FEATURE_INDEX.md](FEATURE_INDEX.md)：外牆與家具建模、室內配置、剖切／展開及場景控制的入口、依賴與移植邊界；按需要取用，不整包複製 v2。
+
 ## 規矩（精簡）
 - 尺寸只改 `blender/kit_dims.json`；零件由 `blender/kitlib/` 產生，不手改 `.blend`。
 - 素材全部自製，不用 Kenney 或下載模型；FrenchBuilding.blend 只參考拆件方式與搭配規則。
