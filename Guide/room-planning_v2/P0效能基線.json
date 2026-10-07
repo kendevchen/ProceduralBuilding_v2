@@ -1,0 +1,281 @@
+{
+  "mode": "benchmark",
+  "environment": {
+    "node": "v25.2.1",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M3 Pro"
+  },
+  "warmup": 5,
+  "samples": 30,
+  "scope": "Vite SSR CPU: generateBuilding uses a key-only PartIndex; planBuilding includes checkPlan. Excludes kit meshes, interiors, furniture, labels, browser and GPU.",
+  "baseParams": {
+    "type": "freestanding",
+    "cornerStyle": "pier",
+    "depth": 12,
+    "groundUse": "mixed",
+    "baysX": 5,
+    "baysY": 3,
+    "floors": 4,
+    "profile": "haussmann",
+    "dormerEvery": 1,
+    "dormerStyle": "mixed",
+    "cresting": true,
+    "chimneys": 0.5,
+    "seed": 1,
+    "doorStyle": "arched",
+    "groundWindow": "arched",
+    "otherBalcony": "alternate",
+    "consoles": true,
+    "ornament": 2,
+    "pediment": "alternate",
+    "detailPattern": "off",
+    "detailStyle": "pilasters",
+    "shutterClosed": 0.03,
+    "shutterHalf": 0.03,
+    "curtainNone": 0.5,
+    "curtainClosed": 0,
+    "curtainOpen": 0.5,
+    "windowOpen": 1,
+    "windowDir": "in",
+    "windowAngle": 75,
+    "stone": "#ffffff",
+    "paint": "#22382f",
+    "shutter": "#c9c5ba",
+    "awning": "#8c2b2b",
+    "lace": 2,
+    "ballroom": true,
+    "ballroomFacade": "rows",
+    "apartments": "auto",
+    "facade": {
+      "0|0|g": {
+        "curtain": "open",
+        "curtainOpen": 1
+      },
+      "0|0|r": {
+        "dormer": "studio"
+      }
+    }
+  },
+  "cases": [
+    {
+      "name": "default",
+      "overrides": {},
+      "width": 17,
+      "length": 11,
+      "wallTop": 17.2,
+      "levels": 6,
+      "counts": {
+        "rooms": 78,
+        "walls": 133,
+        "windows": 96,
+        "stairs": 1
+      },
+      "legacyIssues": 0,
+      "generateMs": {
+        "min": 0.14550000000002683,
+        "p50": 0.219,
+        "p95": 0.366,
+        "max": 0.927791999999954
+      },
+      "planIncludingCheckMs": {
+        "min": 0.9128749999999854,
+        "p50": 1.282,
+        "p95": 1.632,
+        "max": 2.095834000000025
+      },
+      "combinedMs": {
+        "min": 1.0657079999999723,
+        "p50": 1.543,
+        "p95": 2.291,
+        "max": 2.3287500000000136
+      }
+    },
+    {
+      "name": "legacy-maximum",
+      "overrides": {
+        "baysX": 10,
+        "baysY": 8,
+        "floors": 6
+      },
+      "width": 32,
+      "length": 26,
+      "wallTop": 23.599999999999998,
+      "levels": 8,
+      "counts": {
+        "rooms": 428,
+        "walls": 908,
+        "windows": 288,
+        "stairs": 2
+      },
+      "legacyIssues": 0,
+      "generateMs": {
+        "min": 0.4702909999999747,
+        "p50": 0.549,
+        "p95": 0.782,
+        "max": 1.2596670000000358
+      },
+      "planIncludingCheckMs": {
+        "min": 14.188084000000003,
+        "p50": 17.301,
+        "p95": 29.089,
+        "max": 29.16208299999994
+      },
+      "combinedMs": {
+        "min": 14.658374999999978,
+        "p50": 17.837,
+        "p95": 29.68,
+        "max": 30.348666999999978
+      }
+    },
+    {
+      "name": "proposed-maximum",
+      "overrides": {
+        "baysX": 20,
+        "baysY": 20,
+        "floors": 20
+      },
+      "width": 62,
+      "length": 62,
+      "wallTop": 68.40000000000002,
+      "levels": 22,
+      "counts": {
+        "rooms": 2587,
+        "walls": 5530,
+        "windows": 1760,
+        "stairs": 2
+      },
+      "legacyIssues": 0,
+      "generateMs": {
+        "min": 2.911250000000109,
+        "p50": 3.158,
+        "p95": 5.089,
+        "max": 5.987790999999561
+      },
+      "planIncludingCheckMs": {
+        "min": 247.96529099999862,
+        "p50": 256.839,
+        "p95": 261.37,
+        "max": 265.2329580000005
+      },
+      "combinedMs": {
+        "min": 251.14187499999935,
+        "p50": 260.165,
+        "p95": 265.29,
+        "max": 268.386125
+      }
+    },
+    {
+      "name": "minimal-tall",
+      "overrides": {
+        "baysX": 2,
+        "baysY": 2,
+        "floors": 20
+      },
+      "width": 8,
+      "length": 8,
+      "wallTop": 68.40000000000002,
+      "levels": 22,
+      "counts": {
+        "rooms": 66,
+        "walls": 66,
+        "windows": 176,
+        "stairs": 1
+      },
+      "legacyIssues": 0,
+      "generateMs": {
+        "min": 0.2868749999997817,
+        "p50": 0.306,
+        "p95": 0.354,
+        "max": 0.3607499999998254
+      },
+      "planIncludingCheckMs": {
+        "min": 0.46808299999975134,
+        "p50": 0.57,
+        "p95": 0.693,
+        "max": 1.9871249999996508
+      },
+      "combinedMs": {
+        "min": 0.7561659999992116,
+        "p50": 0.878,
+        "p95": 0.997,
+        "max": 2.2739999999994325
+      }
+    },
+    {
+      "name": "row-ignored-side-bays",
+      "overrides": {
+        "type": "row",
+        "baysY": 20,
+        "floors": 20
+      },
+      "width": 16,
+      "length": 12,
+      "wallTop": 68.40000000000002,
+      "levels": 22,
+      "counts": {
+        "rooms": 240,
+        "walls": 393,
+        "windows": 220,
+        "stairs": 1
+      },
+      "legacyIssues": 0,
+      "generateMs": {
+        "min": 0.32254199999988487,
+        "p50": 0.35,
+        "p95": 0.422,
+        "max": 0.49504200000046694
+      },
+      "planIncludingCheckMs": {
+        "min": 1.5946249999997235,
+        "p50": 1.701,
+        "p95": 3.169,
+        "max": 3.264375000000655
+      },
+      "combinedMs": {
+        "min": 1.9289159999989351,
+        "p50": 2.051,
+        "p95": 3.538,
+        "max": 3.6153749999994034
+      }
+    },
+    {
+      "name": "row-deep-tall",
+      "overrides": {
+        "type": "row",
+        "baysX": 20,
+        "depth": 60,
+        "floors": 20
+      },
+      "width": 61,
+      "length": 60,
+      "wallTop": 68.40000000000002,
+      "levels": 22,
+      "counts": {
+        "rooms": 1883,
+        "walls": 4034,
+        "windows": 880,
+        "stairs": 2
+      },
+      "legacyIssues": 0,
+      "generateMs": {
+        "min": 1.2894579999992857,
+        "p50": 1.419,
+        "p95": 2.264,
+        "max": 2.790415999999823
+      },
+      "planIncludingCheckMs": {
+        "min": 42.688624999998865,
+        "p50": 47.693,
+        "p95": 75.849,
+        "max": 81.16058400000111
+      },
+      "combinedMs": {
+        "min": 44.12541699999929,
+        "p50": 49.263,
+        "p95": 77.252,
+        "max": 83.95100000000093
+      }
+    }
+  ]
+}

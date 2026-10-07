@@ -265,6 +265,7 @@
 - 原始生成平面與編輯紀錄分開。每次重建以樓層、輪廓、牆體、門窗等資訊核對房間，不能只依房間編號。開間／上層數改變後，只重套能完整對應的操作；不相容的操作暫停並在 GUI 提示，切回原配置可重新套用。
 - `src/roomEdits.ts` 負責資料與復原；`src/roomEditor.ts` 負責選取與 GUI；`src/roomGeometry.ts` 負責合併、凹多邊形包含與標籤落點；`src/main.ts` 在幾何重建前套用編輯。`window.__app.roomEdits` 可於開發模式檢查目前結果。
 - 手動改用途造成的「住戶缺少某房型」顯示為用途提醒；通行、牆窗與尺寸問題仍列入平面檢查。
+- 一樓店面改用途或合併後，既有街面門／店面入口仍保留；可達性依實際開口及房間歸屬判斷，不因新房型名稱失去入口資格。沒有街面入口的房間改名「店面」不會因此被視為可從街道進入。
 
 ## 6. 室內幾何
 
@@ -667,6 +668,10 @@ generateBuilding(params, kit)  → Building（新增：sides 每個立面的開�
 
 房間編輯回歸：`npm run check:rooms` 檢查房型與材質切換、保護規則、門窗歸屬、L 形輪廓、連續合併、復原／重做及編號變動後的重套。`npm run check:rooms -- --plans` 再執行與 `planCheckAll([1,2,3],["auto","two","one"])` 相同的生成平面矩陣。GUI 點選、手機長按與剖切仍需實際瀏覽器確認。
 
+`npm run check:plans` 可獨立執行完整 25,920 組矩陣，不依賴房間編輯回歸先通過；也驗證 `scripts/baselines/plans-v1.json` 的 11 組舊結構、參數及完整平面 SHA-256。CLI 與 `window.__app.planCheckAll`、`check:rooms -- --plans` 共用 `src/planChecks.ts` 的場景與報告；CLI 使用預設參數，瀏覽器沿用當前非矩陣參數。原主控台呼叫與 `total/failed/kinds/sample` 欄位保留，新增 `byMode` 分戶數統計。
+
+`npm run bench:plans` 使用 SSR，預設每場景暖機 5 次、量測 30 次；分開記錄 `generateBuilding` 配置資料與 `planBuilding`（含 `checkPlan`）的 p50／p95。`-- --json 路徑` 保存原始報告，`--samples`／`--warmup` 可調樣本；不含實際 mesh、室內／家具／標籤、瀏覽器及 GPU。大型參數僅作後續優化基線，不代表已通過高層或採光檢查。
+
 | 項目 | 預算 |
 |---|---|
 | 室內幾何（預設建築） | 40,000 個三角形以內 |
@@ -677,7 +682,7 @@ generateBuilding(params, kit)  → Building（新增：sides 每個立面的開�
 `checkPlan(plan)` 在每次重建時執行，有問題就在主控台列出，GUI 也顯示「平面檢查：OK」或問題數。檢查項目：
 - 每扇窗屬於一個房間。
 - 牆碰到外牆的位置不在窗洞、門洞、店面範圍內。
-- 每個房間都能從樓梯、門口大廳或街上（店面）經過門走到。
+- 每個房間都能從樓梯、門口大廳或一樓實際街面門／店面入口經過門走到；入口開口必須屬於該房間，僅有「店面」名稱或樓上的店面開口不算街道入口。
 - 最小尺寸：
   - 臥室、閣樓房 2.6 m。
   - 廁所 1.2 m。

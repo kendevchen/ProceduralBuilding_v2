@@ -51,6 +51,40 @@ try {
   assert.ok(mergeReason(base, [stair.id, bedroom.id]));
   assert.throws(() => edits.merge([stair.id, bedroom.id], "study"));
 
+  // The original failing pair is two street-access shops with no interior
+  // doors: 1F-04 / 1F-05 in the default seed. Renaming or merging them cannot
+  // erase their physical street entrances.
+  const streetPair = [3, 4].map(bay => base.windows.find(w => w.level === 0 && w.side === 0 && w.bay === bay && w.kind === "shop").room);
+  assert.deepEqual(streetPair, ["1F-04", "1F-05"]);
+  assert.ok(streetPair.every(id => base.rooms.find(r => r.id === id).doors.length === 0));
+  const streetEdits = new RoomEdits(); streetEdits.apply(base);
+  streetEdits.setType(streetPair[0], "bedroom");
+  assert.ok(!checkPlan(streetEdits.apply(base).plan).some(s => s.includes("走不到")), "renamed shop retains street access");
+  streetEdits.merge(streetPair, "bedroom");
+  const streetMerged = streetEdits.apply(base).plan;
+  assert.ok(!checkPlan(streetMerged).some(s => s.includes("走不到")), "merged shops retain street access");
+  assert.equal(streetMerged.rooms.find(r => r.id.startsWith("merged-")).doors.length, 0, "no interior door is invented");
+  checkReferences(streetMerged);
+
+  // A disconnected internal room cannot become reachable merely by being
+  // called a shop. Likewise a street room whose entrance is removed is cut off.
+  const noEntrance = structuredClone(base), orphan = noEntrance.rooms.find(r => r.level === 0 && r.type === "study");
+  assert.ok(orphan && orphan.windows.every(i => noEntrance.windows[i].kind === "window"));
+  orphan.type = "shop"; orphan.name = "店面";
+  for (const room of noEntrance.rooms) room.doors = room.doors.filter(d => room !== orphan && d.to !== orphan.id);
+  for (const wall of noEntrance.walls) if (wall.rooms.includes(orphan.id)) wall.openings = [];
+  assert.ok(checkPlan(noEntrance).some(s => s.includes(`${orphan.id} 走不到`)), "a name cannot create a street entrance");
+  const removedEntrance = structuredClone(streetMerged), removedRoom = removedEntrance.rooms.find(r => r.id.startsWith("merged-"));
+  for (const wi of removedRoom.windows) removedEntrance.windows[wi].kind = "window";
+  assert.ok(checkPlan(removedEntrance).some(s => s.includes(`${removedRoom.id} 走不到`)), "removing real entrances breaks access");
+
+  // Declaring an opening on an upper floor a shop is not a ground-level entry.
+  const upperEntrance = structuredClone(base), upperRoom = upperEntrance.rooms.find(r => r.level === 1 && r.type === "bedroom");
+  for (const room of upperEntrance.rooms) room.doors = room.doors.filter(d => room !== upperRoom && d.to !== upperRoom.id);
+  for (const wall of upperEntrance.walls) if (wall.rooms.includes(upperRoom.id)) wall.openings = [];
+  upperEntrance.windows[upperRoom.windows[0]].kind = "shop";
+  assert.ok(checkPlan(upperEntrance).some(s => s.includes(`${upperRoom.id} 走不到`)), "upper-floor openings are not street entries");
+
   // Renumbering rooms cannot redirect overrides; geometric changes suspend them, reversibly.
   const retained = new RoomEdits(); retained.apply(base); retained.setType(bedroom.id, "study");
   const renumbered = structuredClone(base), map = new Map(base.rooms.map((r, i) => [r.id, `renumbered-${i}`]));
@@ -206,21 +240,9 @@ try {
 
   // Same matrix as window.__app.planCheckAll([1,2,3], ["auto","two","one"]).
   if (process.argv.includes("--plans")) {
-    let total = 0, failures = 0;
-    const examples = [];
-    for (const apartments of ["auto", "two", "one"]) {
-      for (const type of ["freestanding", "corner", "row"]) for (const cornerStyle of ["pier", "panCoupe"]) {
-        for (const baysX of [2, 3, 5, 7, 10]) for (const side of type === "row" ? [8, 12, 16, 20] : [2, 3, 5, 8])
-          for (const floors of [1, 2, 4, 6]) for (const ballroom of [true, false]) for (const groundUse of ["residential", "mixed", "shops"])
-            for (const seed of [1, 2, 3]) {
-              const config = { apartments, type, cornerStyle, baysX, floors, ballroom, groundUse, seed,
-                ...(type === "row" ? { depth: side } : { baysY: side }) };
-              const plan = make(config); total++;
-              if (plan.issues.length) { failures++; if (examples.length < 5) examples.push({ config, issues: plan.issues }); }
-            }
-      }
-      console.log(`Plan matrix ${apartments}: ${total} checked, ${failures} failures so far.`);
-    }
-    assert.equal(failures, 0, JSON.stringify(examples));
+    const { runPlanChecks } = await server.ssrLoadModule("/src/planChecks.ts");
+    const report = runPlanChecks(defaultParams(), make, [1, 2, 3], ["auto", "two", "one"]);
+    console.log(`Plan matrix: ${report.total} checked, ${report.failed} failures.`);
+    assert.equal(report.failed, 0, JSON.stringify(report.sample));
   }
 } finally { await server.close(); }

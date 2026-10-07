@@ -1256,7 +1256,13 @@ export function checkPlan(plan: BuildingPlan, checkUses = true): string[] {
   for (const lv of plan.levels) {
     const rs = plan.rooms.filter(r => r.level === lv.index);
     const byId = new Map(rs.map(r => [r.id, r]));
-    const seen = new Set(rs.filter(r => r.type === "stair" || r.type === "vestibule" || r.type === "shop").map(r => r.id));
+    // A street entrance survives a room's rename or merge. Conversely, naming
+    // an internal room "shop" does not create a door through its facade.
+    const streetEntry = (r: PlanRoom) => r.level === 0 && r.windows.some(wi => {
+      const w = plan.windows[wi];
+      return w?.level === 0 && w.room === r.id && (w.kind === "door" || w.kind === "shop");
+    });
+    const seen = new Set(rs.filter(r => r.type === "stair" || r.type === "vestibule" || streetEntry(r)).map(r => r.id));
     const queue = [...seen];
     while (queue.length) {
       const r = byId.get(queue.pop()!)!;

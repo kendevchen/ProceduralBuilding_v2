@@ -19,6 +19,7 @@ import { type BuildingParams, defaultParams } from "./params";
 import { PostFX } from "./postfx";
 import { buildInteriors, planRule } from "./interiors";
 import { type BuildingPlan, planBuilding } from "./plan";
+import { runPlanChecks } from "./planChecks";
 import { buildPlanView } from "./planView";
 import { partyWalls, roofCap, roofShape } from "./roof";
 import { type CutAxis, type CutMode, Cutaway } from "./cutaway";
@@ -992,44 +993,8 @@ env.applyMood(env.settings.mood);
  *  collect the ones checkPlan complains about */
 function planCheckAll(seeds = [1, 2], apartments: BuildingParams["apartments"][] = ["auto"]) {
   if (!kit) return null;
-  const fails: unknown[] = [];
-  /** problems by kind (numbers and room ids stripped), with the first case of each */
-  const kinds: Record<string, { count: number; example: unknown }> = {};
-  let total = 0;
-  for (const type of ["freestanding", "corner", "row"] as const) {
-    for (const cornerStyle of ["pier", "panCoupe"] as const) {
-      for (const baysX of [2, 3, 5, 7, 10]) {
-        for (const side of type === "row" ? [8, 12, 16, 20] : [2, 3, 5, 8]) {
-          for (const floors of [1, 2, 4, 6]) {
-            for (const ballroom of [true, false]) {
-              for (const groundUse of ["residential", "mixed", "shops"] as const) {
-                for (const seed of seeds) {
-                  for (const apt of apartments) {
-                    const q: BuildingParams = {
-                      ...params, type, cornerStyle, baysX, floors, ballroom, groundUse, seed, apartments: apt,
-                      ...(type === "row" ? { depth: side } : { baysY: side }),
-                    };
-                    const plan = planBuilding(generateBuilding(q, kit), q);
-                    total++;
-                    if (plan.issues.length) {
-                      const f = { type, cornerStyle, baysX, side, floors, ballroom, groundUse, seed, apt, issues: plan.issues.slice(0, 4) };
-                      fails.push(f);
-                      for (const i of plan.issues) {
-                        const k = i.replace(/\d+F-\d+|閣樓-\d+|[\d.]+/g, "#");
-                        kinds[k] ??= { count: 0, example: f };
-                        kinds[k].count++;
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  return { total, failed: fails.length, kinds, sample: fails.slice(0, 30) };
+  const parts = kit;
+  return runPlanChecks(params, q => planBuilding(generateBuilding(q, parts), q), seeds, apartments);
 }
 
 // dev only: handles for scripted screenshots / debugging from the console
