@@ -10,6 +10,7 @@ import type { UnfoldFocus } from "./unfold";
 export type SectionMode = CutMode | "unfold";
 
 export interface ToolbarActions {
+  cityEdit(on: boolean): void;
   /** show or hide the interior (the cut) at the slider's place, whether or not the panel is open */
   interior(on: boolean): void;
   rotate(on: boolean): void;
@@ -94,6 +95,7 @@ body:has(.cut:not([hidden])) .credit { display: none; }
 `;
 
 const ICON = {
+  edit: `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 20h4l12-12-4-4L4 16v4zM14 6l4 4M4 20h16"/></svg>`,
   eye: `<svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>`,
   rotate: `<svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg>`,
   cut: `<svg viewBox="0 0 24 24"><path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 14l16-4"/></svg>`,
@@ -143,6 +145,11 @@ export class Toolbar {
     };
     // shows or hides the interior at the slider's place; the panel is the 剖切 button's alone
     button("interior", "顯示內部", ICON.eye, "primary").onclick = () => actions.interior(!this.interiorOn);
+    const edit = button("cityEdit", "編輯模式", ICON.edit);
+    edit.setAttribute("aria-label", "編輯模式");
+    edit.setAttribute("aria-pressed", "false");
+    edit.title = "開啟城市編輯模式";
+    edit.onclick = () => actions.cityEdit(!edit.classList.contains("on"));
     const sep = document.createElement("div");
     sep.className = "sep";
     bar.appendChild(sep);
@@ -283,6 +290,12 @@ export class Toolbar {
   setSweep(on: boolean): void {
     this.sweepButton.classList.toggle("on", on);
     this.sweepButton.textContent = on ? "停止掃描" : "自動掃描";
+  }
+
+  setCityEdit(on: boolean): void {
+    this.buttons.cityEdit.classList.toggle("on", on);
+    this.buttons.cityEdit.setAttribute("aria-pressed", String(on));
+    this.buttons.cityEdit.title = on ? "關閉城市編輯模式" : "開啟城市編輯模式";
   }
 
   setRotate(on: boolean): void { this.buttons.rotate.classList.toggle("on", on); }

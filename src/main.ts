@@ -576,27 +576,8 @@ function frameHome(): void {
 
 // ---- GUI ----
 const gui = new GUI({ title: "european building kit" });
-// Keep the mode switch outside the collapsible controls so it remains available.
-const cityEditButton = document.createElement("button");
-cityEditButton.className = "city-edit-toggle";
-cityEditButton.type = "button";
-cityEditButton.title = "開啟城市編輯模式";
-cityEditButton.setAttribute("aria-pressed", "false");
-cityEditButton.innerHTML = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 20h4l12-12-4-4L4 16v4zM14 6l4 4M4 20h16"/></svg><span>編輯模式</span>`;
-gui.domElement.querySelector(":scope > .title")!.after(cityEditButton);
 const fCity = gui.addFolder("城市編輯");
 fCity.hide();
-cityEditButton.onclick = () => {
-  cityEditMode = !cityEditMode;
-  cityEditButton.classList.toggle("on", cityEditMode);
-  cityEditButton.setAttribute("aria-pressed", String(cityEditMode));
-  cityEditButton.title = cityEditMode ? "關閉城市編輯模式" : "開啟城市編輯模式";
-  fCity.show(cityEditMode);
-  if (cityEditMode) { gui.open(); fCity.open(); }
-  cityPointer.set(-10000, -10000);
-  cityDown = null;
-  updateCityUI();
-};
 const citySelection = { building: city.activeId };
 const cityController = fCity.add(citySelection, "building", { "建築 1": "1" }).name("目前建築").onChange((id: string) => {
   selectBuilding(id, true); citySelection.building = city.activeId; cityController.updateDisplay();
@@ -869,6 +850,15 @@ renderer.domElement.addEventListener("pointerup", e => {
 // ---- the section panel and the bottom toolbar ----
 let saveNext = false;
 const toolbar = new Toolbar({
+  cityEdit: on => {
+    cityEditMode = on;
+    toolbar.setCityEdit(on);
+    fCity.show(on);
+    if (on) { gui.open(); fCity.open(); }
+    cityPointer.set(-10000, -10000);
+    cityDown = null;
+    updateCityUI();
+  },
   interior: on => {
     if (on && unfold.selected) {
       beforeUnfold = { position: camera.position.clone(), target: controls.target.clone() };
