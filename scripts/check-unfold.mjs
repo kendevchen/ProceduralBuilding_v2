@@ -139,6 +139,10 @@ try {
     for (const cut of view.cuts) for (const stair of plan.stairs) {
       assert.ok(cut <= stair.layout.rect[0] - 0.145 + 1e-5 || cut >= stair.layout.rect[2] + 0.145 - 1e-5, 'section opening avoids stair flights');
     }
+    for (const cut of view.cuts) for (const room of plan.rooms.filter(r => r.level === 0 && r.structuralId && ['stair', 'liftHall', 'elevator', 'shaft'].includes(r.type))) {
+      const xs = room.polygon.map(q => q[0]);
+      assert.ok(cut <= Math.min(...xs) - 0.145 + 1e-5 || cut >= Math.max(...xs) + 0.145 - 1e-5, 'section opening avoids world-space stairs, elevator halls and shafts');
+    }
     const sourceGeometries = new Set(); source.traverse(o => { if (o.isMesh) sourceGeometries.add(o.geometry); });
     const sourceMeshes = new Map(); source.traverse(o => { if (o.isMesh) sourceMeshes.set(o.uuid, o); });
     const owned = new Set();

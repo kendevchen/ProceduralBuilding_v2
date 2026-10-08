@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "check:limits": "node scripts/check-limits.mjs",
     "check:rooms": "node scripts/check-room-editor.mjs",
     "check:plans": "node scripts/check-plans.mjs",
     "check:variety": "node scripts/check-variety.mjs",

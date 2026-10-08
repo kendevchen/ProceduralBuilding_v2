@@ -43,7 +43,7 @@
   },
   "interior": {
     "planning": {
-      "_doc": "P1 API policy only; GUI caps stay unchanged until P8. Missing dimensionVersion/layoutMode retains legacy inputs.",
+      "_doc": "P8 API and GUI input limits. New interactive inputs use bays-v2/auto; missing dimensionVersion/layoutMode retains legacy saved inputs.",
       "legacyLimits": { "baysX": 10, "baysY": 8, "floors": 6, "rowDepth": 20 },
       "inputLimits": { "baysMin": 2, "baysMax": 20, "floorsMin": 1, "floorsMax": 20 },
       "cores": {

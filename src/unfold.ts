@@ -15,13 +15,17 @@ export type UnfoldFocus = "all" | "left" | "center" | "right";
 const IDS = ["left", "center", "right"] as const;
 export interface UnfoldPlacement { matrix: Matrix4; planes: Plane[]; anchor: Vector3 }
 
-/** Prefer partition axes near the outside bays; never split a stair cage along x. */
+/** Prefer partition axes near the outside bays, avoiding every core where possible. */
 export function unfoldCuts(plan: BuildingPlan): [number, number] {
   const w = plan.width, min = w * U.minimumPartRatio;
   const candidates = new Set([w * U.edgeRatio, w * (1 - U.edgeRatio)]);
   const wallAxes = new Set<number>();
   for (const wall of plan.walls) if (Math.abs(wall.a[0] - wall.b[0]) < 1e-5) { candidates.add(wall.a[0]); wallAxes.add(wall.a[0]); }
-  const stairBounds = plan.stairs.map(stair => [Math.min(...stair.polygon.map(q => q[0])), Math.max(...stair.polygon.map(q => q[0]))]);
+  const protectedPolygons = [
+    ...plan.stairs.map(stair => stair.polygon),
+    ...plan.rooms.filter(r => r.level === 0 && r.structuralId && ['liftHall', 'elevator', 'shaft'].includes(r.type)).map(r => r.polygon),
+  ];
+  const stairBounds = protectedPolygons.map(polygon => [Math.min(...polygon.map(q => q[0])), Math.max(...polygon.map(q => q[0]))]);
   for (const bound of stairBounds) { candidates.add(bound[0] - REVEAL); candidates.add(bound[1] + REVEAL); }
   const safe = [...candidates].filter(x => x >= min && x <= w - min && !stairBounds.some(bound =>
     x > bound[0] - REVEAL + 1e-5 && x < bound[1] + REVEAL - 1e-5));

@@ -127,3 +127,14 @@ export function defaultParams(): BuildingParams {
     facade: { "0|0|g": { curtain: "open", curtainOpen: 1 }, "0|0|r": { dormer: "studio" } },
   };
 }
+
+/** New interactive buildings opt into bay dimensions and automatic feasibility.
+ * API callers and unversioned saved inputs retain defaultParams() compatibility. */
+export function defaultInteractiveParams(): BuildingParams {
+  return { ...defaultParams(), dimensionVersion: "bays-v2", layoutMode: "auto" };
+}
+
+/** Independent new-building inputs; facade overrides belong to the source only. */
+export function copyBuildingParams(source: BuildingParams, seed: number): BuildingParams {
+  return { ...structuredClone(source), seed, facade: {} };
+}

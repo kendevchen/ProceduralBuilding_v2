@@ -15,11 +15,13 @@ import { buildFurnitureGallery } from "./furnitureGallery";
 import { buildingStyle, generateBuilding, partyChimneys, type Building } from "./generator";
 import { Kit } from "./kit";
 import { FACADE_LOOKS, type FacadeLook, type KitMaterials, LACE_PATTERNS, createMaterials, forkKitMaterials } from "./materials";
-import { type BuildingParams, defaultParams } from "./params";
+import { type BuildingParams, defaultInteractiveParams, copyBuildingParams } from "./params";
+import { fitPerspectiveBox, perspectiveBoxFits } from "./cameraFrame";
 import { PostFX } from "./postfx";
 import { buildInteriors, planRule } from "./interiors";
 import { type BuildingPlan, planBuilding } from "./plan";
 import { runPlanChecks } from "./planChecks";
+import { limitCases, checkLimitCase } from "./limitChecks";
 import { buildPlanView } from "./planView";
 import { partyWalls, buildingRoof, buildingRoofCap, courtyardClosure, roofShape } from "./roof";
 import { type CutAxis, type CutMode, Cutaway } from "./cutaway";
@@ -78,7 +80,8 @@ scene.add(grid);
 const root = new Group();
 root.rotation.x = -Math.PI / 2;
 scene.add(root);
-const params = defaultParams();
+const params = defaultInteractiveParams();
+let lastAcceptedParams: BuildingParams | null = null;
 let roomEdits = new RoomEdits();
 const view = { gallery: false, furnitureGallery: false };
 let overviewSize: { width: number; depth: number } | null = null;
@@ -144,7 +147,7 @@ city.add("right", null, new Box3(new Vector3(-8, 0, -6), new Vector3(8, 22, 6)),
 scene.add(city.active.root);
 
 function captureBuilding(): BuildingRuntime {
-  return { params: structuredClone(params), edits: roomEdits, street, materials: materials!,
+  return { params: structuredClone(lastAcceptedParams ?? params), edits: roomEdits, street, materials: materials!,
     cutaway, cut: { ...cut }, unfold: { ...unfold }, spacing: unfoldSpacing,
     interiorView: { ...interiorView }, facadeLook: facadeSettings.look,
     shown, interior, roomBoxes, labels, plan: lastPlan, building: lastBuilding, furniture: lastFurniture, edited: lastEdited, pipeline, interiorKey: builtInteriorKey,
@@ -156,6 +159,7 @@ function restoreBuildingParams(saved: BuildingParams): void {
   for (const key of Object.keys(params) as (keyof BuildingParams)[]) if (!(key in saved)) delete params[key];
   Object.assign(params, structuredClone(saved));
   params.floorVariety = saved.floorVariety ?? false;
+  lastAcceptedParams = structuredClone(params);
 }
 
 function bindBuildingEditors(): void {
@@ -166,9 +170,11 @@ function bindBuildingEditors(): void {
     data?.ballroom ?? null, data?.attic ?? null);
 }
 
-function selectBuilding(id: string, animate = false): void {
+interface BuildingCreation { params: BuildingParams; edits: RoomEdits; pipeline: BuildingPipeline }
+function selectBuilding(id: string, animate = false, creation?: BuildingCreation): void {
   const next = city.buildings.find(b => b.id === id);
   if (!cityEditMode || !next || id === city.activeId || !materials || view.gallery || view.furnitureGallery || interiorView.plan) return;
+  if (!next.state && !creation) return;
   if (citySwitchTimer !== null) clearTimeout(citySwitchTimer);
   citySwitchTimer = null;
   cancelQueuedRebuild();
@@ -215,11 +221,11 @@ function selectBuilding(id: string, animate = false): void {
     if (shown) root.add(shown);
     bindBuildingEditors();
     if (lastPlan) syncLevels(lastPlan);
+    syncPlanningControls();
     applyCut(true);
   } else {
-    restoreBuildingParams(saved.params); params.seed = Math.max(...city.buildings.map(b => b.state?.params.seed ?? 0)) + 1;
-    params.facade = {};
-    roomEdits = new RoomEdits(); pipeline = new BuildingPipeline(); builtInteriorKey = ''; cutaway = new Cutaway(); materials = forkKitMaterials(sharedMaterials!, next.position);
+    restoreBuildingParams(creation!.params);
+    roomEdits = creation!.edits; pipeline = creation!.pipeline; builtInteriorKey = ''; cutaway = new Cutaway(); materials = forkKitMaterials(sharedMaterials!, next.position);
     for (const material of new Set(Object.values(cutaway.interior))) bindBuildingOrigin(material, next.position);
     materials.setLook(saved.facadeLook); facadeSettings.look = saved.facadeLook;
     street = new StreetLife(); Object.assign(street.params, streetSettings); street.group.position.copy(next.position); scene.add(street.group);
@@ -245,12 +251,26 @@ function selectBuilding(id: string, animate = false): void {
 }
 
 function addBuilding(side: AddDirection): void {
-  if (!cityEditMode || !materials || view.gallery || view.furnitureGallery || interiorView.plan || unfoldActive()) return;
+  if (!cityEditMode || !materials || !kit || view.gallery || view.furnitureGallery || interiorView.plan || unfoldActive()) return;
   const source = city.active;
+  const accepted = lastAcceptedParams ?? params;
+  const creation: BuildingCreation = {
+    params: copyBuildingParams(accepted, Math.max(accepted.seed, ...city.buildings.map(b => b.state?.params.seed ?? 0)) + 1),
+    edits: new RoomEdits(), pipeline: new BuildingPipeline(),
+  };
+  // Validate the independent seed before adding an entry or releasing the source.
+  try { creation.pipeline.prepare(creation.params, kit, creation.edits); }
+  catch (error) {
+    cancelQueuedRebuild(); cancelExteriorPreview(); restoreBuildingParams(accepted); syncPlanningControls();
+    planningStatus.textContent = `無法新增：${(error as Error).message}。已保留目前建築。`;
+    planningStatus.dataset.state = "error";
+    gui.controllersRecursive().forEach(c => c.updateDisplay());
+    return;
+  }
   const oldPositions = new Map(city.buildings.map(entry => [entry.id, entry.position.clone()]));
   const entry = city.add(side, null, source.localBounds, source.length);
   syncDormantPositions(oldPositions);
-  scene.add(entry.root); refreshCityChoices(); selectBuilding(entry.id, true);
+  scene.add(entry.root); refreshCityChoices(); selectBuilding(entry.id, true, creation);
 }
 function syncDormantPositions(oldPositions: Map<string, Vector3>): void {
   for (const entry of city.buildings) {
@@ -303,25 +323,21 @@ function frameUnfold(usePresentation = true): void {
   const box = unfoldView.bounds();
   updateUnfold();
   if (box.isEmpty()) return;
-  if (usePresentation) {
-    const target = new Vector3().fromArray(dims.interior.unfold.presentationTarget).add(root.position);
+  const presentationTarget = new Vector3().fromArray(dims.interior.unfold.presentationTarget).add(root.position);
+  const presentationPosition = new Vector3().fromArray(dims.interior.unfold.presentationPosition).add(root.position);
+  if (usePresentation && perspectiveBoxFits(box, presentationPosition, presentationTarget, camera.fov, camera.aspect)) {
+    const target = presentationTarget;
     cameraMotion = {
       from: camera.position.clone(), targetFrom: controls.target.clone(),
-      to: new Vector3().fromArray(dims.interior.unfold.presentationPosition).add(root.position), targetTo: target, elapsed: 0,
+      to: presentationPosition, targetTo: target, elapsed: 0,
     };
     env.frame({ center: box.getCenter(new Vector3()), radius: box.getSize(new Vector3()).length() / 2 });
     return;
   }
-  const target = box.getCenter(new Vector3());
   const el = dims.interior.unfold.elevation * Math.PI / 180;
-  const forward = new Vector3(0, Math.sin(el), Math.cos(el)), up = new Vector3(0, Math.cos(el), -Math.sin(el));
-  const tanV = Math.tan(camera.fov * Math.PI / 360) * 0.83, tanH = tanV * camera.aspect;
-  let distance = 0;
-  for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
-    const p = new Vector3(x, y, z).sub(target), depth = p.dot(forward);
-    distance = Math.max(distance, Math.abs(p.x) / tanH + depth, Math.abs(p.dot(up)) / tanV + depth);
-  }
-  cameraMotion = { from: camera.position.clone(), targetFrom: controls.target.clone(), to: target.clone().addScaledVector(forward, distance), targetTo: target, elapsed: 0 };
+  const forward = new Vector3(0, Math.sin(el), Math.cos(el));
+  const { target, position } = fitPerspectiveBox(box, forward, camera.fov, camera.aspect);
+  cameraMotion = { from: camera.position.clone(), targetFrom: controls.target.clone(), to: position, targetTo: target, elapsed: 0 };
   env.frame({ center: target, radius: box.getSize(new Vector3()).length() / 2 });
 }
 
@@ -422,12 +438,16 @@ function rebuild(frame = false, fresh = false): void {
     try { prepared = activePipeline.prepare(params, kit, roomEdits); }
     catch (error) {
       console.error(error);
-      if (city.active.state) restoreBuildingParams(city.active.state.params);
+      if (lastAcceptedParams) restoreBuildingParams(lastAcceptedParams);
       interiorView.check = (error as Error).message;
+      syncPlanningControls();
+      planningStatus.textContent = `無法套用：${(error as Error).message}。已保留最後有效建築。`;
+      planningStatus.dataset.state = "error";
       gui.controllersRecursive().forEach(c => c.updateDisplay());
       return;
     }
   }
+  if (prepared) lastAcceptedParams = structuredClone(params);
   pipeline = activePipeline;
   const prepareMs = performance.now() - started;
   const nextInteriorKey = interiorKey(params, roomEdits, interiorView.look);
@@ -468,6 +488,7 @@ function rebuild(frame = false, fresh = false): void {
   }
   const { building: b, edited } = prepared!;
   lastBuilding = b;
+  syncPlanningControls();
   lastEdited = edited;
   const plan = edited.plan;
   markCafeShops(plan, params.seed);
@@ -482,6 +503,7 @@ function rebuild(frame = false, fresh = false): void {
     show(g, new Vector3(0, plan.levels[interiorView.level].floorZ, 0), Math.hypot(b.width, b.length) / 2 + 2);
     windows.update(null, null);
     roomEditor.update(null);
+    if (city.active.state) city.active.state.params = structuredClone(params);
     rebuildMetrics.count++; rebuildMetrics.last = { prepareMs, cpuMs: performance.now() - started };
     return;
   }
@@ -673,12 +695,8 @@ function frameHome(): void {
     if (view.furnitureGallery) camera.position.z *= -1;
     return;
   }
-  const r = Math.hypot(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z, bounds.max.y) / 2;
-  const vfov = (camera.fov * Math.PI) / 180;
-  const hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect);
-  const d = (r / Math.sin(Math.min(vfov, hfov) / 2)) * 1.05;
-  controls.target.copy(root.position).add(new Vector3(0, bounds.max.y * 0.42, 0));
-  camera.position.copy(controls.target).addScaledVector(new Vector3(36, 13, 46).normalize(), d);
+  const { target, position } = fitPerspectiveBox(new Box3(bounds.min, bounds.max), new Vector3(36, 13, 46), camera.fov, camera.aspect);
+  controls.target.copy(target); camera.position.copy(position);
 }
 
 // ---- GUI ----
@@ -718,7 +736,13 @@ fCity.add({ overview: () => {
   camera.position.copy(target).addScaledVector(forward, distance);
   env.frame({ center: target, radius: box.getSize(new Vector3()).length() / 2 });
 }}, "overview").name("街區總覽");
-const update = () => queueRebuild();
+const update = () => {
+  // Old saved buildings display Auto; interactive edits must enter feasibility
+  // resolution when leaving the legacy envelope, without changing API defaults.
+  if (!params.layoutMode || params.layoutMode === "legacy") params.layoutMode = "auto";
+  syncDimensionControls();
+  queueRebuild();
+};
 gui.add(view, "gallery").name("零件總覽").listen().onChange((on: boolean) => {
   if (on) { view.furnitureGallery = false; interiorView.plan = false; }
   if (!on) {
@@ -743,12 +767,44 @@ fCity.add(city, "clearance", 0, 20, 0.5).name("每棟間距 m").onChange(() => {
   syncDormantPositions(oldPositions);
 });
 fBuilding.add(params, "groundUse", { "住宅": "residential", "混合": "mixed", "店面": "shops" }).name("一樓用途").onChange(update);
-fBuilding.add(params, "baysX", 2, 10, 1).name("正面開間數").onChange(update);
-fBuilding.add(params, "baysY", 2, 8, 1).name("側面開間數").onChange(update);
-fBuilding.add(params, "floors", 1, 6, 1).name("上層數").onChange(update);
+fBuilding.add(params, "baysX", dims.interior.planning.inputLimits.baysMin, dims.interior.planning.inputLimits.baysMax, 1).name("正面開間數").onChange(update);
+const sideBaysCtrl = fBuilding.add(params, "baysY", dims.interior.planning.inputLimits.baysMin, dims.interior.planning.inputLimits.baysMax, 1).name("側面開間數").onChange(update);
+fBuilding.add(params, "floors", dims.interior.planning.inputLimits.floorsMin, dims.interior.planning.inputLimits.floorsMax, 1).name("上層數").onChange(update);
 fBuilding.add(params, "profile", { "奧斯曼（往上遞減）": "haussmann", "均一": "uniform" }).name("樓高配置").onChange(update);
 fBuilding.add(params, "dormerEvery", { "每個開間": 1, "隔一個開間": 2 }).name("老虎窗").onChange(update);
 fBuilding.add(params, "seed", 1, 999, 1).name("隨機種子").onChange(update);
+const planningInput = {
+  get mode() { return params.layoutMode === "legacy" || !params.layoutMode ? "auto" : params.layoutMode; },
+  set mode(value: "auto" | "courtyard" | "lightwell") { params.layoutMode = value; },
+  get dimensions() { return params.dimensionVersion ?? "legacy"; },
+  set dimensions(value: "legacy" | "bays-v2") { params.dimensionVersion = value; },
+};
+fBuilding.add(planningInput, "mode", { "自動": "auto", "中庭": "courtyard", "採光井": "lightwell" }).name("平面配置").onChange(update);
+const dimensionCtrl = fBuilding.add(planningInput, "dimensions", { "按側面開間": "bays-v2", "相容公尺": "legacy" }).name("連棟尺寸").onChange(update);
+const depthCtrl = fBuilding.add(params, "depth").name("連棟進深 m").onChange(update);
+const planningStatus = document.createElement("p");
+planningStatus.setAttribute("role", "status"); planningStatus.setAttribute("aria-live", "polite");
+planningStatus.style.cssText = "margin:8px 12px;white-space:normal;line-height:1.5";
+fBuilding.$children.append(planningStatus);
+const performanceNote = document.createElement("p");
+performanceNote.textContent = "大型建築會停頓：20×20×20 整棟重建實測約 2.6–3.6 秒，尚未達 300 ms 目標。";
+performanceNote.style.cssText = "margin:8px 12px;color:#b9b9b9;white-space:normal;line-height:1.5";
+fBuilding.$children.append(performanceNote);
+function syncDimensionControls(): void {
+  const row = params.type === "row", metres = planningInput.dimensions === "legacy";
+  dimensionCtrl.show(row); depthCtrl.show(row && metres); sideBaysCtrl.disable(row && metres);
+}
+function syncPlanningControls(): void {
+  syncDimensionControls();
+  apartmentsCtrl.name(lastBuilding?.topology.mode === "legacy" ? "每層戶數" : "每個核心戶數");
+  if (lastBuilding) {
+    const t = lastBuilding.topology;
+    const mode = { legacy: "原配置", cores: "多核心", courtyard: "中庭", lightwell: "採光井" }[t.mode];
+    planningStatus.textContent = `${mode} · ${t.width.toFixed(2)} × ${t.length.toFixed(2)} m · ${params.floors + 2} 層（含一樓、閣樓）`;
+    planningStatus.dataset.state = "ready";
+  }
+}
+
 const fRoof = gui.addFolder("🏠 屋頂 (Roof)");
 fRoof.add(params, "dormerStyle", { "混合": "mixed", "鋅板": "zinc", "圓窗": "oeil", "弧頂": "segment", "三角山花": "triangle" }).name("老虎窗款式").onChange(update);
 fRoof.add(params, "cresting").name("屋脊花飾").onChange(update);
@@ -823,7 +879,7 @@ fInterior.add(interiorView, "area").name("顯示面積").onChange(() => {
 });
 fInterior.add(params, "ballroom").name("宴會廳").onChange(update);
 fInterior.add(params, "ballroomFacade", { "兩排窗": "rows", "跨兩層高窗": "tall" }).name("宴會廳立面").onChange(update);
-fInterior.add(params, "apartments", { "自動": "auto", "一戶": "one", "兩戶": "two" }).name("每層戶數").onChange(update);
+const apartmentsCtrl = fInterior.add(params, "apartments", { "自動": "auto", "一戶": "one", "兩戶": "two" }).name("每層戶數").onChange(update);
 const floorProgramming = { get enabled() { return !!params.floorVariety; }, set enabled(on: boolean) { params.floorVariety = on; } };
 fInterior.add(floorProgramming, "enabled").name("樓層配置多樣性").listen().onChange(update);
 fInterior.add(interiorView, "check").name("平面檢查").disable().listen();
@@ -1127,11 +1183,12 @@ if (import.meta.env.DEV) {
   Object.assign(window, {
     __app: {
       camera, controls, params, view, interiorView, rebuild, scene, renderer, env, planCheckAll, rebuildMetrics,
+      planCheckLimits: (seeds = [1]) => kit ? [...limitCases(seeds)].map(f => checkLimitCase(f, kit!)) : null,
       get pipelineCounts() { return pipeline.counts; },
       get renderSettings() { return { postFX: post.enabled, msaa: perf.msaa, shadowType: renderer.shadowMap.type }; },
-      refreshGui: () => gui.controllersRecursive().forEach(c => c.updateDisplay()),
+      refreshGui: () => { syncPlanningControls(); gui.controllersRecursive().forEach(c => c.updateDisplay()); },
       cut, cutaway, toolbar, applyCut, frameHome, bounds, site, street, windows,
-      roomEdits, roomEditor,
+      get roomEdits() { return roomEdits; }, roomEditor,
       unfold, focusUnfold, setUnfoldAmount,
       get unfoldView() { return unfoldView; },
       get plan() { return lastPlan; },

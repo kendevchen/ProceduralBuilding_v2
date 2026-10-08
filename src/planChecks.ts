@@ -63,7 +63,7 @@ export function runPlanChecks(
 ): PlanCheckReport {
   const report: PlanCheckReport = { total: 0, failed: 0, kinds: {}, sample: [], byMode: {} };
   for (const { params, side } of legacyPlanCases(seeds, apartments)) {
-    const q = { ...base, ...params };
+    const q = { ...base, ...params, dimensionVersion: "legacy" as const, layoutMode: "legacy" as const };
     const plan = make(q);
     report.total++;
     const mode = report.byMode[q.apartments] ??= { total: 0, failed: 0 };

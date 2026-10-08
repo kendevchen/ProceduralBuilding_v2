@@ -211,7 +211,7 @@ export function buildCorePlan(b: Building, p: BuildingParams, retries: ReadonlyM
     for (const u of units) {
       const entries = wallsByRoom.get(u.id!) ?? [], mine = entries.map(e => e.wall);
       const inset = (axis: 0 | 1, value: number) => Math.max(0, ...mine.filter(w => Math.abs(w.a[axis] - w.b[axis]) < EPS && Math.abs(w.a[axis] - value) < EPS).map(w => w.thickness)) / 2;
-      const polygon = clipConvex(planned && !publicType(u) && !equipment(u) ? insetProgramRoom(u,mine) : rectLoop([u.x0 + inset(0, u.x0), u.y0 + inset(1, u.y0), u.x1 - inset(0, u.x1), u.y1 - inset(1, u.y1)]), g.inner);
+      const polygon = clipConvex(!publicType(u) && !equipment(u) ? insetProgramRoom(u,mine) : rectLoop([u.x0 + inset(0, u.x0), u.y0 + inset(1, u.y0), u.x1 - inset(0, u.x1), u.y1 - inset(1, u.y1)]), g.inner);
       const part = layout.parts.find(q => q.id === u.part), type = u.type ?? 'storage';
       const r: PlanRoom = { id: u.id!, type, name: ROOM_INFO[type].name, level: lv.index, levels: type === 'ballroom' ? 2 : 1,
         apartment: u.apartment, rect: rect(u), polygon, area: polygonArea(polygon), floorZ: lv.floorZ,

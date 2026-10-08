@@ -17,6 +17,13 @@ export function planKey(p: BuildingParams): string {
 }
 export const interiorKey = (p: BuildingParams, edits: RoomEdits, look: string) => JSON.stringify([planKey(p), edits.version, p.chimneys, p.lace, look]);
 
+export class PlanFeasibilityError extends Error {
+  constructor(readonly issues: string[]) {
+    super(`配置檢查未通過：${issues.slice(0, 4).join('；')}`);
+    this.name = 'PlanFeasibilityError';
+  }
+}
+
 export class BuildingPipeline {
   private structure?: { key: string; value: TopologyResult };
   private building?: { key: string; value: Building };
@@ -29,6 +36,7 @@ export class BuildingPipeline {
     const structure = this.structure?.key === sk ? this.structure.value : resolveBuildingTopology(p);
     const b = this.building?.key === bk ? this.building.value : generateBuilding(p, kit, () => structure);
     const base = this.plan?.key === pk ? this.plan.value : planBuilding(b, p);
+    if (base.issues.length) throw new PlanFeasibilityError(base.issues);
     const cached = this.edited;
     const edited = cached?.base === base && cached.edits === edits && cached.version === edits.version ? cached.value : edits.apply(base);
     if (this.structure?.value !== structure) this.counts.structure++;
