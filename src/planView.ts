@@ -159,7 +159,7 @@ export function buildPlanView(plan: BuildingPlan, level: number, opts: PlanViewO
     group.add(new LineLoop(line, m.line));
     if (opts.labels) {
       const c = centroid(v.polygon);
-      const s = textSprite(v.kind === "lightwell" ? "採光井" : v.kind === "elevator" ? "電梯井" : v.kind === "shaft" ? "管道井" : "宴會廳挑空", 2.4);
+      const s = textSprite(v.kind === "courtyard" ? "中庭" : v.kind === "lightwell" ? "採光井" : v.kind === "elevator" ? "電梯井" : v.kind === "shaft" ? "管道井" : "宴會廳挑空", 2.4);
       s.position.set(c[0], c[1], z + CUT + 0.6);
       group.add(s);
     }

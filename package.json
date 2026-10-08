@@ -9,6 +9,7 @@
     "check:rooms": "node scripts/check-room-editor.mjs",
     "check:plans": "node scripts/check-plans.mjs",
     "check:variety": "node scripts/check-variety.mjs",
+    "check:courtyard": "node scripts/check-courtyard.mjs",
     "check:deep": "node scripts/check-deep.mjs",
     "check:cores": "node scripts/check-cores.mjs",
     "check:topology": "node scripts/check-topology.mjs",

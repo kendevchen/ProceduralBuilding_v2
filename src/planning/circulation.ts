@@ -15,7 +15,7 @@ const onLandingEdge = (s: PlanStair, at: V2): boolean => {
   return len > EPS && t >= -EPS && t <= 1 + EPS && Math.abs((at[0] - a[0]) * dy - (at[1] - a[1]) * dx) / len <= EPS;
 };
 const distance = (a: V2, b: V2) => Math.hypot(a[0] - b[0], a[1] - b[1]);
-const publicRoom = (r: PlanRoom) => r.circulation === 'public' && ['corridor', 'vestibule', 'liftHall', 'stair'].includes(r.type);
+const publicRoom = (r: PlanRoom) => r.circulation === 'public' && ['corridor', 'vestibule', 'porch', 'liftHall', 'stair'].includes(r.type);
 const equipment = (r: PlanRoom) => r.type === 'elevator' || r.type === 'shaft';
 const insideSegment = (poly: V2[], a: V2, b: V2) => roomContains(poly, [a, b]);
 
@@ -90,7 +90,7 @@ function buildGraph(plan: BuildingPlan, issues: string[]): Graph {
   for (const r of plan.rooms) if (r.level === 0 && publicRoom(r)) {
     for (const wi of r.windows) {
       const w = plan.windows[wi];
-      if (w?.room === r.id && w.level === 0 && w.kind === 'door' && !w.openingRole && edgeAt(plan.inner, w.at) >= 0 && distance(threshold(polygons.get(r.id)!, w.at), w.at) <= dims.wall) add(r, w.at, true);
+      if (w?.room === r.id && w.level === 0 && w.kind === 'door' && !w.facadeId && !w.openingRole && edgeAt(plan.inner, w.at) >= 0 && distance(threshold(polygons.get(r.id)!, w.at), w.at) <= dims.wall) add(r, w.at, true);
     }
   }
   for (const [id, indices] of byRoom) for (let i = 0; i < indices.length; i++) for (let j = i + 1; j < indices.length; j++) {

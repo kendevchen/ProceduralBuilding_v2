@@ -36,6 +36,7 @@ function sourceKey(plan: BuildingPlan, r: PlanRoom): string {
 
 function clonePlan(plan: BuildingPlan): BuildingPlan {
   return { ...plan,
+    ...(plan.courtyard ? { courtyard: structuredClone(plan.courtyard) } : {}),
     ...(plan.daylightDiagnostics ? { daylightDiagnostics: structuredClone(plan.daylightDiagnostics) } : {}),
     ...(plan.innerBoundaries ? { innerBoundaries: structuredClone(plan.innerBoundaries) } : {}),
     ...(plan.circulation ? { circulation: structuredClone(plan.circulation) } : {}),

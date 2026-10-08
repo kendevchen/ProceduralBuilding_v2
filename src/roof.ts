@@ -114,7 +114,7 @@ class Tris {
 
 /** Clip each roof patch independently; intersections interpolate height and UV.
  * Also supports a well crossing a terrasson seam without bridging the opening. */
-function subtractConvex(poly: number[][], hole: V2[]): number[][][] {
+export function subtractConvex(poly: number[][], hole: V2[]): number[][][] {
   const fragments: number[][][] = [];
   let remainder = poly;
   for (let i = 0; i < hole.length && remainder.length >= 3; i++) {
@@ -214,4 +214,55 @@ export function partyWalls(footprint: V2[], kinds: EdgeKind[], roofBase: number)
     edges.push({ a, b, flat: flatS.length ? [Math.min(...flatS), Math.max(...flatS)] : null });
   }
   return { geometry: out.geometry(), edges };
+}
+
+/** One shared roof region: convex exterior envelope, clipped by sky volumes.
+ * Court walls are vertical, so their half-planes never lower another wing's attic. */
+export function buildingRoof(b: import('./generator').Building) {
+  return { footprint: b.topology.roofEnvelope?.footprint ?? b.footprint,
+    edgeKinds: b.topology.roofEnvelope?.edgeKinds ?? b.edgeKinds,
+    holes: b.topology.voids.filter(v => v.kind === 'lightwell' || v.kind === 'courtyard').map(v => v.polygon!) };
+}
+export function buildingRoofCap(b: import('./generator').Building): RoofCap {
+  const r = buildingRoof(b); return roofCap(r.footprint, r.edgeKinds, b.roofBase, r.holes);
+}
+/** Non-windowed end strips and the variable-height attic coping of court facades.
+ * These are exterior geometry, also present when the interior is hidden. */
+export function courtyardClosure(b: import('./generator').Building): BufferGeometry {
+  const out = new Tris(), r = buildingRoof(b), shape = roofShape(r.footprint, r.edgeKinds, b.roofBase), T = dims.wall;
+  if (!b.topology.courtyardLayout) return out.geometry();
+  for (const face of b.topology.facades.slice(4)) {
+    const side = b.innerSides![face.side - 4];
+    const at = (s: number, z: number, off = 0) => [face.start[0] + face.along[0] * s + face.inward[0] * off,
+      face.start[1] + face.along[1] * s + face.inward[1] * off, z, s, z];
+    const top = (s: number) => { const q = at(s, 0); return roofHeight(r.footprint, r.edgeKinds, shape, b.roofBase, [q[0],q[1]]); };
+    const wall = (lo: number, hi: number, z: number) => {
+      if (hi-lo < 1e-6) return;
+      // Intersect the face with every exterior roof break, preserving exact seams.
+      const cuts = [lo, hi];
+      r.footprint.forEach((q, i) => {
+        if (r.edgeKinds[i] === 'party') return;
+        const n = leftNormal(q, r.footprint[(i+1)%r.footprint.length]);
+        const d0 = (face.start[0]-q[0])*n[0]+(face.start[1]-q[1])*n[1];
+        const slope = face.along[0]*n[0]+face.along[1]*n[1];
+        if (Math.abs(slope)<1e-6) return;
+        for (const distance of [0, dims.mansard.run, dims.mansard.run+shape.run]) {
+          const s = (distance-d0)/slope; if (s>lo+1e-6 && s<hi-1e-6) cuts.push(s);
+        }
+      });
+      cuts.sort((a,c)=>a-c);
+      for(let i=0;i+1<cuts.length;i++) { const a=cuts[i],c=cuts[i+1],ha=top(a),hc=top(c);
+        out.quad(at(a,z),at(c,z),at(c,hc),at(a,ha));
+        const innerZ = Math.max(z, b.roofBase + dims.mansard.rise - dims.interior.atticCeiling);
+        out.quad(at(c,innerZ,T),at(a,innerZ,T),at(a,ha,T),at(c,hc,T));
+        out.quad(at(a,ha),at(c,hc),at(c,hc,T),at(a,ha,T));
+      }
+    };
+    let end=0;
+    for(const bay of side.bays) { const lo=bay.x-dims.bay/2,hi=bay.x+dims.bay/2;
+      wall(end,lo,0); wall(lo,hi,b.wallTop+(bay.atticWindow===false?0:dims.classes.S.height)); end=hi;
+    }
+    wall(end,face.length,0);
+  }
+  return out.geometry();
 }

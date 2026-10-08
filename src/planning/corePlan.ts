@@ -13,14 +13,15 @@ import { coreLocal, coreWorld, rectLoop } from './cores';
 const I = dims.interior, C = I.planning.cores, EPS = 1e-6;
 const rect = (u: ProgramUnit): Rect => [u.x0, u.y0, u.x1, u.y1];
 const equipment = (u: ProgramUnit) => u.type === 'elevator' || u.type === 'shaft';
-const publicType = (u: ProgramUnit) => ['corridor', 'liftHall', 'vestibule', 'stair'].includes(u.type!);
+const publicType = (u: ProgramUnit) => ['corridor', 'liftHall', 'vestibule', 'porch', 'stair'].includes(u.type!);
 
 export function buildCorePlan(b: Building, p: BuildingParams, retries: ReadonlyMap<number, number>, fallback: ReadonlySet<number>): BuildingPlan {
   const g = buildingGrid(b), levels = planLevels(b), windows = facadeWindows(g, levels), layout = b.topology.coreLayout!;
   const rooms: PlanRoom[] = [], walls: PlanWall[] = [], voids: BuildingPlan['voids'] = [];
   const daylightDiagnostics: NonNullable<BuildingPlan["daylightDiagnostics"]> = [];
   const diagnostics: FloorProgramDiagnostic[] = [], apartmentDiagnostics: string[] = [];
-  const deep = b.topology.deepLayout;
+  const deep = b.topology.deepLayout, court = b.topology.courtyardLayout;
+  const serviceCells = deep?.serviceCells ?? court?.serviceCells;
   const byCell = new Map(layout.parts.map(part => [part.cell, part]));
   const allStairRooms = new Map<string, PlanRoom[]>();
   let ballroomRoom: PlanRoom | null = null;
@@ -32,7 +33,7 @@ export function buildCorePlan(b: Building, p: BuildingParams, retries: ReadonlyM
       units: g.cells.filter(c => !(b.ballroom && lv.index === 2 && g.ballroom.includes(c.id))).map(c => {
         const part = byCell.get(c.id);
         return { cells: [c], x0: c.x0, y0: c.y0, x1: c.x1, y1: c.y1, apartment: null, win: [],
-          type: part?.role ?? (layout.publicCells.includes(c.id) ? 'corridor' : deep?.serviceCells.includes(c.id) ? (c.id % 3 === 0 ? 'bathroom' : c.id % 3 === 1 ? 'closet' : 'storage') : null), part: part?.id } as ProgramUnit;
+          type: part?.role ?? (court?.porchCells.includes(c.id) && lv.cls === 'G' ? 'porch' : layout.publicCells.includes(c.id) ? 'corridor' : serviceCells?.includes(c.id) ? (c.id % 3 === 0 ? 'bathroom' : c.id % 3 === 1 ? 'closet' : 'storage') : null), part: part?.id } as ProgramUnit;
       }) };
     const levelWindows = windows.flatMap((w, i) => w.level === lv.index ? [i] : []);
     for (const wi of levelWindows) {
@@ -46,7 +47,7 @@ export function buildCorePlan(b: Building, p: BuildingParams, retries: ReadonlyM
       const blind = residential.filter(u => !u.win.length).length;
       daylightDiagnostics.push({ level: lv.index, residentialCells: residential.length, windowlessCells: blind, ratio: blind / residential.length, serviceArea: deep.daylight.serviceArea });
       for (const group of deep.groups) fuse(ctx, ctx.units.filter(u => u.type === 'corridor' && Math.abs(u.y0 - group.corridor[0]) < EPS && Math.abs(u.y1 - group.corridor[1]) < EPS), 'corridor');
-    } else fuse(ctx, ctx.units.filter(u => u.type === 'corridor'), 'corridor');
+    } else if (!court) fuse(ctx, ctx.units.filter(u => u.type === 'corridor'), 'corridor');
     if (lv.cls === 'G') {
       const entry = ctx.units.find(u => u.win.some(i => windows[i].kind === 'door'));
       if (entry && !entry.type) entry.type = 'vestibule';
@@ -94,10 +95,10 @@ export function buildCorePlan(b: Building, p: BuildingParams, retries: ReadonlyM
       circulation.apartmentCounts.push({ ...(area.moduleId ? { moduleId: area.moduleId } : {}), level: lv.index, coreId: area.coreId, requested: wanted, actual: apartment - before,
         reason: ballroom ? "宴會廳服務區採一戶；其餘核心獨立分戶" : apartmentDiagnostics.slice(diagnosticBefore).join("；") || null });
     }
-    if (deep) {
+    if (deep || court) {
       // A service component either opens to public circulation or belongs to
       // one adjacent flat. A shared wet room must never require entering a flat.
-      const edges = sharedEdges(ctx.units.map(rect)), service = new Set(ctx.units.flatMap((u, i) => u.cells.some(c => deep.serviceCells.includes(c.id)) ? [i] : []));
+      const edges = sharedEdges(ctx.units.map(rect)), service = new Set(ctx.units.flatMap((u, i) => u.cells.some(c => serviceCells!.includes(c.id)) ? [i] : []));
       const neighbours = (i: number) => edges.filter(e => (e.i === i || e.j === i) && Math.hypot(e.b[0] - e.a[0], e.b[1] - e.a[1]) >= I.doors.single[0] + I.walls.spine + EPS).map(e => e.i === i ? e.j : e.i);
       while (service.size) {
         const component = [service.values().next().value!]; service.delete(component[0]);
@@ -138,7 +139,8 @@ export function buildCorePlan(b: Building, p: BuildingParams, retries: ReadonlyM
         if (Math.abs(aa[1]) > EPS || Math.abs(bb[1]) > EPS) continue;
       }
       const len = Math.hypot(e.b[0] - e.a[0], e.b[1] - e.a[1]);
-      const [width, height] = I.doors[stair ? 'landing' : 'single'];
+      const porchPass = lv.cls === 'G' && (a.type === 'porch' && v.type === 'corridor' || v.type === 'porch' && a.type === 'corridor');
+      const [width, height] = porchPass ? [dims.ground.door.width, dims.ground.door.spring] : I.doors[stair ? 'landing' : 'single'];
       if (len >= width + I.walls.spine + EPS) w.openings.push({ at: len / 2, width, height });
     }
     const floorWalls = walls.slice(base);
@@ -152,6 +154,7 @@ export function buildCorePlan(b: Building, p: BuildingParams, retries: ReadonlyM
         ceilingZ: type === 'ballroom' ? levels[lv.index + 1].ceilingZ : lv.ceilingZ,
         windows: [...u.win], doors: [], cellIds: [...new Set(u.cells.map(c => b.topology.cells[c.id].id))],
         circulation: equipment(u) ? 'equipment' : publicType(u) ? 'public' : 'private',
+        ...(type === "porch" ? { structuralId: `court:porch:${u.cells[0].id}` } : {}),
         ...(part ? { structuralId: part.id, coreId: part.coreId } : u.apartment !== null ? { coreId: apartmentCore.get(u.apartment) } : {}),
         ...(u.part ? { part: u.part } : {}), ...(u.access ? { programTargets: u.access.map(v => v.id!) } : {}) };
       for (const wi of u.win) { windows[wi].room = r.id; if (equipment(u)) windows[wi].openingRole = 'maintenance'; }
@@ -165,6 +168,7 @@ export function buildCorePlan(b: Building, p: BuildingParams, retries: ReadonlyM
       if (equipment(u)) voids.push({ level: lv.index, polygon, id: part!.id, kind: r.type as 'elevator' | 'shaft', ceiling: lv.cls !== 'R' });
     }
     if (b.ballroom && lv.index === 2 && ballroomRoom) voids.push({ level: lv.index, polygon: ballroomRoom.polygon });
+    if (court) voids.push({ level: lv.index, id: 'court:sky', kind: 'courtyard', polygon: court.polygon.map(q => [...q]), ceiling: true, openBoundary: court.shape === 'U' });
     if (deep) for (const well of deep.wells) voids.push({ level: lv.index, id: well.id, kind: 'lightwell', polygon: well.polygon.map(q => [...q]), ceiling: true });
     diagnostics.push({ level: lv.index, status: !eligible ? 'exempt' : fallback.has(lv.index) ? 'legacy-fallback' : 'varied',
       retries: ctx.retry, choices: ctx.choices, generatedSignature: '', rejectedIssues: [] });
@@ -183,7 +187,7 @@ export function buildCorePlan(b: Building, p: BuildingParams, retries: ReadonlyM
     const len = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
     if (len >= I.doors.landing[0] + I.walls.cage) w.openings.push({ at: len / 2, width: I.doors.landing[0], height: I.doors.landing[1], role: "equipment" });
   }
-  const plan: BuildingPlan = { ...(deep ? { daylightDiagnostics, innerBoundaries: deep.wells.map(w => ({ id: w.id, polygon: [[w.rect[0] - dims.wall, w.rect[3] + dims.wall], [w.rect[2] + dims.wall, w.rect[3] + dims.wall], [w.rect[2] + dims.wall, w.rect[1] - dims.wall], [w.rect[0] - dims.wall, w.rect[1] - dims.wall]] as V2[] })) } : {}), width: g.W, length: g.L, inner: g.inner.map(q => [...q]), levels, rooms, walls, windows, stairs, voids, circulation, issues: [] };
+  const plan: BuildingPlan = { ...(court ? { courtyard: { shape: court.shape, polygon: court.polygon, minimum: court.minimum, blindWingCells: court.wings.filter(w => w.single).map(w => w.cellIds.map(id => b.topology.cells[id].id)), porchCells: court.porchCells.map(id => b.topology.cells[id].id) }, innerBoundaries: court.shape === "O" ? [{ id: "court:sky", polygon: court.innerBoundary }] : [] } : {}), ...(deep ? { daylightDiagnostics, innerBoundaries: deep.wells.map(w => ({ id: w.id, polygon: [[w.rect[0] - dims.wall, w.rect[3] + dims.wall], [w.rect[2] + dims.wall, w.rect[3] + dims.wall], [w.rect[2] + dims.wall, w.rect[1] - dims.wall], [w.rect[0] - dims.wall, w.rect[1] - dims.wall]] as V2[] })) } : {}), width: g.W, length: g.L, inner: (court?.inner ?? g.inner).map(q => [...q]), levels, rooms, walls, windows, stairs, voids, circulation, issues: [] };
   plan.issues = [];
   if (p.floorVariety) plan.programDiagnostics = diagnostics;
   plan.issues = checkPlan(plan);

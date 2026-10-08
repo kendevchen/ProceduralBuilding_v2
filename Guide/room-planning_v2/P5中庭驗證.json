@@ -1,0 +1,3529 @@
+{
+  "cases": [
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 1,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3356,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.85989180956694
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 1,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3394,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.283168463291013
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 1,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3356,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.85989180956694
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 2,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3356,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.283168463291013
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 2,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3394,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.283168463291013
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 2,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3356,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.283168463291013
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 3,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3356,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.85989180956694
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 3,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3394,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.283168463291013
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 3,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3356,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.85989180956694
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 4,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3356,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.859891809566943
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 4,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3394,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.283168463291013
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 4,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3356,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.859891809566943
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 5,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3356,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.64556548928062
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 5,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3394,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.64556548928062
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 5,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3356,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.64556548928062
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 6,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3356,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.64556548928062
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 6,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3394,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.64556548928062
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 6,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3356,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.64556548928062
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 7,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3356,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.85989180956694
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 7,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3394,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.283168463291013
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 7,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3356,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.85989180956694
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 8,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3356,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.85989180956694
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 8,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3394,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.283168463291013
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 8,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3356,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.85989180956694
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 9,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3356,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.283168463291013
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 9,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3394,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.283168463291013
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 9,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3356,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.283168463291013
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 10,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3356,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.64556548928062
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 10,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3394,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.64556548928062
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 10,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3356,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.64556548928062
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 1,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 16.538006306522917,
+      "maxSecond": 27.560352900275905
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 1,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 16.538006306522917,
+      "maxSecond": 27.560352900275905
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 1,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 17.20989180956694,
+      "maxSecond": 27.786434114853797
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 2,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 16.538006306522917,
+      "maxSecond": 27.560352900275905
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 2,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 16.538006306522917,
+      "maxSecond": 27.560352900275905
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 2,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 17.20989180956694,
+      "maxSecond": 27.786434114853797
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 3,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 16.538006306522917,
+      "maxSecond": 27.560352900275905
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 3,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 16.538006306522917,
+      "maxSecond": 27.560352900275905
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 3,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 17.20989180956694,
+      "maxSecond": 27.786434114853797
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 4,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 16.538006306522917,
+      "maxSecond": 27.560352900275905
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 4,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 16.538006306522917,
+      "maxSecond": 27.560352900275905
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 4,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 17.20989180956694,
+      "maxSecond": 27.786434114853797
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 5,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 16.538006306522917,
+      "maxSecond": 27.560352900275905
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 5,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 16.538006306522917,
+      "maxSecond": 27.560352900275905
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 5,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 17.20989180956694,
+      "maxSecond": 27.786434114853797
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 6,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 16.538006306522917,
+      "maxSecond": 27.560352900275905
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 6,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 16.538006306522917,
+      "maxSecond": 27.560352900275905
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 6,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 17.20989180956694,
+      "maxSecond": 27.786434114853797
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 7,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 16.538006306522917,
+      "maxSecond": 27.560352900275905
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 7,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 16.538006306522917,
+      "maxSecond": 27.560352900275905
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 7,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 17.20989180956694,
+      "maxSecond": 27.786434114853797
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 8,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 16.538006306522917,
+      "maxSecond": 27.560352900275905
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 8,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 16.538006306522917,
+      "maxSecond": 27.560352900275905
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 8,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 17.20989180956694,
+      "maxSecond": 27.786434114853797
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 9,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 16.538006306522917,
+      "maxSecond": 27.560352900275905
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 9,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 16.538006306522917,
+      "maxSecond": 27.560352900275905
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 9,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 17.20989180956694,
+      "maxSecond": 27.786434114853797
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 10,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 16.538006306522917,
+      "maxSecond": 27.560352900275905
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 10,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 16.538006306522917,
+      "maxSecond": 27.560352900275905
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 10,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 746,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 17.20989180956694,
+      "maxSecond": 27.786434114853797
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 1,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 516,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.42144080484268
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 1,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 526,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.062119434755544
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 1,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 516,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.42144080484268
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 2,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 516,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.42144080484268
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 2,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 526,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.062119434755544
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 2,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 516,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.42144080484268
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 3,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 516,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.42144080484268
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 3,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 526,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.062119434755544
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 3,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 516,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.42144080484268
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 4,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 516,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.00989180956694,
+      "maxSecond": 35.42144080484268
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 4,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 526,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.062119434755544
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 4,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 516,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.00989180956694,
+      "maxSecond": 35.42144080484268
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 5,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 516,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.42144080484268
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 5,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 526,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.062119434755544
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 5,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 516,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.42144080484268
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 6,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 516,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.42144080484268
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 6,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 526,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.062119434755544
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 6,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 516,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.42144080484268
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 7,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 516,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.42144080484268
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 7,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 526,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.062119434755544
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 7,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 516,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.42144080484268
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 8,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 516,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.42144080484268
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 8,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 526,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.062119434755544
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 8,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 516,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.42144080484268
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 9,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 516,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.42144080484268
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 9,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 526,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.062119434755544
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 9,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 516,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.42144080484268
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 10,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 516,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.42144080484268
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 10,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 526,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.062119434755544
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 10,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 516,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.42144080484268
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 1,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 788,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566944,
+      "maxSecond": 44.20989180956693
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 1,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 798,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566933,
+      "maxSecond": 43.14866480879088
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 1,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 788,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566944,
+      "maxSecond": 44.20989180956693
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 2,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 788,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566944,
+      "maxSecond": 43.30738682367289
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 2,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 798,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566933,
+      "maxSecond": 43.125393676380924
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 2,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 788,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566944,
+      "maxSecond": 43.30738682367289
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 3,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 788,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566944,
+      "maxSecond": 43.30738682367289
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 3,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 798,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566933,
+      "maxSecond": 43.125393676380924
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 3,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 788,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566944,
+      "maxSecond": 43.30738682367289
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 4,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 788,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566944,
+      "maxSecond": 43.30738682367289
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 4,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 798,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566933,
+      "maxSecond": 43.125393676380924
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 4,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 788,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566944,
+      "maxSecond": 43.30738682367289
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 5,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 788,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566944,
+      "maxSecond": 43.30738682367289
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 5,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 798,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566933,
+      "maxSecond": 43.125393676380924
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 5,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 788,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566944,
+      "maxSecond": 43.30738682367289
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 6,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 788,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566944,
+      "maxSecond": 43.30738682367289
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 6,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 798,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566933,
+      "maxSecond": 43.125393676380924
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 6,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 788,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566944,
+      "maxSecond": 43.30738682367289
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 7,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 788,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566944,
+      "maxSecond": 43.30738682367289
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 7,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 798,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566933,
+      "maxSecond": 43.125393676380924
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 7,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 788,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566944,
+      "maxSecond": 43.30738682367289
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 8,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 788,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566944,
+      "maxSecond": 44.20989180956693
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 8,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 798,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566933,
+      "maxSecond": 43.14866480879088
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 8,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 788,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566944,
+      "maxSecond": 44.20989180956693
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 9,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 788,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566944,
+      "maxSecond": 43.30738682367289
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 9,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 798,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566933,
+      "maxSecond": 43.125393676380924
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 9,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 788,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566944,
+      "maxSecond": 43.30738682367289
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 10,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 788,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566944,
+      "maxSecond": 43.30738682367289
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 10,
+      "apartments": "one",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 798,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566933,
+      "maxSecond": 43.14866480879088
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 10,
+      "apartments": "two",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 788,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566944,
+      "maxSecond": 43.30738682367289
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "corner",
+      "seed": 1,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 2674,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 22.378955212814265,
+      "maxSecond": 25.14859238188633
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 1,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3356,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.283168463291013
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 1,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 516,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.42144080484268
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 1,
+      "apartments": "auto",
+      "profile": "uniform",
+      "corner": "pier",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3352,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.85989180956694
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 1,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "panCoupe",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3356,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 21.494116079022184,
+      "maxSecond": 22.85989180956694
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "seed": 1,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "panCoupe",
+      "variety": false,
+      "shape": "O",
+      "court": [
+        9.5,
+        13,
+        48.5,
+        52
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 788,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 29.209891809566944,
+      "maxSecond": 43.30738682367289
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 1,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "panCoupe",
+      "variety": false,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 516,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.00989180956694,
+      "maxSecond": 35.42144080484268
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "seed": 1,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": true,
+      "shape": "O",
+      "court": [
+        9.5,
+        12.5,
+        27.5,
+        36.5
+      ],
+      "minimum": 14.999999999999998,
+      "rooms": 740,
+      "cores": 6,
+      "stairs": 6,
+      "maxNearest": 20.67651871763621,
+      "maxSecond": 27.560352900275905
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "seed": 1,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": true,
+      "shape": "U",
+      "court": [
+        13,
+        13,
+        49,
+        32
+      ],
+      "minimum": 11.799999999999999,
+      "rooms": 508,
+      "cores": 4,
+      "stairs": 4,
+      "maxNearest": 26.009891809566938,
+      "maxSecond": 35.851803374376466
+    },
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "seed": 7,
+      "apartments": "auto",
+      "profile": "haussmann",
+      "corner": "pier",
+      "variety": true,
+      "shape": "O",
+      "court": [
+        13,
+        13,
+        49,
+        49
+      ],
+      "minimum": 34.20000000000001,
+      "rooms": 3330,
+      "cores": 6,
+      "stairs": 12,
+      "maxNearest": 22.12815559677517,
+      "maxSecond": 25.27815559677517
+    }
+  ],
+  "geometry": [
+    {
+      "size": [
+        20,
+        20,
+        20
+      ],
+      "type": "freestanding",
+      "shape": "O",
+      "skyRays": 144,
+      "windowRays": 144,
+      "roofTriangles": 38
+    },
+    {
+      "size": [
+        12,
+        16,
+        8
+      ],
+      "type": "row",
+      "shape": "O",
+      "skyRays": 48,
+      "windowRays": 84,
+      "roofTriangles": 20
+    },
+    {
+      "size": [
+        20,
+        10,
+        6
+      ],
+      "type": "freestanding",
+      "shape": "U",
+      "skyRays": 84,
+      "windowRays": 72,
+      "roofTriangles": 28
+    },
+    {
+      "size": [
+        20,
+        20,
+        6
+      ],
+      "type": "corner",
+      "shape": "O",
+      "skyRays": 169,
+      "windowRays": 156,
+      "roofTriangles": 22
+    }
+  ],
+  "negativeChecks": [
+    {
+      "auto": {
+        "baysX": 10,
+        "baysY": 8,
+        "floors": 6
+      },
+      "mode": "legacy"
+    },
+    {
+      "auto": {
+        "baysX": 20,
+        "baysY": 20,
+        "floors": 20
+      },
+      "mode": "courtyard",
+      "shape": "O"
+    },
+    {
+      "auto": {
+        "baysX": 20,
+        "baysY": 10,
+        "floors": 6
+      },
+      "mode": "courtyard",
+      "shape": "U"
+    },
+    {
+      "auto": {
+        "baysX": 10,
+        "baysY": 10,
+        "floors": 6
+      },
+      "mode": "lightwell"
+    },
+    {
+      "infeasible": {
+        "baysX": 2,
+        "baysY": 20,
+        "floors": 20
+      },
+      "reasons": [
+        {
+          "code": "core-capacity",
+          "message": "O 形：中庭短邊 -18.00 m，小於高度所需 34.20 m；U 形：中庭短邊 -18.00 m，小於高度所需 34.20 m；U 形：中庭短邊 -18.00 m，小於高度所需 34.20 m"
+        }
+      ]
+    },
+    {
+      "infeasible": {
+        "baysX": 20,
+        "baysY": 2,
+        "floors": 20
+      },
+      "reasons": [
+        {
+          "code": "core-capacity",
+          "message": "O 形：中庭短邊 -18.00 m，小於高度所需 34.20 m；U 形：中庭短邊 -5.00 m，小於高度所需 34.20 m；U 形：中庭短邊 -5.00 m，小於高度所需 34.20 m"
+        }
+      ]
+    },
+    {
+      "infeasible": {
+        "baysX": 2,
+        "baysY": 2,
+        "floors": 20
+      },
+      "reasons": [
+        {
+          "code": "core-capacity",
+          "message": "O 形：中庭短邊 -18.00 m，小於高度所需 34.20 m；U 形：中庭短邊 -18.00 m，小於高度所需 34.20 m；U 形：中庭短邊 -18.00 m，小於高度所需 34.20 m"
+        }
+      ]
+    },
+    {
+      "infeasible": {
+        "type": "corner",
+        "baysX": 20,
+        "baysY": 9,
+        "floors": 20
+      },
+      "reasons": [
+        {
+          "code": "core-capacity",
+          "message": "O 形：中庭短邊 6.00 m，小於高度所需 34.20 m；U 形：背面是盲牆，不能作 U 形對外開口；U 形：背面是盲牆，不能作 U 形對外開口"
+        }
+      ]
+    },
+    "court intrusion",
+    "outer exit removed; court door is not a street exit",
+    "court void drift",
+    "porch renamed as a private flat",
+    "one rotated landing disconnected"
+  ],
+  "scope": "P5 structure/geometry; segmented templates P6; full CPU/GPU performance P7; production controls P8"
+}

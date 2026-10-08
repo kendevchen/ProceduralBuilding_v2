@@ -67,7 +67,7 @@ try {
     assert.equal(r.status, 'infeasible'); assert.ok(r.diagnostics[0].message); cases.push({ narrow: [baysX, baysY, 20], reason: r.diagnostics });
   }
   assert.equal(resolveBuildingTopology({ ...defaultParams(), layoutMode: 'auto', baysX: 10, baysY: 8, floors: 6 }).topology.mode, 'legacy');
-  assert.equal(resolveBuildingTopology({ ...defaultParams(), layoutMode: 'auto', baysX: 20, baysY: 20, floors: 20 }).status, 'unsupported');
+  assert.equal(resolveBuildingTopology({ ...defaultParams(), layoutMode: 'auto', baysX: 20, baysY: 20, floors: 20 }).topology.mode, 'courtyard');
   // Visibility route goes around the re-entrant wall rather than cutting through the L.
   const l = [[0,0], [6,0], [6,2], [2,2], [2,6], [0,6]];
   assert.ok(polygonRoute(l, [5,1], [1,5]) > Math.hypot(4,4) + 0.6);

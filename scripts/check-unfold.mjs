@@ -74,6 +74,8 @@ try {
     { floorVariety: true, type: 'corner', cornerStyle: 'panCoupe', seed: 8 },
     { layoutMode: 'auto', baysX: 14, baysY: 5, floors: 10, floorVariety: true },
     { layoutMode: 'auto', baysX: 14, baysY: 5, floors: 20, ballroom: false },
+    { layoutMode: 'courtyard', baysX: 20, baysY: 10, floors: 6, ballroom: false },
+    { layoutMode: 'courtyard', baysX: 20, baysY: 20, floors: 20, ballroom: false },
     { layoutMode: 'lightwell', baysX: 10, baysY: 10, floors: 6, ballroom: false },
     { layoutMode: 'lightwell', baysX: 20, baysY: 20, floors: 20, ballroom: false },
   ]) {
@@ -84,9 +86,9 @@ try {
     const source = new Group(); source.position.set(-building.width / 2, -building.length / 2, 0); root.add(source);
     source.add(buildRooms3d(plan, building, kit, cutaway.interior, 'real'));
     source.add(buildStairs(plan, cutaway.interior, cutaway.interior.iron, cutaway.interior.iron, 'real'));
-    if (cases === 0 || (params.floorVariety && params.seed === 7) || params.layoutMode === 'lightwell' && params.baysX === 10) {
+    if (cases === 0 || (params.floorVariety && params.seed === 7) || params.layoutMode === 'lightwell' && params.baysX === 10 || params.layoutMode === 'courtyard' && params.floors === 6) {
       const furniture = buildFurniture(plan, building, cutaway.interior, 'real');
-      if (building.topology.deepLayout) {
+      if (building.topology.deepLayout || building.topology.courtyardLayout) {
         furniture.updateMatrixWorld(true);
         const point = new Vector3();
         furniture.traverse(o => {
@@ -94,7 +96,7 @@ try {
           const pos = o.geometry.getAttribute('position');
           for (let i = 0; i < pos.count; i++) {
             point.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
-            assert.ok(!building.topology.deepLayout.wells.some(w => point.x > w.rect[0] + .02 && point.x < w.rect[2] - .02 && point.y > w.rect[1] + .02 && point.y < w.rect[3] - .02), 'furniture cannot enter a lightwell');
+            assert.ok(!(building.topology.deepLayout?.wells ?? [{rect:building.topology.courtyardLayout.court}]).some(w => point.x > w.rect[0] + .02 && point.x < w.rect[2] - .02 && point.y > w.rect[1] + .02 && point.y < w.rect[3] - .02), 'furniture cannot enter a lightwell');
           }
         });
       }

@@ -19,8 +19,9 @@ import { buildingFacade, type Building } from "./generator";
 import type { Kit } from "./kit";
 import { type Look, type Stamp, doorOakStamp, thresholdWoodStamp, stampAttributes, stampOf } from "./finishes";
 import { type BuildingPlan, type PlanRoom, type PlanWall, type PlanWindow, edgeAt } from "./plan";
-import { type V2, insetEdges, roofShape, roofHeight } from "./roof";
+import { type V2, insetEdges, roofShape, roofHeight, buildingRoof, subtractConvex } from "./roof";
 
+import { rearNotch } from "./planning/courtyard";
 const T = dims.wall;
 const I = dims.interior;
 const UP = new Vector3(0, 0, 1);
@@ -31,6 +32,7 @@ const GAP = 0.002;
 /** triangles of one material, each turned to face a given way; with a
  *  finish (finishes.ts) every vertex also carries the current `stamp` */
 export class Tris {
+  constructor(private exclusions: V2[][] = []) {}
   pos: number[] = [];
   stamp: Stamp | null = null;
   private stamps: number[] = [];
@@ -38,6 +40,13 @@ export class Tris {
   private ac = new Vector3();
 
   tri(a: Vector3, b: Vector3, c: Vector3, facing: Vector3) {
+    if (this.exclusions.length) {
+      let fragments: number[][][] = [[a.toArray(), b.toArray(), c.toArray()]];
+      for (const hole of this.exclusions) fragments = fragments.flatMap(poly => subtractConvex(poly, hole));
+      const saved = this.exclusions; this.exclusions = [];
+      for (const poly of fragments) for (let i=1;i+1<poly.length;i++) this.tri(new Vector3(...poly[0]),new Vector3(...poly[i]),new Vector3(...poly[i+1]),facing);
+      this.exclusions = saved; return;
+    }
     this.ab.subVectors(b, a);
     this.ac.subVectors(c, a);
     const [p, q] = this.ab.cross(this.ac).dot(facing) < 0 ? [c, b] : [b, c];
@@ -127,7 +136,9 @@ function shrink(poly: V2[]): V2[] {
 }
 
 export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: InteriorMaterials, look: Look = "white"): Group {
-  const partitionWalls = new Tris(), shellWalls = new Tris();
+  const court = b.topology.courtyardLayout, region = buildingRoof(b);
+  const exclude: V2[][] = court?.shape === 'U' ? [[[court.court[0]+1e-5,court.court[1]+1e-5],[court.court[2]-1e-5,court.court[1]+1e-5],[court.court[2]-1e-5,b.length+dims.bay],[court.court[0]+1e-5,b.length+dims.bay]]] : [];
+  const partitionWalls = new Tris(), shellWalls = new Tris(exclude);
   let walls = partitionWalls;
   const floors = new Tris(), ceilings = new Tris(), finishFloors = new Tris();
   const finished = look !== "white";
@@ -182,15 +193,15 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
     const k = lv.index;
     const below = [
       ...plan.stairs.filter(s => k > s.from && k <= s.to).map(s => s.polygon),
-      ...plan.voids.filter(v => v.level === k && (v.kind !== "lightwell" && (!v.kind || k > 0))).map(v => v.polygon),
+      ...plan.voids.filter(v => v.level === k && (v.kind !== "lightwell" && v.kind !== "courtyard" && (!v.kind || k > 0))).map(v => v.polygon),
     ];
-    const skyHoles = plan.voids.filter(v => v.level === k && v.kind === "lightwell").map(v => v.polygon);
+    const skyHoles = plan.voids.filter(v => v.level === k && (v.kind === "lightwell" || v.kind === "courtyard" && !v.openBoundary)).map(v => v.polygon);
     floors.polygon(inner, [...below.map(shrink), ...skyHoles], p => v3(p, lv.floorZ), UP);
     if (lv.cls === "R") continue;
     const above = [
       ...plan.stairs.filter(s => k >= s.from && k < s.to).map(s => s.polygon),
       ...(ballroom && ballroom.level === k ? [ballroom.polygon] : []),
-      ...plan.voids.filter(v => v.level === k && v.ceiling && v.kind !== "lightwell").map(v => v.polygon),
+      ...plan.voids.filter(v => v.level === k && v.ceiling && v.kind !== "lightwell" && v.kind !== "courtyard").map(v => v.polygon),
     ];
     ceilings.polygon(inner, [...above.map(shrink), ...skyHoles], p => v3(p, lv.ceilingZ), DOWN);
   }
@@ -367,8 +378,8 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
   walls = shellWalls;
   const { rise, run } = dims.mansard;
   const rb = b.roofBase;
-  const F = b.footprint;
-  const kinds = b.edgeKinds;
+  const F = buildingRoof(b).footprint;
+  const kinds = region.edgeKinds;
   const insetAt = (z: number) => Math.max(T, I.atticLining + ((z - rb) * run) / rise);
   const ring = (z: number) => insetEdges(F, kinds.map(k => (k === "party" ? T : insetAt(z)))) ?? inner;
   const zk = rb + ((T - I.atticLining) * rise) / run; // where the slope leaves the knee wall
@@ -393,7 +404,7 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
     // knee wall, then the slope, with the dormers' recesses cut out of both (a tall dormer reaches below the slope)
     const recesses: { s0: number; s1: number; z0: number; z1: number }[] = [];
     for (const w of dormers) {
-      if (edgeAt(inner, w.at) !== i) continue;
+      if (edgeAt(b.topology.grid.inner, w.at) !== i) continue;
       const mod = moduleOf(w);
       const rc = mod && kit.info(mod.key)?.recess;
       if (!rc) continue;
@@ -409,16 +420,16 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
     const slopeFacing = inward.clone().multiplyScalar(rise).addScaledVector(UP, -run).normalize();
     walls.polygon([[sOf(P0[i]), zk], [sOf(P0[j]), zk], [sOf(Pc[j]), zc], [sOf(Pc[i]), zc]], cut(zk, zc), at(insetAt), slopeFacing);
   });
-  ceilings.polygon(Pc, plan.voids.filter(v => v.level === attic.index && v.kind === "lightwell").map(v => v.polygon), p => v3(p, zc), DOWN);
+  ceilings.polygon(court?.shape === "U" ? rearNotch(Pc, court.court) : Pc, plan.voids.filter(v => v.level === attic.index && (v.kind === "lightwell" || v.kind === "courtyard" && !v.openBoundary)).map(v => v.polygon), p => v3(p, zc), DOWN);
 
   // Vertical well facades continue through the attic to the clipped roof cap.
   // Kit window bays face the well; this lining faces the actual occupied room.
-  const roof = roofShape(b.footprint, b.edgeKinds, b.roofBase);
-  for (const e of boundaryEdges.filter(e => e.boundary > 0)) {
+  const roof = roofShape(region.footprint, region.edgeKinds, b.roofBase);
+  for (const e of boundaryEdges.filter(e => e.boundary > 0 || court && b.topology.facades.slice(4).some(f => Math.abs((e.a[0]-f.start[0])*f.inward[0]+(e.a[1]-f.start[1])*f.inward[1]-T)<.01 && Math.abs(e.dir[0]*f.along[0]+e.dir[1]*f.along[1]-1)<.01))) {
     lining(e, 0, attic.index, 0, e.len, attic.floorZ, attic.ceilingZ, null);
-    const face = b.topology.facades.find(f => f.id === plan.innerBoundaries![e.boundary - 1].id + ':face:' + e.edge);
-    if (!face) continue;
-    const a = face.start, c = face.end, topA = roofHeight(b.footprint, b.edgeKinds, roof, b.roofBase, a), topC = roofHeight(b.footprint, b.edgeKinds, roof, b.roofBase, c);
+    const face = court ? b.topology.facades.slice(4).find(f => Math.abs((e.a[0]-f.start[0])*f.inward[0]+(e.a[1]-f.start[1])*f.inward[1]-T)<.01 && Math.abs(e.dir[0]*f.along[0]+e.dir[1]*f.along[1]-1)<.01) : b.topology.facades.find(f => f.id === plan.innerBoundaries![e.boundary - 1].id + ':face:' + e.edge);
+    if (!face || court) continue;
+    const a = face.start, c = face.end, topA = roofHeight(region.footprint, region.edgeKinds, roof, b.roofBase, a), topC = roofHeight(region.footprint, region.edgeKinds, roof, b.roofBase, c);
     const z0 = b.wallTop + dims.classes.S.height;
     walls.quad(v3(a, z0), v3(c, z0), v3(c, topC), v3(a, topA), e.inward.clone().negate());
     const ia: V2 = [a[0] + face.inward[0] * T, a[1] + face.inward[1] * T], ic: V2 = [c[0] + face.inward[0] * T, c[1] + face.inward[1] * T];
@@ -519,9 +530,9 @@ function onEdge(poly: V2[], e: { a: V2; len: number; dir: V2 }, tol = 0.02): num
 /** the height of the attic's ceiling at a point: the flat ceiling at zc, lower under the steep slopes */
 export function atticCeiling(b: Building, zc: number): (p: V2) => number {
   const { rise, run } = dims.mansard;
-  const F = b.footprint;
+  const F = buildingRoof(b).footprint;
   const slopes = F.map((a, i) => ({ a, i, n: [-(F[(i + 1) % F.length][1] - a[1]), F[(i + 1) % F.length][0] - a[0]] as V2 }))
-    .filter(e => b.edgeKinds[e.i] !== "party")
+    .filter(e => buildingRoof(b).edgeKinds[e.i] !== "party")
     .map(e => ({ a: e.a, n: [e.n[0] / Math.hypot(...e.n), e.n[1] / Math.hypot(...e.n)] as V2 }));
   return (p: V2) => {
     let h = zc;

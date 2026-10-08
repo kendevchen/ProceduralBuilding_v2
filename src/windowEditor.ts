@@ -158,7 +158,7 @@ export class WindowEditor {
     const p = this.host.params;
     const [side, bay, row] = slot.key.split("|");
     const floor = row === "g" ? "1F" : row === "r" ? slot.facadeId ? "閣樓" : "閣樓（老虎窗）" : `${Number(row) + 2}F`;
-    const where = `${slot.facadeId ? "採光井內側" : SIDES[Number(side)] ?? ""} ${bay === "-1" ? "斜切轉角" : `第 ${Number(bay) + 1} 開間`} · ${floor}`;
+    const where = `${slot.facadeId ? slot.facadeId.startsWith("court:") ? "中庭內側" : "採光井內側" : SIDES[Number(side)] ?? ""} ${bay === "-1" ? "斜切轉角" : `第 ${Number(bay) + 1} 開間`} · ${floor}`;
     const f = this.host.gui.addFolder(`🎯 選取的窗戶：${where}`);
     this.folder = f;
     // at the top of the GUI, which opens if it was folded

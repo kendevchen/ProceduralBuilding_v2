@@ -40,12 +40,13 @@ const SHOP = 2.4;
 const OEIL = 0.6;
 
 export type RoomType =
-  | "vestibule" | "concierge" | "shop" | "shopBack" | "stair" | "corridor"
+  | "porch" | "vestibule" | "concierge" | "shop" | "shopBack" | "stair" | "corridor"
   | "salon" | "dining" | "ballroom" | "study" | "bedroom" | "kitchen" | "wc" | "maid" | "storage"
   | "bathroom" | "closet" | "foyer" | "pantry" | "liftHall" | "elevator" | "shaft";
 
 /** names and diagram colours (INTERIOR_SPEC.md §4) */
 export const ROOM_INFO: Record<RoomType, { name: string; color: string }> = {
+  porch: { name: "車道門廊", color: "#c9b08c" },
   liftHall: { name: "電梯廳", color: "#c4d4de" },
   elevator: { name: "電梯井", color: "#8297ab" },
   shaft: { name: "管道井", color: "#69767b" },
@@ -214,6 +215,7 @@ export interface FloorProgramDiagnostic {
 }
 
 export interface BuildingPlan {
+  courtyard?: { shape: "O" | "U"; polygon: V2[]; minimum: number; blindWingCells: string[][]; porchCells: string[] };
   daylightDiagnostics?: { level: number; residentialCells: number; windowlessCells: number; ratio: number; serviceArea: number }[];
   innerBoundaries?: { id: string; polygon: V2[] }[];
   circulation?: CirculationMetadata;
@@ -229,7 +231,7 @@ export interface BuildingPlan {
   windows: PlanWindow[];
   stairs: PlanStair[];
   /** floor openings besides the stair wells: the ballroom's upper half */
-  voids: { level: number; polygon: V2[]; id?: string; kind?: "elevator" | "shaft" | "lightwell"; ceiling?: boolean }[];
+  voids: { level: number; polygon: V2[]; id?: string; kind?: "elevator" | "shaft" | "lightwell" | "courtyard"; ceiling?: boolean; openBoundary?: boolean }[];
   issues: string[];
 }
 
@@ -312,7 +314,7 @@ export function buildingGrid(b: Building): Grid {
   const bays: FacadeBay[] = [];
   [...b.sides, ...(b.innerSides ?? [])].forEach((s, side) => {
     if (s.kind === "party") return;
-    s.bays.forEach((info, bay) => bays.push({ side, bay, frame: s.frame, x: info.x, info, ...(s.facadeId ? { facadeId: s.facadeId } : {}) }));
+    s.bays.forEach((info, bay) => { if (!info.absent) bays.push({ side, bay, frame: s.frame, x: info.x, info, ...(s.facadeId ? { facadeId: s.facadeId } : {}) }); });
     if (s.diag) bays.push({ side, bay: -1, frame: s.diag.frame, x: 0, info: s.diag });
   });
   const bayByKey = new Map(bays.map(bay => [`${bay.side}|${bay.bay}`, bay]));
@@ -357,6 +359,7 @@ export function facadeWindows(g: Grid, levels: PlanLevel[]): PlanWindow[] {
         else if (v.startsWith("door")) [kind, width] = ["door", dims.ground.door.width];
         else if (v.startsWith("shop")) [kind, width] = ["shop", SHOP];
       } else if (lv.cls === "R" && fb.facadeId) {
+        if (fb.info.atticWindow === false) continue;
         [kind, width] = ["window", dims.window.width];
       } else if (lv.cls === "R") {
         if (fb.info.dormer) {
@@ -1280,13 +1283,30 @@ export function checkPlan(plan: BuildingPlan, checkUses = true): string[] {
     const missing = (["salon", "kitchen", "wc", "bedroom"] as RoomType[]).filter(t => !rooms.some(r => r.type === t));
     if (missing.length) issues.push(`${name(Number(k.split("|")[0]))}：住戶 ${k.split("|")[1]} 缺少${missing.map(t => ROOM_INFO[t].name).join("、")}`);
   }
+  if (plan.courtyard) {
+    const c = plan.courtyard, xs = c.polygon.map(q=>q[0]), ys = c.polygon.map(q=>q[1]);
+    if (Math.min(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys)) < c.minimum-EPS) issues.push("中庭短邊不足高度要求");
+    for (const lv of plan.levels) {
+      const sky = plan.voids.filter(v=>v.level===lv.index && v.kind==='courtyard');
+      if (sky.length!==1 || JSON.stringify(sky[0].polygon)!==JSON.stringify(c.polygon) || !!sky[0].openBoundary !== (c.shape==='U')) issues.push(`${lv.name}：中庭孔洞未上下對齊`);
+      const pub = plan.rooms.filter(r=>r.level===lv.index && r.circulation==='public'), byId = new Map(pub.map(r=>[r.id,r]));
+      const seen = new Set(pub.length ? [pub[0].id] : []), queue = [...seen];
+      while(queue.length) for(const d of byId.get(queue.pop()!)!.doors) if(byId.has(d.to) && !seen.has(d.to)){seen.add(d.to);queue.push(d.to);}
+      if(seen.size!==pub.length) issues.push(`${lv.name}：中庭公共動線不連通`);
+    }
+    for(const r of plan.rooms) {
+      const porch = r.cellIds?.some(id=>c.porchCells.includes(id));
+      if (porch && r.level===0 && (r.type!=='porch' || r.circulation!=='public') || r.type==='porch' && r.level!==0) issues.push(`${name(r.level)}：一樓門廊或上層前翼被改動`);
+      if (r.apartment!==null && ['bedroom','maid','salon','study'].includes(r.type) && c.blindWingCells.some(ids=>r.cellIds?.some(id=>ids.includes(id))) && !r.windows.some(i=>plan.windows[i].facadeId)) issues.push(`${name(r.level)}：盲牆翼住宅未朝中庭採光`);
+    }
+  }
   if (plan.innerBoundaries) {
     for (const d of plan.daylightDiagnostics ?? []) if (d.ratio > I.planning.deep.maxWindowlessRatio) issues.push(`${name(d.level)}：結構住宅格無窗比例 ${(d.ratio * 100).toFixed(1)}% 超過 10%`);
     const keys = plan.windows.filter(w => w.facadeId).map(w => w.openingKey);
-    if (new Set(keys).size !== keys.length || keys.some(k => !k)) issues.push("井窗識別不唯一");
+    if (new Set(keys).size !== keys.length || keys.some(k => !k)) issues.push("內側立面窗識別不唯一");
     const byId = new Map(plan.rooms.map(r => [r.id, r]));
     for (const r of plan.rooms) {
-      for (const v of plan.voids.filter(v => v.level === r.level && v.kind === "lightwell")) if (Math.abs(polygonArea(clipConvex(r.polygon, v.polygon))) > EPS) issues.push(`${name(r.level)}：房間 ${r.id} 跨入採光井`);
+      for (const v of plan.voids.filter(v => v.level === r.level && (v.kind === "lightwell" || v.kind === "courtyard"))) if (Math.abs(polygonArea(clipConvex(r.polygon, v.polygon))) > EPS) issues.push(`${name(r.level)}：房間 ${r.id} 跨入中庭／採光井`);
       const endColumn = r.rect[0] <= dims.wall + EPS || r.rect[2] >= plan.width - dims.wall - EPS;
       const sharedService = r.apartment === null && r.circulation === "private" && ["bathroom", "closet", "storage", "wc"].includes(r.type);
       if (!endColumn && !sharedService) continue;

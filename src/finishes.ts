@@ -31,6 +31,7 @@ type Pattern = (typeof P)[keyof typeof P];
 interface Finish { pattern: Pattern; a: string; b: string }
 
 const FLOORS: Record<RoomType, Finish> = {
+  porch: { pattern: 0, a: "#c9b08c", b: "#d8c3a5" },
   liftHall: { pattern: P.marble, a: "#e6e1d6", b: "#33302d" },
   elevator: { pattern: P.plain, a: "#8297ab", b: "#8297ab" },
   shaft: { pattern: P.plain, a: "#69767b", b: "#69767b" },
@@ -56,6 +57,7 @@ const FLOORS: Record<RoomType, Finish> = {
 };
 
 const WALLS: Record<RoomType, Finish> = {
+  porch: { pattern: 0, a: "#c9b08c", b: "#d8c3a5" },
   liftHall: { pattern: P.paint, a: "#e6dece", b: "#d8ccb3" },
   elevator: { pattern: P.plain, a: "#8297ab", b: "#8297ab" },
   shaft: { pattern: P.plain, a: "#69767b", b: "#69767b" },

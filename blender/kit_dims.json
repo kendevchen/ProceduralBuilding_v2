@@ -54,6 +54,11 @@
         "liftClearWidth": 2.0, "liftClearDepth": 2.0, "shaftClearWidth": 0.3,
         "minApartmentCells": 4, "maxTravel": 50.0, "highMaxTravel": 45.0, "routeSampleStep": 2.0, "routeInset": 0.02
       },
+      "courtyard": {
+        "minCourt": 6, "heightFactor": 0.5, "wingTarget": 13,
+        "blindWingTarget": 9.5, "corridor": 2.4, "streetCorridorCentre": 5.5,
+        "coreSpacingBays": 8
+      },
       "deep": {
         "_doc": "P4 aligned lightwell trial; metres. Residential cells are merged structurally toward actual daylight before programming. Well-row cells are separately reserved shared wet/service rooms.",
         "corridor": 2.4, "minBand": 2.7, "firstGroup": 11.25, "nextGroup": 10.05,

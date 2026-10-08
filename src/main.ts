@@ -21,7 +21,7 @@ import { buildInteriors, planRule } from "./interiors";
 import { type BuildingPlan, planBuilding } from "./plan";
 import { runPlanChecks } from "./planChecks";
 import { buildPlanView } from "./planView";
-import { partyWalls, roofCap, roofShape } from "./roof";
+import { partyWalls, buildingRoof, buildingRoofCap, courtyardClosure, roofShape } from "./roof";
 import { type CutAxis, type CutMode, Cutaway } from "./cutaway";
 import { buildRooms3d } from "./rooms3d";
 import { RoomLabels } from "./roomLabels";
@@ -388,14 +388,19 @@ function rebuild(frame = false): void {
     roomEditor.update(null);
     return;
   }
-  const walls = partyWalls(b.footprint, b.edgeKinds, b.roofBase);
-  const flat = roofShape(b.footprint, b.edgeKinds, b.roofBase).z2;
+  const region = buildingRoof(b);
+  const walls = partyWalls(region.footprint, region.edgeKinds, b.roofBase);
+  const flat = roofShape(region.footprint, region.edgeKinds, b.roofBase).z2;
   Object.assign(street.params, streetSettings);
   const g = kit.buildGroup(b.placements.concat(partyChimneys(params, kit, b.style, walls.edges, flat)), materials);
-  const cap = roofCap(b.footprint, b.edgeKinds, b.roofBase, b.topology.deepLayout?.wells.map(w => w.polygon));
+  const cap = buildingRoofCap(b);
   const roof = new Mesh(cap.geometry, materials.byName.get("zinc:noao"));
   roof.castShadow = roof.receiveShadow = true;
   g.add(roof);
+  if (b.topology.courtyardLayout) {
+    const closure = new Mesh(courtyardClosure(b), materials.byName.get("plaster:noao"));
+    closure.castShadow = closure.receiveShadow = true; g.add(closure);
+  }
   if (walls.edges.length) {
     const wall = new Mesh(walls.geometry, materials.byName.get("plaster:noao"));
     wall.castShadow = wall.receiveShadow = true;
