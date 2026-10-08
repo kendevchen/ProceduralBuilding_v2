@@ -135,7 +135,118 @@ export function subtractConvex(poly: number[][], hole: V2[]): number[][][] {
   }
   return fragments;
 }
-export function roofCap(footprint: V2[], kinds: EdgeKind[], roofBase: number, holes: V2[][] = []): RoofCap {
+/** A court wall line whose mansard rises away from the court (`inward` points into
+ *  the building); `covered` are the along-ranges carried by kit mansard bays. */
+export interface InnerSlope { start: V2; along: V2; inward: V2; covered: [number, number][] }
+
+/** The court facades of a courtyard building carry mansards like the street. */
+export function courtSlopes(topology: import('./buildingTopology').BuildingTopology): InnerSlope[] {
+  if (!topology.courtyardLayout) return [];
+  return topology.facades.slice(4).map(f => ({ start: f.start, along: f.along, inward: f.inward,
+    covered: f.bays.map(q => [q.x - dims.bay / 2, q.x + dims.bay / 2] as [number, number]) }));
+}
+
+/** the mansard profile at distance d from its wall line, capped by the flat top */
+function profile(shape: RoofShape, roofBase: number, d: number): number {
+  const { rise, run } = dims.mansard;
+  const tan = Math.tan((dims.terrasson.pitchDeg * Math.PI) / 180);
+  return d <= 0 ? roofBase : d <= run ? roofBase + (rise * d) / run : Math.min(shape.z2, shape.z1 + (d - run) * tan);
+}
+
+/** distance from the court into the building: the largest over its walls, so
+ *  the slopes of two walls meet in a valley at each court corner */
+const courtDistance = (inner: InnerSlope[], q: V2) =>
+  Math.max(...inner.map(e => (q[0] - e.start[0]) * e.inward[0] + (q[1] - e.start[1]) * e.inward[1]));
+
+/** convex polygon clipped to c + g·q >= 0 */
+function clipHalf(poly: V2[], gx: number, gy: number, c: number): V2[] {
+  const out: V2[] = [];
+  const f = (q: V2) => c + gx * q[0] + gy * q[1];
+  poly.forEach((p, i) => {
+    const q = poly[(i + 1) % poly.length], fp = f(p), fq = f(q);
+    if (fp >= 0) out.push(p);
+    if ((fp >= 0) !== (fq >= 0)) { const t = fp / (fp - fq); out.push([p[0] + t * (q[0] - p[0]), p[1] + t * (q[1] - p[1])]); }
+  });
+  return out;
+}
+
+/** One roof plane z = z0 + k·((q - a)·n). `draw`: hidden under kit slopes, drawn,
+ *  or drawn only outside the given along-ranges (the court valleys). */
+interface Plane { a: V2; n: V2; k: number; z0: number; along: V2 | null; v0: number; draw: boolean | [number, number][] }
+
+/** The roof as the lower envelope of every slope plane, cut into the court's
+ *  wedges (one per court wall) where the court profile is a single plane. */
+function courtRoofCap(footprint: V2[], kinds: EdgeKind[], roofBase: number, holes: V2[][], inner: InnerSlope[]): RoofCap {
+  const shape = roofShape(footprint, kinds, roofBase);
+  const { rise, run } = dims.mansard;
+  const tan = Math.tan((dims.terrasson.pitchDeg * Math.PI) / 180);
+  const steep = rise / run;
+  const slopes = (a: V2, n: V2, along: V2, brisis: Plane["draw"]): Plane[] => [
+    { a, n, k: steep, z0: roofBase, along, v0: 0, draw: brisis },
+    { a, n, k: tan, z0: shape.z1 - run * tan, along, v0: -run, draw: true },
+  ];
+  const outer: Plane[] = [{ a: [0, 0], n: [1, 0], k: 0, z0: shape.z2, along: null, v0: 0, draw: true }];
+  footprint.forEach((a, i) => {
+    if (kinds[i] === "party") return;
+    const b = footprint[(i + 1) % footprint.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    outer.push(...slopes(a, leftNormal(a, b), [(b[0] - a[0]) / l, (b[1] - a[1]) / l], false));
+  });
+  const lin = (p: Plane): [number, number, number] => [p.k * p.n[0], p.k * p.n[1], p.z0 - p.k * (p.a[0] * p.n[0] + p.a[1] * p.n[1])];
+  const out = new Tris(holes);
+  const draw = (p: Plane, poly: V2[]) => {
+    if (poly.length < 3) return;
+    const sec = Math.sqrt(1 + p.k * p.k);
+    const pt = (q: V2) => {
+      const z = p.z0 + p.k * ((q[0] - p.a[0]) * p.n[0] + (q[1] - p.a[1]) * p.n[1]);
+      if (!p.along) return [q[0], q[1], z, q[0], q[1]];
+      const d = (q[0] - p.a[0]) * p.n[0] + (q[1] - p.a[1]) * p.n[1];
+      return [q[0], q[1], z, (q[0] - p.a[0]) * p.along[0] + (q[1] - p.a[1]) * p.along[1], (d + p.v0) * sec];
+    };
+    for (let i = 1; i + 1 < poly.length; i++) out.tri(pt(poly[0]), pt(poly[i]), pt(poly[i + 1]));
+  };
+  inner.forEach((e, ei) => {
+    // the wedge where this wall is the court's nearest (largest distance)
+    let wedge: V2[] = footprint;
+    inner.forEach((f, fi) => {
+      if (fi === ei) return;
+      const gx = e.inward[0] - f.inward[0], gy = e.inward[1] - f.inward[1];
+      const c = -(e.start[0] * e.inward[0] + e.start[1] * e.inward[1]) + (f.start[0] * f.inward[0] + f.start[1] * f.inward[1]);
+      if (Math.hypot(gx, gy) < 1e-9) { if (fi < ei) wedge = []; return; }
+      wedge = clipHalf(wedge, gx, gy, c);
+    });
+    if (wedge.length < 3) return;
+    // gaps between the kit bays along this wall: the brisis is drawn there
+    const covered = [...e.covered].sort((p, q) => p[0] - q[0]), gaps: [number, number][] = [];
+    let from = -Infinity;
+    for (const [lo, hi] of covered) { if (lo > from + 1e-6) gaps.push([from, lo]); from = Math.max(from, hi); }
+    gaps.push([from, Infinity]);
+    const planes = [...outer, ...slopes(e.start, e.inward, e.along, gaps)];
+    planes.forEach((p, i) => {
+      if (p.draw === false) return;
+      const [ax, ay, ac] = lin(p);
+      let cell = wedge;
+      for (let j = 0; j < planes.length && cell.length >= 3; j++) {
+        if (j === i) continue;
+        const [bx, by, bc] = lin(planes[j]);
+        if (Math.hypot(bx - ax, by - ay) < 1e-9) { if (bc < ac - 1e-9 || (Math.abs(bc - ac) <= 1e-9 && j < i)) cell = []; continue; }
+        cell = clipHalf(cell, bx - ax, by - ay, bc - ac);
+      }
+      if (cell.length < 3) return;
+      if (p.draw === true) { draw(p, cell); return; }
+      for (const [lo, hi] of p.draw) {
+        const d0 = p.a[0] * e.along[0] + p.a[1] * e.along[1];
+        let part = cell;
+        if (Number.isFinite(lo)) part = clipHalf(part, e.along[0], e.along[1], -d0 - lo);
+        if (Number.isFinite(hi)) part = clipHalf(part, -e.along[0], -e.along[1], d0 + hi);
+        draw(p, part);
+      }
+    });
+  });
+  return { geometry: out.geometry(), top: shape.z2 };
+}
+
+export function roofCap(footprint: V2[], kinds: EdgeKind[], roofBase: number, holes: V2[][] = [], inner: InnerSlope[] = []): RoofCap {
+  if (inner.length) return courtRoofCap(footprint, kinds, roofBase, holes, inner);
   const { p1, p2, z1, z2, run: tr } = roofShape(footprint, kinds, roofBase);
   const slope = tr / Math.cos((dims.terrasson.pitchDeg * Math.PI) / 180);
   const out = new Tris(holes);
@@ -157,7 +268,7 @@ const FIREWALL = 0.3; // gable rise above the roof line, and its thickness
 
 /** height of the roof surface at a point of the footprint (top of the cornice
  *  at the facades, the steep slope, the terrasson, the flat top) */
-export function roofHeight(footprint: V2[], kinds: EdgeKind[], shape: RoofShape, roofBase: number, q: V2): number {
+export function roofHeight(footprint: V2[], kinds: EdgeKind[], shape: RoofShape, roofBase: number, q: V2, inner: InnerSlope[] = []): number {
   const { rise, run } = dims.mansard;
   const tan = Math.tan((dims.terrasson.pitchDeg * Math.PI) / 180);
   let h = shape.z2;
@@ -170,7 +281,7 @@ export function roofHeight(footprint: V2[], kinds: EdgeKind[], shape: RoofShape,
     const he = d <= 0 ? roofBase : d <= run ? roofBase + (rise * d) / run : shape.z1 + (d - run) * tan;
     h = Math.min(h, he);
   }
-  return h;
+  return inner.length ? Math.min(h, profile(shape, roofBase, courtDistance(inner, q))) : h;
 }
 
 export interface PartyWalls {
@@ -181,7 +292,7 @@ export interface PartyWalls {
 
 /** the blind party walls: from the ground up to the roof line plus a firewall,
  *  with a coping and the firewall's inner face above the roof */
-export function partyWalls(footprint: V2[], kinds: EdgeKind[], roofBase: number): PartyWalls {
+export function partyWalls(footprint: V2[], kinds: EdgeKind[], roofBase: number, inner: InnerSlope[] = []): PartyWalls {
   const shape = roofShape(footprint, kinds, roofBase);
   const out = new Tris();
   const edges: PartyWalls["edges"] = [];
@@ -197,7 +308,7 @@ export function partyWalls(footprint: V2[], kinds: EdgeKind[], roofBase: number)
     const steps = Math.max(2, Math.ceil(len / 0.05));
     for (let k = 0; k <= steps; k++) {
       const s = (len * k) / steps;
-      raw.push([s, roofHeight(footprint, kinds, shape, roofBase, [a[0] + dir[0] * s, a[1] + dir[1] * s])]);
+      raw.push([s, roofHeight(footprint, kinds, shape, roofBase, [a[0] + dir[0] * s, a[1] + dir[1] * s], inner)]);
     }
     const line = raw.filter((p, k) => k === 0 || k === raw.length - 1 ||
       Math.abs((raw[k + 1][1] - p[1]) / (raw[k + 1][0] - p[0]) - (p[1] - raw[k - 1][1]) / (p[0] - raw[k - 1][0])) > 1e-4);
@@ -221,48 +332,30 @@ export function partyWalls(footprint: V2[], kinds: EdgeKind[], roofBase: number)
 export function buildingRoof(b: import('./generator').Building) {
   return { footprint: b.topology.roofEnvelope?.footprint ?? b.footprint,
     edgeKinds: b.topology.roofEnvelope?.edgeKinds ?? b.edgeKinds,
-    holes: b.topology.voids.filter(v => v.kind === 'lightwell' || v.kind === 'courtyard').map(v => v.polygon!) };
+    holes: b.topology.voids.filter(v => v.kind === 'lightwell' || v.kind === 'courtyard').map(v => v.polygon!),
+    inner: courtSlopes(b.topology) };
 }
 export function buildingRoofCap(b: import('./generator').Building): RoofCap {
-  const r = buildingRoof(b); return roofCap(r.footprint, r.edgeKinds, b.roofBase, r.holes);
+  const r = buildingRoof(b); return roofCap(r.footprint, r.edgeKinds, b.roofBase, r.holes, r.inner);
 }
-/** Non-windowed end strips and the variable-height attic coping of court facades.
- * These are exterior geometry, also present when the interior is hidden. */
+/** Court-wall strips no kit bay covers (the U's open ends), up to the roof line.
+ * Exterior geometry, also present when the interior is hidden. */
 export function courtyardClosure(b: import('./generator').Building): BufferGeometry {
   const out = new Tris(), r = buildingRoof(b), shape = roofShape(r.footprint, r.edgeKinds, b.roofBase), T = dims.wall;
   if (!b.topology.courtyardLayout) return out.geometry();
   for (const face of b.topology.facades.slice(4)) {
-    const side = b.innerSides![face.side - 4];
     const at = (s: number, z: number, off = 0) => [face.start[0] + face.along[0] * s + face.inward[0] * off,
       face.start[1] + face.along[1] * s + face.inward[1] * off, z, s, z];
-    const top = (s: number) => { const q = at(s, 0); return roofHeight(r.footprint, r.edgeKinds, shape, b.roofBase, [q[0],q[1]]); };
-    const wall = (lo: number, hi: number, z: number) => {
-      if (hi-lo < 1e-6) return;
-      // Intersect the face with every exterior roof break, preserving exact seams.
-      const cuts = [lo, hi];
-      r.footprint.forEach((q, i) => {
-        if (r.edgeKinds[i] === 'party') return;
-        const n = leftNormal(q, r.footprint[(i+1)%r.footprint.length]);
-        const d0 = (face.start[0]-q[0])*n[0]+(face.start[1]-q[1])*n[1];
-        const slope = face.along[0]*n[0]+face.along[1]*n[1];
-        if (Math.abs(slope)<1e-6) return;
-        for (const distance of [0, dims.mansard.run, dims.mansard.run+shape.run]) {
-          const s = (distance-d0)/slope; if (s>lo+1e-6 && s<hi-1e-6) cuts.push(s);
-        }
-      });
-      cuts.sort((a,c)=>a-c);
-      for(let i=0;i+1<cuts.length;i++) { const a=cuts[i],c=cuts[i+1],ha=top(a),hc=top(c);
-        out.quad(at(a,z),at(c,z),at(c,hc),at(a,ha));
-        const innerZ = Math.max(z, b.roofBase + dims.mansard.rise - dims.interior.atticCeiling);
-        out.quad(at(c,innerZ,T),at(a,innerZ,T),at(a,ha,T),at(c,hc,T));
-        out.quad(at(a,ha),at(c,hc),at(c,hc,T),at(a,ha,T));
-      }
+    const top = (s: number) => { const q = at(s, 0); return roofHeight(r.footprint, r.edgeKinds, shape, b.roofBase, [q[0], q[1]], r.inner); };
+    const wall = (lo: number, hi: number) => {
+      if (hi - lo < 1e-6) return;
+      const ha = top(lo), hc = top(hi);
+      out.quad(at(lo, 0), at(hi, 0), at(hi, hc), at(lo, ha));
+      out.quad(at(lo, ha), at(hi, hc), at(hi, hc, T), at(lo, ha, T));
     };
-    let end=0;
-    for(const bay of side.bays) { const lo=bay.x-dims.bay/2,hi=bay.x+dims.bay/2;
-      wall(end,lo,0); wall(lo,hi,b.wallTop+(bay.atticWindow===false?0:dims.classes.S.height)); end=hi;
-    }
-    wall(end,face.length,0);
+    let end = 0;
+    for (const bay of face.bays) { wall(end, bay.x - dims.bay / 2); end = bay.x + dims.bay / 2; }
+    wall(end, face.length);
   }
   return out.geometry();
 }

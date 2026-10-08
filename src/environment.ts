@@ -22,7 +22,7 @@ export interface Bounds {
   radius: number;
 }
 
-export type EnvSettings = Mood & { mood: string; fog: boolean };
+export type EnvSettings = Mood & { mood: string; fog: boolean; fogAuto: boolean };
 
 const DEG = Math.PI / 180;
 /** unit direction towards a light at (azimuth from +z towards +x, elevation), degrees */
@@ -48,7 +48,7 @@ export class Environment {
   constructor(scene: Scene, renderer: WebGLRenderer) {
     this.scene = scene;
     this.renderer = renderer;
-    this.settings = { ...structuredClone(MOODS[DEFAULT_MOOD]), mood: DEFAULT_MOOD, fog: true };
+    this.settings = { ...structuredClone(MOODS[DEFAULT_MOOD]), mood: DEFAULT_MOOD, fog: true, fogAuto: true };
 
     scene.fog = new FogExp2(0x000000, 0);
     const pmrem = new PMREMGenerator(renderer);
@@ -132,13 +132,28 @@ export class Environment {
     this.sky.set(s.sky, dirFrom(s.sunAzimuth, s.sunElevation), this.key.color);
     const fog = this.scene.fog as FogExp2;
     fog.color.set(s.sky.horizon);
+    this.fogScale = 1;
     fog.density = s.fog && !dbg ? s.fogDensity : 0;
     this.frame(this.bounds);
   }
 
-  /** per frame: keep the sky dome around the camera */
-  tick(camera: Vector3): void {
+  private fogScale = 1;
+  /** camera distance of the default view, where the fog slider applies as set */
+  homeDistance = 0;
+
+  /** per frame: keep the sky dome around the camera, and thin the fog as the camera pulls back.
+   *  The slider is the density at the framing distance; farther out it falls off in proportion
+   *  (never thicker when closer), so the building stays as clear as in the home view. */
+  tick(camera: Vector3, target?: Vector3): void {
     this.sky.follow(camera);
+    if (!target) return;
+    const s = this.settings, fog = this.scene.fog as FogExp2;
+    if (!s.fog || this.uniformDebug) return;
+    const home = this.homeDistance || Math.max(this.bounds.radius * 3.7, 30);
+    const scale = s.fogAuto ? Math.min(1, Math.max(0.05, home / Math.max(camera.distanceTo(target), 1e-3))) : 1;
+    if (Math.abs(scale - this.fogScale) < 1e-4) return;
+    this.fogScale = scale;
+    fog.density = s.fogDensity * scale;
   }
 
   addGui(gui: GUI): GUI {
@@ -161,6 +176,7 @@ export class Environment {
     f.add(s.sky, "stars", 0, 1, 0.01).name("星星").onChange(r);
     f.add(s, "fog").name("霧").onChange(r);
     f.add(s, "fogDensity", 0, 0.03, 0.0005).name("霧濃度").onChange(r);
+    f.add(s, "fogAuto").name("霧隨鏡頭距離調整").onChange(r);
     f.add(s, "night", 0, 1, 0.01).name("夜間燈光").onChange(() => this.onMood?.(s));
     const adv = f.addFolder("進階");
     adv.add(s, "hemiIntensity", 0, 4, 0.01).name("天空光").onChange(r);

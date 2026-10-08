@@ -13,7 +13,7 @@ export function planKey(p: BuildingParams): string {
   // Availability and opening outlines are significant; leaf angles/paint/curtains are not.
   const openings = Object.entries(p.facade).sort(([a], [b]) => a.localeCompare(b)).flatMap(([id, o]) =>
     o.dormer !== undefined || o.ground !== undefined || o.door !== undefined ? [[id, o.dormer, o.ground, o.door]] : []);
-  return JSON.stringify([structureKey(p), !!p.floorVariety, ...pick(p, ['groundUse', 'apartments', 'ballroomFacade', 'dormerEvery', 'dormerStyle', 'groundWindow', 'doorStyle']), openings]);
+  return JSON.stringify([structureKey(p), !!p.floorVariety, ...pick(p, ['groundUse', 'courtGround', 'apartments', 'ballroomFacade', 'dormerEvery', 'dormerStyle', 'groundWindow', 'doorStyle']), openings]);
 }
 export const interiorKey = (p: BuildingParams, edits: RoomEdits, look: string) => JSON.stringify([planKey(p), edits.version, p.chimneys, p.lace, look]);
 

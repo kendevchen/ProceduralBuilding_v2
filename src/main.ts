@@ -508,7 +508,7 @@ function rebuild(frame = false, fresh = false): void {
     return;
   }
   const region = buildingRoof(b);
-  const walls = partyWalls(region.footprint, region.edgeKinds, b.roofBase);
+  const walls = partyWalls(region.footprint, region.edgeKinds, b.roofBase, region.inner);
   const flat = roofShape(region.footprint, region.edgeKinds, b.roofBase).z2;
   Object.assign(street.params, streetSettings);
   const g = kit.buildGroup(b.placements.concat(partyChimneys(params, kit, b.style, walls.edges, flat)), materials);
@@ -697,6 +697,7 @@ function frameHome(): void {
   }
   const { target, position } = fitPerspectiveBox(new Box3(bounds.min, bounds.max), new Vector3(36, 13, 46), camera.fov, camera.aspect);
   controls.target.copy(target); camera.position.copy(position);
+  env.homeDistance = position.distanceTo(target);
 }
 
 // ---- GUI ----
@@ -767,6 +768,7 @@ fCity.add(city, "clearance", 0, 20, 0.5).name("每棟間距 m").onChange(() => {
   syncDormantPositions(oldPositions);
 });
 fBuilding.add(params, "groundUse", { "住宅": "residential", "混合": "mixed", "店面": "shops" }).name("一樓用途").onChange(update);
+const courtGroundCtrl = fBuilding.add(params, "courtGround", { "住宅": "residential", "混合": "mixed", "店面": "shops" }).name("中庭一樓用途").onChange(update);
 fBuilding.add(params, "baysX", dims.interior.planning.inputLimits.baysMin, dims.interior.planning.inputLimits.baysMax, 1).name("正面開間數").onChange(update);
 const sideBaysCtrl = fBuilding.add(params, "baysY", dims.interior.planning.inputLimits.baysMin, dims.interior.planning.inputLimits.baysMax, 1).name("側面開間數").onChange(update);
 fBuilding.add(params, "floors", dims.interior.planning.inputLimits.floorsMin, dims.interior.planning.inputLimits.floorsMax, 1).name("上層數").onChange(update);
@@ -796,6 +798,7 @@ function syncDimensionControls(): void {
 }
 function syncPlanningControls(): void {
   syncDimensionControls();
+  courtGroundCtrl.show(lastBuilding?.topology.mode === "courtyard");
   apartmentsCtrl.name(lastBuilding?.topology.mode === "legacy" ? "每層戶數" : "每個核心戶數");
   if (lastBuilding) {
     const t = lastBuilding.topology;
@@ -1251,7 +1254,7 @@ renderer.setAnimationLoop(() => {
   controls.update();
   updateCityUI();
   lampLights.update(controls.target);
-  env.tick(camera.position);
+  env.tick(camera.position, controls.target);
   post.render(dt);
   if (import.meta.env.DEV) {
     rebuildMetrics.frames.push(performance.now() - frameStart);

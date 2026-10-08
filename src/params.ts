@@ -53,6 +53,8 @@ export interface BuildingParams {
   depth: number;
   /** ground floor of the street facades: homes, some shops, all shops */
   groundUse: GroundUse;
+  /** ground floor of a courtyard's inner facades (missing: homes) */
+  courtGround?: GroundUse;
   /** bays on the front / back facades */
   baysX: number;
   /** bays on the side facades */
@@ -131,7 +133,7 @@ export function defaultParams(): BuildingParams {
 /** New interactive buildings opt into bay dimensions and automatic feasibility.
  * API callers and unversioned saved inputs retain defaultParams() compatibility. */
 export function defaultInteractiveParams(): BuildingParams {
-  return { ...defaultParams(), dimensionVersion: "bays-v2", layoutMode: "auto" };
+  return { ...defaultParams(), dimensionVersion: "bays-v2", layoutMode: "auto", courtGround: "residential" };
 }
 
 /** Independent new-building inputs; facade overrides belong to the source only. */

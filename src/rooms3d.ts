@@ -222,7 +222,6 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
     if (!bay) return null;
     const cls = levels[w.level].cls;
     if (cls === "G") return { key: kit.key("G_bay", bay.ground), z: 0 };
-    if (cls === "R" && w.facadeId) return { key: kit.key("S_bay", "window"), z: b.wallTop };
     if (cls === "R") return bay.dormer ? { key: kit.key("R_mansard", `dormer_${bay.dormer}`), z: b.roofBase } : null;
     // the ballroom's tall windows reach over its two floors
     if (w.side === 0 && w.level <= 2 && b.tall.includes(w.bay)) {
@@ -426,14 +425,64 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
     const slopeFacing = inward.clone().multiplyScalar(rise).addScaledVector(UP, -run).normalize();
     walls.polygon([[sOf(P0[i]), zk], [sOf(P0[j]), zk], [sOf(Pc[j]), zc], [sOf(Pc[i]), zc]], cut(zk, zc), at(insetAt), slopeFacing);
   });
-  ceilings.polygon(court?.shape === "U" ? rearNotch(Pc, court.court) : Pc, plan.voids.filter(v => v.level === attic.index && (v.kind === "lightwell" || v.kind === "courtyard" && !v.openBoundary)).map(v => v.polygon), p => v3(p, zc), DOWN);
+  // The court carries mansards too: its attic ceiling stops where their slopes reach zc.
+  const oc = insetAt(zc);
+  const courtCut: V2[] | null = court ? [[court.court[0] - oc, court.court[1] - oc], [court.court[2] + oc, court.court[1] - oc],
+    [court.court[2] + oc, court.court[3] + oc], [court.court[0] - oc, court.court[3] + oc]] : null;
+  ceilings.polygon(court?.shape === "U" ? rearNotch(Pc, [court.court[0] - oc, court.court[1] - oc, court.court[2] + oc, court.court[3]]) : Pc,
+    plan.voids.filter(v => v.level === attic.index && (v.kind === "lightwell" || v.kind === "courtyard" && !v.openBoundary)).map(v => v.kind === "courtyard" ? courtCut! : v.polygon), p => v3(p, zc), DOWN);
+
+  /** where a line at offset o from a court wall runs inside the attic ring at z */
+  const ringSpan = (face: { start: V2; along: V2; inward: V2 }, o: number, z: number): [number, number] => {
+    const R = ring(z), p0: V2 = [face.start[0] + face.inward[0] * o, face.start[1] + face.inward[1] * o];
+    let lo = -Infinity, hi = Infinity;
+    R.forEach((a, i) => {
+      const c = R[(i + 1) % R.length], n: V2 = [-(c[1] - a[1]), c[0] - a[0]];
+      const f0 = (p0[0] - a[0]) * n[0] + (p0[1] - a[1]) * n[1], df = face.along[0] * n[0] + face.along[1] * n[1];
+      if (Math.abs(df) < 1e-12) { if (f0 < 0) lo = Infinity; return; }
+      const t = -f0 / df;
+      if (df > 0) lo = Math.max(lo, t); else hi = Math.min(hi, t);
+    });
+    return [lo, hi];
+  };
+  /** the attic face along a court wall: knee wall, then the slope, cut by the dormers' recesses;
+   * at a court corner it follows the valley, at the outer walls it stops at their slope */
+  const courtAttic = (e: (typeof boundaryEdges)[number], face: (typeof b.topology.facades)[number]) => {
+    const a = face.start, dir = face.along, inward = new Vector3(face.inward[0], face.inward[1], 0);
+    const sOf = (q: V2) => (q[0] - a[0]) * dir[0] + (q[1] - a[1]) * dir[1];
+    const s0 = sOf(e.a), s1 = s0 + e.len;
+    const span = (z: number): [number, number] => {
+      const o = insetAt(z), [lo, hi] = ringSpan(face, o, z);
+      const end = (s: number, corner: number, out: number) => Math.abs(s - corner) < 0.01 ? out : s;
+      return [Math.max(lo, end(s0, -T, -o)), Math.min(hi, end(s1, face.length + T, face.length + o))];
+    };
+    const at = (inset: (z: number) => number) => (p: V2) =>
+      new Vector3(a[0] + dir[0] * p[0] + face.inward[0] * inset(p[1]), a[1] + dir[1] * p[0] + face.inward[1] * inset(p[1]), p[1]);
+    const recesses = dormers.filter(w => w.facadeId === face.id).flatMap(w => {
+      const mod = moduleOf(w), rc = mod && kit.info(mod.key)?.recess;
+      if (!rc) return [];
+      const sc = sOf(w.at);
+      return [{ s0: sc - rc.halfWidth, s1: sc + rc.halfWidth, z0: rb + rc.floor, z1: rb + rc.ceiling }];
+    });
+    const cut = (lo: number, hi: number): V2[][] => recesses
+      .map(r => ({ ...r, z0: Math.max(r.z0, lo + GAP), z1: Math.min(r.z1, hi - GAP) }))
+      .filter(r => r.z1 - r.z0 > 0.01)
+      .map(r => [[r.s0, r.z0], [r.s1, r.z0], [r.s1, r.z1], [r.s0, r.z1]] as V2[]);
+    const [f0, f1] = span(attic.floorZ), [k0, k1] = span(zk), [c0, c1] = span(zc);
+    if (f1 - f0 < 1e-6 || c1 - c0 < 1e-6) return;
+    walls.polygon([[f0, attic.floorZ], [f1, attic.floorZ], [k1, zk], [k0, zk]], cut(attic.floorZ, zk), at(() => T), inward);
+    const slopeFacing = inward.clone().multiplyScalar(rise).addScaledVector(UP, -run).normalize();
+    walls.polygon([[k0, zk], [k1, zk], [c1, zc], [c0, zc]], cut(zk, zc), at(insetAt), slopeFacing);
+  };
 
   // Vertical well facades continue through the attic to the clipped roof cap.
   // Kit window bays face the well; this lining faces the actual occupied room.
   const roof = roofShape(region.footprint, region.edgeKinds, b.roofBase);
-  for (const e of boundaryEdges.filter(e => e.boundary > 0 || court && b.topology.facades.slice(4).some(f => Math.abs((e.a[0]-f.start[0])*f.inward[0]+(e.a[1]-f.start[1])*f.inward[1]-T)<.01 && Math.abs(e.dir[0]*f.along[0]+e.dir[1]*f.along[1]-1)<.01))) {
+  const courtFace = (e: (typeof boundaryEdges)[number]) => b.topology.facades.slice(4).find(f => Math.abs((e.a[0]-f.start[0])*f.inward[0]+(e.a[1]-f.start[1])*f.inward[1]-T)<.01 && Math.abs(e.dir[0]*f.along[0]+e.dir[1]*f.along[1]-1)<.01);
+  for (const e of boundaryEdges.filter(e => e.boundary > 0 || court && courtFace(e))) {
+    const face = court ? courtFace(e) : b.topology.facades.find(f => f.id === plan.innerBoundaries![e.boundary - 1].id + ':face:' + e.edge);
+    if (court && face) { courtAttic(e, face); continue; }
     lining(e, 0, attic.index, 0, e.len, attic.floorZ, attic.ceilingZ, null);
-    const face = court ? b.topology.facades.slice(4).find(f => Math.abs((e.a[0]-f.start[0])*f.inward[0]+(e.a[1]-f.start[1])*f.inward[1]-T)<.01 && Math.abs(e.dir[0]*f.along[0]+e.dir[1]*f.along[1]-1)<.01) : b.topology.facades.find(f => f.id === plan.innerBoundaries![e.boundary - 1].id + ':face:' + e.edge);
     if (!face || court) continue;
     const a = face.start, c = face.end, topA = roofHeight(region.footprint, region.edgeKinds, roof, b.roofBase, a), topC = roofHeight(region.footprint, region.edgeKinds, roof, b.roofBase, c);
     const z0 = b.wallTop + dims.classes.S.height;
@@ -449,7 +498,7 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
     const info = mod && kit.info(mod.key);
     const rc = info?.recess;
     if (!mod || !rc) continue;
-    const side = b.sides[w.side];
+    const side = buildingFacade(b, w.side, w.facadeId)!;
     const frame = w.bay === -1 ? side.diag!.frame.clone() : side.frame.clone().multiply(new Matrix4().makeTranslation(side.bays[w.bay].x, 0, 0));
     frame.multiply(new Matrix4().makeTranslation(0, 0, rb));
     const L = (x: number, y: number, z: number) => new Vector3(x, y, z).applyMatrix4(frame);
@@ -540,10 +589,16 @@ export function atticCeiling(b: Building, zc: number): (p: V2) => number {
   const slopes = F.map((a, i) => ({ a, i, n: [-(F[(i + 1) % F.length][1] - a[1]), F[(i + 1) % F.length][0] - a[0]] as V2 }))
     .filter(e => buildingRoof(b).edgeKinds[e.i] !== "party")
     .map(e => ({ a: e.a, n: [e.n[0] / Math.hypot(...e.n), e.n[1] / Math.hypot(...e.n)] as V2 }));
+  const court = buildingRoof(b).inner;
   return (p: V2) => {
     let h = zc;
     for (const e of slopes) {
       const d = (p[0] - e.a[0]) * e.n[0] + (p[1] - e.a[1]) * e.n[1];
+      h = Math.min(h, b.roofBase + ((d - I.atticLining) * rise) / run);
+    }
+    if (court.length) {
+      // the court's slopes rise away from it: the distance is the largest over its walls
+      const d = Math.max(...court.map(e => (p[0] - e.start[0]) * e.inward[0] + (p[1] - e.start[1]) * e.inward[1]));
       h = Math.min(h, b.roofBase + ((d - I.atticLining) * rise) / run);
     }
     return h;

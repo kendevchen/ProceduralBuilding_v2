@@ -1514,21 +1514,25 @@ function cafeSet(linen: Tris, wood: Tris, brass: Tris, dark: Tris, decor: Tris, 
 /** Exterior tables are generated first; street trees subsequently avoid these polygons. */
 export function buildCafeTerrace(plan: BuildingPlan, b: Building, mats: InteriorMaterials, sidewalk: { sidewalk: boolean; width: number }): { group: Group; reserved: V2[][]; tables: number; rooms: Record<string, number> } {
   const group = new Group(), reserved: V2[][] = [], C = CAFE, rooms: Record<string, number> = {};
-  if (!sidewalk.sidewalk || sidewalk.width - dims.street.curb - C.walkClear < C.terraceOffset + C.terraceHalfDepth) return { group, reserved, tables: 0, rooms };
+  // Street terraces need a sidewalk wide enough; court terraces stand on the court floor
+  const streetFits = sidewalk.sidewalk && sidewalk.width - dims.street.curb - C.walkClear >= C.terraceOffset + C.terraceHalfDepth;
+  if (!streetFits && !plan.windows.some(w => w.kind === "shop" && w.facadeId)) return { group, reserved, tables: 0, rooms };
   const linen = new Tris(), wood = new Tris(), brass = new Tris(), dark = new Tris(), decor = new Tris();
   for (const room of plan.rooms.filter(r => r.level === 0 && r.type === "shop" && r.cafeTheme !== undefined)) {
     rooms[room.id] = 0;
     for (const wi of room.windows) {
       const w = plan.windows[wi], side = buildingFacade(b, w.side, w.facadeId);
-      if (w.kind !== "shop" || !side || side.kind !== "street" || w.bay < 0) continue;
-      const bay = side.bays[w.bay], centre = side.x0 + dims.bay * (w.bay + 0.5);
+      if (w.kind !== "shop" || !side || w.bay < 0) continue;
+      if (side.kind === "street" ? !streetFits : side.kind !== "court") continue;
+      const bay = side.bays[w.bay], centre = bay?.x;
       if (!bay) continue;
+      const lo = side.bays[0].x - dims.bay / 2, hi = side.bays[side.bays.length - 1].x + dims.bay / 2;
       // Three tables across the frontage, chairs towards the facade/street.
       // Leave the right-hand end open for entry instead of splitting the row.
       for (let i = 0; i < C.terraceTableCount; i++) {
         const x = centre - dims.bay / 2 + C.terraceHalfWidth + C.terraceEndClear + i * C.terraceTablePitch, y = -C.terraceOffset;
-        if (x - C.terraceHalfWidth < side.x0 || x + C.terraceHalfWidth > side.x0 + side.bays.length * dims.bay) continue;
-        const m = side.frame.clone().multiply(at(x, y, dims.street.top));
+        if (x - C.terraceHalfWidth < lo || x + C.terraceHalfWidth > hi) continue;
+        const m = side.frame.clone().multiply(at(x, y, side.kind === "court" ? 0 : dims.street.top));
         const polygon: V2[] = [[-C.terraceHalfWidth, -C.terraceHalfDepth], [C.terraceHalfWidth, -C.terraceHalfDepth],
           [C.terraceHalfWidth, C.terraceHalfDepth], [-C.terraceHalfWidth, C.terraceHalfDepth]].map(([u, v]) => { const p = new Vector3(u, v, 0).applyMatrix4(m); return [p.x, p.y]; });
         if (reserved.some(p => overlaps(polygon, p))) continue;

@@ -34,7 +34,7 @@ async function show(baysX: number, baysY: number, floors: number, type: 'freesta
   const cap = buildingRoofCap(b);
   const roofMesh = new Mesh(cap.geometry, new MeshStandardMaterial({ color: '#7a858e' }));
   model.add(roofMesh, new Mesh(courtyardClosure(b), new MeshStandardMaterial({color: "#d7cbb8"})));
-  const region = buildingRoof(b), party = partyWalls(region.footprint, region.edgeKinds, b.roofBase);
+  const region = buildingRoof(b), party = partyWalls(region.footprint, region.edgeKinds, b.roofBase, region.inner);
   model.add(new Mesh(party.geometry, new MeshStandardMaterial({color:'#d7cbb8'})));
   const scene = new Scene(); scene.add(exterior); scene.add(model); scene.add(new HemisphereLight(0xffffff, 0x8895a0, 2.5));
   const light = new DirectionalLight(0xffffff, 2); light.position.set(10, -30, 100); scene.add(light);

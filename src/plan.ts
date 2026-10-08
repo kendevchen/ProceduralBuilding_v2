@@ -360,9 +360,6 @@ export function facadeWindows(g: Grid, levels: PlanLevel[]): PlanWindow[] {
         else if (v === "door_glazed") [kind, width] = ["door", GLAZED_DOOR];
         else if (v.startsWith("door")) [kind, width] = ["door", dims.ground.door.width];
         else if (v.startsWith("shop")) [kind, width] = ["shop", SHOP];
-      } else if (lv.cls === "R" && fb.facadeId) {
-        if (fb.info.atticWindow === false) continue;
-        [kind, width] = ["window", dims.window.width];
       } else if (lv.cls === "R") {
         if (fb.info.dormer) {
           const big = fb.info.dormer === "atelier" ? dims.dormer.atelier : fb.info.dormer === "studio" ? dims.dormer.studio : null;
