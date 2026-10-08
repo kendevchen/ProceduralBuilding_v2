@@ -204,8 +204,12 @@ export function buildCorePlan(b: Building, p: BuildingParams, retries: ReadonlyM
       if (len >= width + I.walls.spine + EPS) w.openings.push({ at: len / 2, width, height });
     }
     const floorWalls = walls.slice(base);
+    const wallsByRoom = new Map<string, { wall: PlanWall; index: number }[]>();
+    floorWalls.forEach((wall, index) => { for (const id of wall.rooms) if (id) {
+      const list = wallsByRoom.get(id) ?? []; list.push({ wall, index }); wallsByRoom.set(id, list);
+    } });
     for (const u of units) {
-      const mine = floorWalls.filter(w => w.rooms.includes(u.id!));
+      const entries = wallsByRoom.get(u.id!) ?? [], mine = entries.map(e => e.wall);
       const inset = (axis: 0 | 1, value: number) => Math.max(0, ...mine.filter(w => Math.abs(w.a[axis] - w.b[axis]) < EPS && Math.abs(w.a[axis] - value) < EPS).map(w => w.thickness)) / 2;
       const polygon = clipConvex(planned && !publicType(u) && !equipment(u) ? insetProgramRoom(u,mine) : rectLoop([u.x0 + inset(0, u.x0), u.y0 + inset(1, u.y0), u.x1 - inset(0, u.x1), u.y1 - inset(1, u.y1)]), g.inner);
       const part = layout.parts.find(q => q.id === u.part), type = u.type ?? 'storage';
@@ -218,7 +222,7 @@ export function buildCorePlan(b: Building, p: BuildingParams, retries: ReadonlyM
         ...(part ? { structuralId: part.id, coreId: part.coreId } : u.apartment !== null ? { coreId: apartmentCore.get(u.apartment) } : {}),
         ...(u.part ? { part: u.part } : {}), ...(u.access ? { programTargets: u.access.map(v => v.id!) } : {}) };
       for (const wi of u.win) { windows[wi].room = r.id; if (equipment(u)) windows[wi].openingRole = 'maintenance'; }
-      floorWalls.forEach((w, wi) => {
+      entries.forEach(({ wall: w, index: wi }) => {
         const other = w.rooms[0] === r.id ? w.rooms[1] : w.rooms[1] === r.id ? w.rooms[0] : null;
         if (other) for (const o of w.openings) r.doors.push({ wall: base + wi, ...o, to: other });
       });
@@ -241,8 +245,9 @@ export function buildCorePlan(b: Building, p: BuildingParams, retries: ReadonlyM
       layout: layoutStair('main', local, -Infinity, levels, 0, levels.length - 1) };
   });
   // Elevator landing doors are rendered but never participate in the egress graph.
+  const roomsById = new Map(rooms.map(r => [r.id, r]));
   for (const w of walls) {
-    const pair = w.rooms.map(id => rooms.find(r => r.id === id));
+    const pair = w.rooms.map(id => id ? roomsById.get(id) : undefined);
     if (!pair.some(r => r?.type === 'elevator') || !pair.some(r => r?.type === 'liftHall')) continue;
     const len = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
     if (len >= I.doors.landing[0] + I.walls.cage) w.openings.push({ at: len / 2, width: I.doors.landing[0], height: I.doors.landing[1], role: "equipment" });

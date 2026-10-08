@@ -6,7 +6,7 @@
  * building and only moved and shown as the cut moves. Blender Z-up space,
  * inside the building's group.
  */
-import { BufferGeometry, Group, LineBasicMaterial, LineLoop, type Plane, type Raycaster, type Sprite, Vector3 } from "three";
+import { BufferGeometry, type CanvasTexture, Group, LineBasicMaterial, LineLoop, type Plane, type Raycaster, type Sprite, Vector3 } from "three";
 import type { CutAxis, CutMode } from "./cutaway";
 import { textSprite } from "./labels";
 import type { BuildingPlan, PlanRoom } from "./plan";
@@ -28,6 +28,7 @@ export class RoomLabels {
   readonly group = new Group();
   private items: Item[] = [];
   private selected = new Set<string>();
+  private textures = new Map<string, CanvasTexture>();
   private outlineMaterial = new LineBasicMaterial({ color: 0xffb44f, depthTest: false });
 
   constructor(private plan: BuildingPlan, area: boolean) {
@@ -35,7 +36,7 @@ export class RoomLabels {
       const xs = r.polygon.map(p => p[0]), ys = r.polygon.map(p => p[1]);
       const size = Math.min(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
       const text = area && r.type !== "corridor" && r.type !== "stair" ? `${r.name}\n${r.area.toFixed(1)} m²` : r.name;
-      const sprite = textSprite(text, Math.min(3.0, Math.max(2.0, size * 0.85)), true, "tag");
+      const sprite = textSprite(text, Math.min(3.0, Math.max(2.0, size * 0.85)), true, "tag", this.textures);
       sprite.visible = false;
       const group = new Group();
       group.add(sprite); this.group.add(group);
@@ -80,8 +81,10 @@ export class RoomLabels {
     for (const it of this.items) {
       it.outline?.geometry.dispose();
       if (it.outline) (it.outline.material as LineBasicMaterial).dispose();
-      it.sprite.material.map?.dispose(); it.sprite.material.dispose();
+      it.sprite.material.dispose();
     }
+    for (const texture of this.textures.values()) texture.dispose();
+    this.textures.clear();
     this.outlineMaterial.dispose();
   }
 

@@ -7,12 +7,13 @@ import { Box3, Group, Matrix4 } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { createServer } from "vite";
 
-const options = { samples: 3, warmup: 1, json: null };
+const options = { samples: 3, warmup: 1, json: null, fixture: 'legacy' };
 const args = process.argv.slice(2);
 for (let i = 0; i < args.length; i++) {
   const key = args[i], value = args[++i];
-  if (!["--samples", "--warmup", "--json"].includes(key) || !value || value.startsWith("--")) throw new Error(`Invalid option ${key}`);
+  if (!["--samples", "--warmup", "--json", "--fixture"].includes(key) || !value || value.startsWith("--")) throw new Error(`Invalid option ${key}`);
   if (key === "--json") options.json = value;
+  else if (key === '--fixture') options.fixture = value;
   else {
     const n = Number(value);
     if (!Number.isSafeInteger(n) || n < (key === "--samples" ? 1 : 0)) throw new Error(`Invalid ${key}`);
@@ -38,6 +39,7 @@ const geometryStats = group => {
     for (const a of Object.values(g.attributes)) buffers.add(a.array.buffer);
     if (g.index) buffers.add(g.index.array.buffer);
   }
+  group.traverse(o => { if (o.isInstancedMesh) buffers.add(o.instanceMatrix.array.buffer); });
   return { meshes, geometries: geometries.size, submittedTriangles: triangles,
     bufferBytes: [...buffers].reduce((sum, b) => sum + b.byteLength, 0) };
 };
@@ -47,6 +49,7 @@ const buffersOf = group => {
     if (!o.isMesh) return;
     for (const a of Object.values(o.geometry.attributes)) buffers.add(a.array.buffer);
     if (o.geometry.index) buffers.add(o.geometry.index.array.buffer);
+    if (o.isInstancedMesh) buffers.add(o.instanceMatrix.array.buffer);
   });
   return buffers;
 };
@@ -100,26 +103,33 @@ try {
   const { RoomLabels } = await load("roomLabels");
   const { UnfoldView } = await load("unfold");
   const report = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     environment: { node: process.version, platform: platform(), arch: arch(), cpu: cpus()[0]?.model, explicitGC: !!globalThis.gc },
     warmup: options.warmup, samples: options.samples,
     baseParams: defaultParams(),
     scope: "SSR CPU using production topology, plan/checker, real-look interior/stairs/furniture, label objects and interior-only unfold. Local GLB bounds and manifest openings are used. Excludes asset/module loading, actual canvas drawing/font rasterization, exterior mesh instancing, GPU upload/rendering and browser interaction. Out-of-range legacy plans do not satisfy the future high-rise/daylight rules.",
     cases: [],
   };
-  for (const fixture of [
+  const fixtures = [
     { name: "default", overrides: {} },
     { name: "legacy-maximum", overrides: { baysX: 10, baysY: 8, floors: 6 } },
     { name: "proposed-maximum", overrides: { baysX: 20, baysY: 20, floors: 20 } },
-  ]) {
+    { name: 'maximum-auto', overrides: { baysX: 20, baysY: 20, floors: 20, layoutMode: 'auto', dimensionVersion: 'bays-v2', ballroom: false } },
+    { name: 'maximum-auto-variety', overrides: { baysX: 20, baysY: 20, floors: 20, layoutMode: 'auto', dimensionVersion: 'bays-v2', ballroom: false, floorVariety: true, seed: 3 } },
+    { name: 'maximum-lightwell', overrides: { baysX: 20, baysY: 20, floors: 20, layoutMode: 'lightwell', dimensionVersion: 'bays-v2', ballroom: false } },
+  ];
+  const selected = options.fixture === 'legacy' ? fixtures.slice(0, 3) : options.fixture === 'all' ? fixtures : fixtures.filter(f => f.name === options.fixture);
+  assert.ok(selected.length, `Unknown fixture ${options.fixture}`);
+  for (const fixture of selected) {
     console.log(`${fixture.name}: building real interior/furniture scale probe...`);
     const timings = {}, memory = [], params = { ...defaultParams(), ...fixture.overrides };
-    let entry;
+    let entry, cold;
     for (let i = 0; i < options.warmup + options.samples; i++) {
       globalThis.gc?.();
       const stage = (name, fn) => {
         const start = performance.now(), result = fn(), duration = performance.now() - start;
         if (i >= options.warmup) (timings[name] ??= []).push(duration);
+        if (i === 0) (cold ??= {})[name] = duration;
         return result;
       };
       const b = stage("generateMs", () => generateBuilding(params, kit));
@@ -149,7 +159,9 @@ try {
           source: geometryStats(source), interiorUnfold: geometryStats(unfold.group), labelObjects: labels.group.children.length,
           additionalUnfoldBufferBytes: extraUnfoldBuffers.reduce((sum, buffer) => sum + buffer.byteLength, 0),
           // One uncompressed RGBA base image per label; excludes mipmaps and cached art/noise textures.
-          estimatedLabelRGBABytes: plan.rooms.length * 512 * 160 * 4,
+          estimatedLabelRGBABytesBeforeSharing: plan.rooms.length * 512 * 160 * 4,
+          labelTextures: new Set(labels.items.map(it => it.sprite.material.map)).size,
+          estimatedLabelRGBABytes: [...new Set(labels.items.map(it => it.sprite.material.map))].reduce((sum, t) => sum + t.image.width * t.image.height * 4, 0),
         };
       }
       unfold.dispose(); labels.dispose();
@@ -164,7 +176,10 @@ try {
       root.clear(); source.clear();
     }
     const total = Array.from({ length: options.samples }, (_, i) => Object.values(timings).reduce((sum, times) => sum + times[i], 0));
+    entry.coldTimings = cold;
     entry.timings = Object.fromEntries(Object.entries(timings).map(([key, values]) => [key, summary(values)]));
+    entry.structureAndPlanMs = summary(timings.generateMs.map((value, i) => value + timings.planIncludingCheckMs[i]));
+    entry.samplesRaw = timings;
     entry.timings.combinedMs = summary(total);
     entry.memoryAfterConstruction = memory;
     report.cases.push(entry);

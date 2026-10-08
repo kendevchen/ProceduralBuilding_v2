@@ -1,0 +1,241 @@
+{
+  "schemaVersion": 2,
+  "environment": {
+    "node": "v25.2.1",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M3 Pro",
+    "explicitGC": true
+  },
+  "warmup": 1,
+  "samples": 3,
+  "baseParams": {
+    "type": "freestanding",
+    "cornerStyle": "pier",
+    "depth": 12,
+    "groundUse": "mixed",
+    "baysX": 5,
+    "baysY": 3,
+    "floors": 4,
+    "profile": "haussmann",
+    "dormerEvery": 1,
+    "dormerStyle": "mixed",
+    "cresting": true,
+    "chimneys": 0.5,
+    "seed": 1,
+    "doorStyle": "arched",
+    "groundWindow": "arched",
+    "otherBalcony": "alternate",
+    "consoles": true,
+    "ornament": 2,
+    "pediment": "alternate",
+    "detailPattern": "off",
+    "detailStyle": "pilasters",
+    "shutterClosed": 0.03,
+    "shutterHalf": 0.03,
+    "curtainNone": 0.5,
+    "curtainClosed": 0,
+    "curtainOpen": 0.5,
+    "windowOpen": 1,
+    "windowDir": "in",
+    "windowAngle": 75,
+    "stone": "#ffffff",
+    "paint": "#22382f",
+    "shutter": "#c9c5ba",
+    "awning": "#8c2b2b",
+    "lace": 2,
+    "ballroom": true,
+    "ballroomFacade": "rows",
+    "apartments": "auto",
+    "facade": {
+      "0|0|g": {
+        "curtain": "open",
+        "curtainOpen": 1
+      },
+      "0|0|r": {
+        "dormer": "studio"
+      }
+    }
+  },
+  "scope": "SSR CPU using production topology, plan/checker, real-look interior/stairs/furniture, label objects and interior-only unfold. Local GLB bounds and manifest openings are used. Excludes asset/module loading, actual canvas drawing/font rasterization, exterior mesh instancing, GPU upload/rendering and browser interaction. Out-of-range legacy plans do not satisfy the future high-rise/daylight rules.",
+  "cases": [
+    {
+      "name": "proposed-maximum",
+      "overrides": {
+        "baysX": 20,
+        "baysY": 20,
+        "floors": 20
+      },
+      "rooms": 2587,
+      "levels": 22,
+      "exteriorPlacements": 14956,
+      "exteriorTrianglesFromManifest": 1035502,
+      "interior": {
+        "meshes": 7,
+        "geometries": 7,
+        "submittedTriangles": 245348,
+        "bufferBytes": 43618536
+      },
+      "stairs": {
+        "meshes": 5,
+        "geometries": 5,
+        "submittedTriangles": 74818,
+        "bufferBytes": 9361416
+      },
+      "furniture": {
+        "meshes": 260,
+        "geometries": 260,
+        "submittedTriangles": 12120440,
+        "bufferBytes": 142421664
+      },
+      "source": {
+        "meshes": 272,
+        "geometries": 272,
+        "submittedTriangles": 12440606,
+        "bufferBytes": 195401616
+      },
+      "interiorUnfold": {
+        "meshes": 479,
+        "geometries": 318,
+        "submittedTriangles": 17635955,
+        "bufferBytes": 220008616
+      },
+      "labelObjects": 2587,
+      "additionalUnfoldBufferBytes": 25514968,
+      "estimatedLabelRGBABytesBeforeSharing": 847708160,
+      "labelTextures": 16,
+      "estimatedLabelRGBABytes": 5242880,
+      "coldTimings": {
+        "generateMs": 16.40883400000007,
+        "planIncludingCheckMs": 83.016708,
+        "materialsMs": 0.7638750000000982,
+        "interiorMs": 224.18337500000007,
+        "stairsMs": 51.59175000000005,
+        "furnitureMs": 3420.571,
+        "labelObjectsMs": 19.079624999999396,
+        "interiorUnfoldMs": 276.89829199999986
+      },
+      "timings": {
+        "generateMs": {
+          "min": 10.77220799999941,
+          "p50": 12.131,
+          "p95": 12.335,
+          "max": 12.335417000000234
+        },
+        "planIncludingCheckMs": {
+          "min": 74.58408299999974,
+          "p50": 75.52,
+          "p95": 79.355,
+          "max": 79.355375000001
+        },
+        "materialsMs": {
+          "min": 0.2136659999996482,
+          "p50": 0.348,
+          "p95": 0.357,
+          "max": 0.3574580000004062
+        },
+        "interiorMs": {
+          "min": 216.5102910000005,
+          "p50": 219.128,
+          "p95": 224.749,
+          "max": 224.74941699999908
+        },
+        "stairsMs": {
+          "min": 48.5532919999996,
+          "p50": 53.189,
+          "p95": 56.635,
+          "max": 56.63500000000022
+        },
+        "furnitureMs": {
+          "min": 2972.8532079999986,
+          "p50": 2989.701,
+          "p95": 3069.385,
+          "max": 3069.385
+        },
+        "labelObjectsMs": {
+          "min": 17.33166600000004,
+          "p50": 18.184,
+          "p95": 19.031,
+          "max": 19.03070800000023
+        },
+        "interiorUnfoldMs": {
+          "min": 354.9659579999998,
+          "p50": 356.488,
+          "p95": 356.735,
+          "max": 356.7345829999995
+        },
+        "combinedMs": {
+          "min": 3703.8864559999984,
+          "p50": 3738.449,
+          "p95": 3796.721,
+          "max": 3796.721497999999
+        }
+      },
+      "structureAndPlanMs": {
+        "min": 86.29179099999965,
+        "p50": 86.919,
+        "p95": 91.486,
+        "max": 91.48633300000256
+      },
+      "samplesRaw": {
+        "generateMs": [
+          10.77220799999941,
+          12.130958000001556,
+          12.335417000000234
+        ],
+        "planIncludingCheckMs": [
+          75.51958300000024,
+          79.355375000001,
+          74.58408299999974
+        ],
+        "materialsMs": [
+          0.2136659999996482,
+          0.3574580000004062,
+          0.34795800000028976
+        ],
+        "interiorMs": [
+          219.12770799999998,
+          224.74941699999908,
+          216.5102910000005
+        ],
+        "stairsMs": [
+          48.5532919999996,
+          56.63500000000022,
+          53.18924999999945
+        ],
+        "furnitureMs": [
+          3069.385,
+          2989.701417,
+          2972.8532079999986
+        ],
+        "labelObjectsMs": [
+          18.1840830000001,
+          19.03070800000023,
+          17.33166600000004
+        ],
+        "interiorUnfoldMs": [
+          354.9659579999998,
+          356.4881669999995,
+          356.7345829999995
+        ]
+      },
+      "memoryAfterConstruction": [
+        {
+          "rss": 981925888,
+          "heapUsed": 98127896,
+          "arrayBuffers": 460442429
+        },
+        {
+          "rss": 1091960832,
+          "heapUsed": 189331496,
+          "arrayBuffers": 485929201
+        },
+        {
+          "rss": 1139376128,
+          "heapUsed": 189032704,
+          "arrayBuffers": 485929201
+        }
+      ]
+    }
+  ]
+}

@@ -193,7 +193,7 @@ export class WindowEditor {
       plain("window", "窗戶");
       plain("dir", "開窗方向");
       state.angle = own().angle ?? p.windowAngle;
-      f.add(state, "angle", 10, 110, 1).name("開窗角度 °").onChange((v: number) => set({ angle: v }));
+      f.add(state, "angle", 10, 110, 1).name("開窗角度 °").onFinishChange((v: number) => set({ angle: v }));
     } else if (slot.kind === "ground") {
       plain("ground", "一樓窗");
     } else if (slot.kind === "door") {
@@ -204,7 +204,7 @@ export class WindowEditor {
     if (slot.kind !== "door" && slot.kind !== "shop" && slot.kind !== "dormer") {
       plain("curtain", "窗簾");
       state.curtainOpen = own().curtainOpen ?? p.curtainOpen;
-      f.add(state, "curtainOpen", 0, 1, 0.01).name("窗簾拉開程度").onChange((v: number) => set({ curtainOpen: v }));
+      f.add(state, "curtainOpen", 0, 1, 0.01).name("窗簾拉開程度").onFinishChange((v: number) => set({ curtainOpen: v }));
     }
     if (slot.kind === "shop") f.add({ note: "店面沒有個別設定" }, "note").name("說明").disable();
 

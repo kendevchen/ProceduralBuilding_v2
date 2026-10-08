@@ -188,9 +188,8 @@ export function stampAttributes(g: BufferGeometry, stamps: number[]) {
   for (let i = 0; i < n; i++) {
     const s = 9 * i;
     pat[i] = stamps[s];
-    a.set(stamps.slice(s + 1, s + 4), 3 * i);
-    b.set(stamps.slice(s + 4, s + 7), 3 * i);
-    z.set(stamps.slice(s + 7, s + 9), 2 * i);
+    for (let j = 0; j < 3; j++) { a[3 * i + j] = stamps[s + 1 + j]; b[3 * i + j] = stamps[s + 4 + j]; }
+    z[2 * i] = stamps[s + 7]; z[2 * i + 1] = stamps[s + 8];
   }
   g.setAttribute("finPattern", new Float32BufferAttribute(pat, 1));
   g.setAttribute("finA", new Float32BufferAttribute(a, 3));
@@ -219,8 +218,15 @@ vFinPattern = finPattern;
 vFinA = finA;
 vFinB = finB;
 vFinZ = finZ;
+#ifdef USE_INSTANCING
+vFinPos = (sourceModelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+mat3 finInstance = mat3(instanceMatrix);
+vec3 finNormal = objectNormal / vec3(dot(finInstance[0], finInstance[0]), dot(finInstance[1], finInstance[1]), dot(finInstance[2], finInstance[2]));
+vFinN = normalize(mat3(sourceModelMatrix) * finInstance * finNormal);
+#else
 vFinPos = (sourceModelMatrix * vec4(transformed, 1.0)).xyz;
 vFinN = normalize(mat3(sourceModelMatrix) * objectNormal);
+#endif
 `;
 
 // A single self-made value-noise lattice for every finish material. Hardware

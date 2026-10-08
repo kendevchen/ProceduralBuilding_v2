@@ -36,11 +36,11 @@ export function roomsOverlap(a: V2[], b: V2[]): boolean {
 export function inRoom(poly: V2[], p: V2): boolean {
   let inside = false;
   for (let i = 0; i < poly.length; i++) {
-    const a = poly[i], b = poly[(i + 1) % poly.length], d = sub(b, a), q = sub(p, a);
-    const len = Math.hypot(...d);
+    const a = poly[i], b = poly[(i + 1) % poly.length], dx = b[0] - a[0], dy = b[1] - a[1], qx = p[0] - a[0], qy = p[1] - a[1];
+    const len = Math.hypot(dx, dy);
     if (len < EPS) continue;
-    if (Math.abs(cross(d, q)) <= EPS * len && q[0] * d[0] + q[1] * d[1] >= -EPS &&
-        q[0] * d[0] + q[1] * d[1] <= len * len + EPS) return true;
+    if (Math.abs(dx * qy - dy * qx) <= EPS * len && qx * dx + qy * dy >= -EPS &&
+        qx * dx + qy * dy <= len * len + EPS) return true;
     if ((a[1] > p[1]) !== (b[1] > p[1]) && p[0] < a[0] + (b[0] - a[0]) * (p[1] - a[1]) / (b[1] - a[1])) inside = !inside;
   }
   return inside;
@@ -61,6 +61,13 @@ function splits(a: V2, b: V2, c: V2, d: V2): number[] {
 
 export function roomContains(poly: V2[], footprint: V2[]): boolean {
   if (!footprint.every(p => inRoom(poly, p))) return false;
+  // Four alternating horizontal/vertical nonzero edges form a convex rectangle.
+  // Checking its corners proves every straight footprint edge is inside it.
+  if (poly.length === 4 && poly.every((p, i) => {
+    const q = poly[(i + 1) % 4], r = poly[(i + 2) % 4];
+    return (p[0] === q[0] && p[1] !== q[1] && q[1] === r[1] && q[0] !== r[0]) ||
+      (p[1] === q[1] && p[0] !== q[0] && q[0] === r[0] && q[1] !== r[1]);
+  })) return true;
   return footprint.every((a, i) => {
     const b = footprint[(i + 1) % footprint.length], ts = [0, 1];
     poly.forEach((c, j) => ts.push(...splits(a, b, c, poly[(j + 1) % poly.length])));

@@ -254,11 +254,17 @@ export function buildRooms3d(plan: BuildingPlan, b: Building, kit: Kit, mats: In
     return { boundary, edge: i, a, len, dir, inward: new Vector3(-dir[1], dir[0], 0), along: new Vector3(dir[0], dir[1], 0) };
   }));
   const edges = boundaryEdges.filter(e => e.boundary === 0);
+  const windowsByEdge = new Map<string, PlanWindow[]>();
+  for (const w of plan.windows) for (let boundary = 0; boundary < boundaries.length; boundary++) {
+    const edge = edgeAt(boundaries[boundary], w.at);
+    if (edge < 0) continue;
+    const key = `${boundary}|${edge}|${w.level}`, list = windowsByEdge.get(key) ?? [];
+    list.push(w); windowsByEdge.set(key, list);
+  }
   /** a level's openings on edge i, clipped to s0..s1, z0..z1 of the edge's face */
   const holesOn = (e: (typeof edges)[number], i: number, k: number, s0: number, s1: number, z0: number, z1: number) => {
     const holes: { loop: V2[]; reveal: number; atFloor: boolean }[] = [];
-    for (const w of plan.windows) {
-      if (w.level !== k || edgeAt(boundaries[e.boundary], w.at) !== e.edge) continue;
+    for (const w of windowsByEdge.get(`${e.boundary}|${e.edge}|${k}`) ?? []) {
       const mod = moduleOf(w);
       const info = mod && kit.info(mod.key);
       if (!mod || !info?.openings) continue;

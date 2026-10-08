@@ -41,6 +41,7 @@ import dims from "../blender/kit_dims.json";
 import { BuildingScene, type AddDirection } from "./buildingScene";
 import { bindBuildingOrigin } from "./shaderVariant";
 import { FacadeTransparency } from "./facadeTransparency";
+import { BuildingPipeline, interiorKey } from './buildingPipeline';
 
 const renderer = new WebGLRenderer({ antialias: true, powerPreference: "high-performance", logarithmicDepthBuffer: true });
 const DEFAULT_PIXEL_RATIO = Math.min(devicePixelRatio, 1.25);
@@ -98,6 +99,9 @@ let lastPlan: BuildingPlan | null = null;
 let lastBuilding: Building | null = null;
 let lastFurniture: Group | null = null;
 let lastEdited: EditedPlan | null = null;
+let pipeline = new BuildingPipeline();
+let builtInteriorKey = '';
+const rebuildMetrics = { count: 0, interiorBuilds: 0, last: { prepareMs: 0, cpuMs: 0 }, frames: [] as number[] };
 
 /** cutting the building open (INTERIOR_SPEC.md §2): t is the plane's place, 0..1 within the bounds */
 const cut = { on: false, mode: "horizontal" as CutMode, axis: "across" as CutAxis, flip: false, t: 1, sweep: false, dir: 1, facadeTransparency: 0 };
@@ -131,6 +135,7 @@ interface BuildingRuntime {
   shown: Group | null; interior: Group | null; roomBoxes: Mesh | null; labels: RoomLabels | null;
   plan: BuildingPlan | null; building: Building | null; furniture: Group | null;
   edited: EditedPlan | null;
+  pipeline: BuildingPipeline; interiorKey: string;
   bounds: { min: Vector3; max: Vector3 }; site: typeof site; lamps: typeof lampSources;
 }
 let cityEditMode = false;
@@ -142,8 +147,15 @@ function captureBuilding(): BuildingRuntime {
   return { params: structuredClone(params), edits: roomEdits, street, materials: materials!,
     cutaway, cut: { ...cut }, unfold: { ...unfold }, spacing: unfoldSpacing,
     interiorView: { ...interiorView }, facadeLook: facadeSettings.look,
-    shown, interior, roomBoxes, labels, plan: lastPlan, building: lastBuilding, furniture: lastFurniture, edited: lastEdited,
+    shown, interior, roomBoxes, labels, plan: lastPlan, building: lastBuilding, furniture: lastFurniture, edited: lastEdited, pipeline, interiorKey: builtInteriorKey,
     bounds: { min: bounds.min.clone(), max: bounds.max.clone() }, site: { ...site }, lamps: lampSources };
+}
+
+function restoreBuildingParams(saved: BuildingParams): void {
+  // Optional mode/version fields from another building must not survive restoration.
+  for (const key of Object.keys(params) as (keyof BuildingParams)[]) if (!(key in saved)) delete params[key];
+  Object.assign(params, structuredClone(saved));
+  params.floorVariety = saved.floorVariety ?? false;
 }
 
 function bindBuildingEditors(): void {
@@ -157,6 +169,10 @@ function bindBuildingEditors(): void {
 function selectBuilding(id: string, animate = false): void {
   const next = city.buildings.find(b => b.id === id);
   if (!cityEditMode || !next || id === city.activeId || !materials || view.gallery || view.furnitureGallery || interiorView.plan) return;
+  if (citySwitchTimer !== null) clearTimeout(citySwitchTimer);
+  citySwitchTimer = null;
+  cancelQueuedRebuild();
+  cancelExteriorPreview();
   const cameraFrom = camera.position.clone(), targetFrom = controls.target.clone();
   const previous = city.active, saved = captureBuilding();
   previous.state = saved;
@@ -168,7 +184,7 @@ function selectBuilding(id: string, animate = false): void {
   if (interior) {
     interior.removeFromParent();
     interior.traverse(o => {
-      if ((o as InstancedMesh).isInstancedMesh) (o as InstancedMesh).dispose();
+      if ((o as InstancedMesh).isInstancedMesh) { (o as InstancedMesh).dispose(); if (o.userData.ownsGeometry) (o as Mesh).geometry.dispose(); }
       else if ((o as Mesh).isMesh) (o as Mesh).geometry.dispose();
     });
     saved.interior = null; saved.furniture = null; saved.lamps = [];
@@ -183,7 +199,7 @@ function selectBuilding(id: string, animate = false): void {
   cameraMotion = null; unfoldMotion = null; beforeUnfold = null; cutShown = false;
   const state = next.state;
   if (state) {
-    Object.assign(params, structuredClone(state.params)); params.floorVariety = state.params.floorVariety ?? false; roomEdits = state.edits;
+    restoreBuildingParams(state.params); roomEdits = state.edits;
     street = state.street; materials = state.materials; cutaway = state.cutaway;
     Object.assign(streetSettings, street.params); Object.assign(cut, state.cut); Object.assign(unfold, state.unfold);
     Object.assign(interiorView, state.interiorView); facadeSettings.look = state.facadeLook;
@@ -191,6 +207,7 @@ function selectBuilding(id: string, animate = false): void {
     shown = state.shown; interior = state.interior; roomBoxes = state.roomBoxes; labels = state.labels;
     lastPlan = state.plan; lastBuilding = state.building; lastFurniture = state.furniture;
     lastEdited = state.edited;
+    pipeline = state.pipeline; builtInteriorKey = state.interiorKey;
     bounds.min.copy(state.bounds.min); bounds.max.copy(state.bounds.max); Object.assign(site, state.site);
     const box = new Box3(bounds.min, bounds.max);
     env.frame({ center: box.getCenter(new Vector3()), radius: box.getSize(new Vector3()).length() / 2 });
@@ -200,9 +217,9 @@ function selectBuilding(id: string, animate = false): void {
     if (lastPlan) syncLevels(lastPlan);
     applyCut(true);
   } else {
-    Object.assign(params, structuredClone(saved.params)); params.floorVariety = saved.params.floorVariety ?? false; params.seed = Math.max(...city.buildings.map(b => b.state?.params.seed ?? 0)) + 1;
+    restoreBuildingParams(saved.params); params.seed = Math.max(...city.buildings.map(b => b.state?.params.seed ?? 0)) + 1;
     params.facade = {};
-    roomEdits = new RoomEdits(); cutaway = new Cutaway(); materials = forkKitMaterials(sharedMaterials!, next.position);
+    roomEdits = new RoomEdits(); pipeline = new BuildingPipeline(); builtInteriorKey = ''; cutaway = new Cutaway(); materials = forkKitMaterials(sharedMaterials!, next.position);
     for (const material of new Set(Object.values(cutaway.interior))) bindBuildingOrigin(material, next.position);
     materials.setLook(saved.facadeLook); facadeSettings.look = saved.facadeLook;
     street = new StreetLife(); Object.assign(street.params, streetSettings); street.group.position.copy(next.position); scene.add(street.group);
@@ -313,7 +330,7 @@ function show(g: Group, center: Vector3, radius: number): void {
     root.remove(shown);
     shown.traverse(o => {
       // instanced parts share the kit's geometry: free only their instance buffers
-      if ((o as InstancedMesh).isInstancedMesh) (o as InstancedMesh).dispose();
+      if ((o as InstancedMesh).isInstancedMesh) { (o as InstancedMesh).dispose(); if (o.userData.ownsGeometry) (o as Mesh).geometry.dispose(); }
       else if ((o as Mesh).isMesh) (o as Mesh).geometry.dispose();
       else if ((o as Sprite).isSprite) {
         const m = (o as Sprite).material;
@@ -338,10 +355,90 @@ function frameGallery(width: number, front: number): void {
   controls.target.set(0, 1.5, 0);
 }
 
-function rebuild(frame = false): void {
+let previewTimer: ReturnType<typeof setTimeout> | null = null;
+let commitTimer: ReturnType<typeof setTimeout> | null = null;
+function cancelQueuedRebuild(): void {
+  if (commitTimer !== null) clearTimeout(commitTimer);
+  commitTimer = null;
+}
+/** Let the input event finish, coalesce commits and discard work after a city switch. */
+function queueRebuild(): void {
+  cancelQueuedRebuild();
+  const buildingId = city.activeId;
+  commitTimer = setTimeout(() => {
+    commitTimer = null;
+    if (city.activeId === buildingId) rebuild();
+  }, 0);
+}
+let exteriorPreview: Group | null = null;
+let previewVisibility: { shown: boolean; unfold: boolean; street: boolean } | null = null;
+function cancelExteriorPreview(): void {
+  if (previewTimer) clearTimeout(previewTimer);
+  previewTimer = null;
+  if (exteriorPreview) {
+    exteriorPreview.removeFromParent();
+    exteriorPreview.traverse(o => {
+      if ((o as InstancedMesh).isInstancedMesh) (o as InstancedMesh).dispose();
+      else if ((o as Mesh).isMesh) (o as Mesh).geometry.dispose();
+    });
+    exteriorPreview = null;
+  }
+  if (previewVisibility) {
+    if (shown) shown.visible = previewVisibility.shown;
+    if (unfoldView) unfoldView.group.visible = previewVisibility.unfold;
+    street.group.visible = previewVisibility.street;
+    previewVisibility = null;
+  }
+}
+function previewExterior(): void {
+  if (previewTimer || !kit || !materials || view.gallery || view.furnitureGallery || interiorView.plan) return;
+  const buildingId = city.activeId;
+  previewTimer = setTimeout(() => {
+    previewTimer = null;
+    if (city.activeId !== buildingId || !kit || !materials) return;
+    let b: Building;
+    try { b = generateBuilding(params, kit); } catch { return; }
+    cancelExteriorPreview();
+    const g = kit.buildGroup(b.placements, materials), cap = buildingRoofCap(b);
+    g.add(new Mesh(cap.geometry, materials.byName.get('zinc:noao')));
+    g.position.set(-b.width / 2, -b.length / 2, 0);
+    // Preview has no old-plan room boxes, labels or furniture behind its changed windows.
+    previewVisibility = { shown: shown?.visible ?? false, unfold: unfoldView?.group.visible ?? false, street: street.group.visible };
+    if (shown) shown.visible = false;
+    if (unfoldView) unfoldView.group.visible = false;
+    street.group.visible = false;
+    exteriorPreview = g; root.add(g);
+  }, 120);
+}
+
+function rebuild(frame = false, fresh = false): void {
   if (!kit || !materials) return;
+  cancelQueuedRebuild();
+  cancelExteriorPreview();
+  const started = performance.now();
+  const activePipeline = fresh ? new BuildingPipeline() : pipeline;
+  let prepared: ReturnType<BuildingPipeline['prepare']> | null = null;
+  if (!view.gallery && !view.furnitureGallery) {
+    try { prepared = activePipeline.prepare(params, kit, roomEdits); }
+    catch (error) {
+      console.error(error);
+      if (city.active.state) restoreBuildingParams(city.active.state.params);
+      interiorView.check = (error as Error).message;
+      gui.controllersRecursive().forEach(c => c.updateDisplay());
+      return;
+    }
+  }
+  pipeline = activePipeline;
+  const prepareMs = performance.now() - started;
+  const nextInteriorKey = interiorKey(params, roomEdits, interiorView.look);
+  const retainedInterior = !fresh && prepared && cut.on && !interiorView.plan && builtInteriorKey === nextInteriorKey ? interior : null;
+  const retainedFurniture = retainedInterior ? lastFurniture : null;
+  const retainedLabels = !fresh && prepared?.edited.plan === lastPlan && !interiorView.plan ? labels : null;
+  // Detach before disposing the old exterior. A reused interior owns its buffers.
+  retainedInterior?.removeFromParent();
   facadeTransparency.dispose();
   releaseUnfold();
+  retainedLabels?.group.removeFromParent();
   const overview = view.gallery || view.furnitureGallery || interiorView.plan;
   root.position.copy(view.gallery || view.furnitureGallery ? new Vector3() : city.active.position);
   for (const entry of city.buildings) {
@@ -351,7 +448,7 @@ function rebuild(frame = false): void {
   updateCityUI();
   cameraMotion = null;
   interior = roomBoxes = null;
-  labels?.dispose();
+  if (!retainedLabels) labels?.dispose();
   labels = null;
   street.group.visible = false;
   cutShown = false; // every new group starts with the plain materials
@@ -369,9 +466,8 @@ function rebuild(frame = false): void {
     toolbar.setInterior(false); toolbar.setLevel("");
     return;
   }
-  const b = generateBuilding(params, kit);
+  const { building: b, edited } = prepared!;
   lastBuilding = b;
-  const edited = roomEdits.apply(planBuilding(b, params));
   lastEdited = edited;
   const plan = edited.plan;
   markCafeShops(plan, params.seed);
@@ -386,6 +482,7 @@ function rebuild(frame = false): void {
     show(g, new Vector3(0, plan.levels[interiorView.level].floorZ, 0), Math.hypot(b.width, b.length) / 2 + 2);
     windows.update(null, null);
     roomEditor.update(null);
+    rebuildMetrics.count++; rebuildMetrics.last = { prepareMs, cpuMs: performance.now() - started };
     return;
   }
   const region = buildingRoof(b);
@@ -416,10 +513,12 @@ function rebuild(frame = false): void {
   // Only the exterior shell: never mark furniture, stairs or internal partitions.
   g.traverse(object => { if (object instanceof Mesh && object !== roomBoxes) object.userData.facadeShell = true; });
   if (cut.on) {
-    interior = buildRooms3d(plan, b, kit, cutaway.interior, interiorView.look);
+    interior = retainedInterior ?? buildRooms3d(plan, b, kit, cutaway.interior, interiorView.look);
     // the stairs' railing: the kit's first lace pattern (欄杆與圓環)
-    interior.add(buildStairs(plan, cutaway.interior, cutaway.cut(materials.lace(0)), materials.laceDepth(0), interiorView.look));
-    const furniture = buildFurniture(plan, b, cutaway.interior, interiorView.look);
+    if (!retainedInterior) interior.add(buildStairs(plan, cutaway.interior, cutaway.cut(materials.lace(0)), materials.laceDepth(0), interiorView.look));
+    const furniture = retainedFurniture ?? buildFurniture(plan, b, cutaway.interior, interiorView.look);
+    if (!retainedInterior) rebuildMetrics.interiorBuilds++;
+    builtInteriorKey = nextInteriorKey;
     lastFurniture = furniture;
     interior.add(furniture);
     // Blender (x, y, z) -> world (x - W/2, z, L/2 - y), plus the building origin.
@@ -472,12 +571,14 @@ function rebuild(frame = false): void {
   env.frame({ center: box.getCenter(new Vector3()), radius: box.getSize(new Vector3()).length() / 2 });
   site.width = b.width;
   site.length = b.length;
-  if (cut.on) { labels = new RoomLabels(plan, interiorView.area); g.add(labels.group); }
+  if (cut.on) { labels = retainedLabels ?? new RoomLabels(plan, interiorView.area); g.add(labels.group); }
+  else retainedLabels?.dispose();
   applyCut(true);
   if (unfoldActive()) frameUnfold();
   bindBuildingEditors();
   city.active.state = captureBuilding();
   updateCityUI();
+  rebuildMetrics.count++; rebuildMetrics.last = { prepareMs, cpuMs: performance.now() - started };
 }
 
 /** the plane's place (world space) for the slider */
@@ -585,8 +686,14 @@ const gui = new GUI({ title: "european building kit" });
 const fCity = gui.addFolder("城市編輯");
 fCity.hide();
 const citySelection = { building: city.activeId };
+let citySwitchTimer: ReturnType<typeof setTimeout> | null = null;
 const cityController = fCity.add(citySelection, "building", { "建築 1": "1" }).name("目前建築").onChange((id: string) => {
-  selectBuilding(id, true); citySelection.building = city.activeId; cityController.updateDisplay();
+  cancelQueuedRebuild(); cancelExteriorPreview();
+  if (citySwitchTimer !== null) clearTimeout(citySwitchTimer);
+  citySwitchTimer = setTimeout(() => {
+    citySwitchTimer = null;
+    selectBuilding(id, true); citySelection.building = city.activeId; cityController.updateDisplay();
+  }, 0);
 });
 function refreshCityChoices(): void {
   cityController.options(Object.fromEntries(city.buildings.map(b => [b.name, b.id])));
@@ -611,7 +718,7 @@ fCity.add({ overview: () => {
   camera.position.copy(target).addScaledVector(forward, distance);
   env.frame({ center: target, radius: box.getSize(new Vector3()).length() / 2 });
 }}, "overview").name("街區總覽");
-const update = () => rebuild();
+const update = () => queueRebuild();
 gui.add(view, "gallery").name("零件總覽").listen().onChange((on: boolean) => {
   if (on) { view.furnitureGallery = false; interiorView.plan = false; }
   if (!on) {
@@ -707,8 +814,13 @@ const levelCtrl = fInterior.add(interiorView, "level", 0, 7, 1).name("樓層（�
   rebuild();
 });
 fInterior.add(interiorView, "look", { "寫實材質": "real", "圖解（每種空間一個顏色）": "diagram", "白模": "white" }).name("室內呈現").onChange(update);
-fInterior.add(interiorView, "labels").name("房間名稱").onChange(update);
-fInterior.add(interiorView, "area").name("顯示面積").onChange(update);
+fInterior.add(interiorView, "labels").name("房間名稱").onChange(() => applyCut());
+fInterior.add(interiorView, "area").name("顯示面積").onChange(() => {
+  if (interiorView.plan) { rebuild(); return; }
+  labels?.dispose(); labels = lastPlan && cut.on ? new RoomLabels(lastPlan, interiorView.area) : null;
+  if (labels && shown) (unfoldView?.group ?? shown).add(labels.group);
+  applyCut(true); bindBuildingEditors();
+});
 fInterior.add(params, "ballroom").name("宴會廳").onChange(update);
 fInterior.add(params, "ballroomFacade", { "兩排窗": "rows", "跨兩層高窗": "tall" }).name("宴會廳立面").onChange(update);
 fInterior.add(params, "apartments", { "自動": "auto", "一戶": "one", "兩戶": "two" }).name("每層戶數").onChange(update);
@@ -728,14 +840,14 @@ function syncLevels(plan: BuildingPlan): void {
 /** click a window to set its facade details on its own (windowEditor.ts) */
 const roomEditor = new RoomEditor({
   canvas: renderer.domElement, camera, gui, get edits() { return roomEdits; },
-  labels: () => labels,
-  rebuild: () => rebuild(),
+  labels: () => exteriorPreview ? null : labels,
+  rebuild: queueRebuild,
 });
 const windows = new WindowEditor({
   canvas: renderer.domElement, camera, gui, params,
-  shown: () => (unfoldActive() || view.gallery || view.furnitureGallery || interiorView.plan ? null : shown),
+  shown: () => (exteriorPreview || unfoldActive() || view.gallery || view.furnitureGallery || interiorView.plan ? null : shown),
   clip: () => (cutShown ? cutaway.plane : null),
-  rebuild: () => rebuild(),
+  rebuild: queueRebuild,
   ignorePointer: e => roomEditor.consumedEvent(e) || cityEvents.has(e),
 });
 
@@ -983,6 +1095,12 @@ fPerf.add(post, "enabled").name("後製特效");
 fPerf.add(perf, "msaa", { "關閉": 0, "2x": 2, "4x": 4 }).name("後製抗鋸齒").onChange((v: number) => post.setSamples(Number(v)));
 fPerf.close();
 env.addGui(gui);
+// Number controls preview during dragging; one committed rebuild on release or text entry.
+for (const controller of gui.controllersRecursive()) {
+  if (controller.object === params && typeof params[controller.property as keyof BuildingParams] === 'number') {
+    controller.onChange(previewExterior).onFinishChange(update);
+  }
+}
 
 // mood extras beyond lights + sky: the post-processing grade
 env.onMood = s => {
@@ -1008,7 +1126,10 @@ function planCheckAll(seeds = [1, 2], apartments: BuildingParams["apartments"][]
 if (import.meta.env.DEV) {
   Object.assign(window, {
     __app: {
-      camera, controls, params, view, interiorView, rebuild, scene, renderer, env, planCheckAll,
+      camera, controls, params, view, interiorView, rebuild, scene, renderer, env, planCheckAll, rebuildMetrics,
+      get pipelineCounts() { return pipeline.counts; },
+      get renderSettings() { return { postFX: post.enabled, msaa: perf.msaa, shadowType: renderer.shadowMap.type }; },
+      refreshGui: () => gui.controllersRecursive().forEach(c => c.updateDisplay()),
       cut, cutaway, toolbar, applyCut, frameHome, bounds, site, street, windows,
       roomEdits, roomEditor,
       unfold, focusUnfold, setUnfoldAmount,
@@ -1046,6 +1167,8 @@ addEventListener("resize", () => {
 const clock = new Clock();
 const SWEEP_SECONDS = 14; // one way
 renderer.setAnimationLoop(() => {
+  const frameStart = performance.now();
+  if (!renderer.info.autoReset) renderer.info.reset();
   const dt = Math.min(clock.getDelta(), 0.1);
   if (unfoldActive() && unfoldMotion) {
     unfoldMotion.elapsed += dt;
@@ -1073,6 +1196,10 @@ renderer.setAnimationLoop(() => {
   lampLights.update(controls.target);
   env.tick(camera.position);
   post.render(dt);
+  if (import.meta.env.DEV) {
+    rebuildMetrics.frames.push(performance.now() - frameStart);
+    if (rebuildMetrics.frames.length > 120) rebuildMetrics.frames.shift();
+  }
   if (saveNext) {
     saveNext = false;
     savePicture();

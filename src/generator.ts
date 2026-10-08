@@ -166,8 +166,9 @@ function dormer(style: DormerStyle, si: number, i: number): string {
   return si === 2 ? "zinc" : "oeil";
 }
 
-export function generateBuilding(p: BuildingParams, kit: PartIndex): Building {
-  const resolved = resolveBuildingTopology(p);
+/** The optional resolver lets a building-owned pipeline reuse validated immutable structure. */
+export function generateBuilding(p: BuildingParams, kit: PartIndex, resolve = resolveBuildingTopology): Building {
+  const resolved = resolve(p);
   if (resolved.status !== "ready") throw new TopologyResolutionError(resolved);
   const topology = resolved.topology;
   const court = topology.courtyardLayout;

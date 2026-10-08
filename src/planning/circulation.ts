@@ -58,6 +58,15 @@ function doorPoint(plan: BuildingPlan, door: PlanDoor): V2 {
 }
 interface Node { room: PlanRoom; at: V2; exit?: boolean }
 interface Graph { nodes: Node[]; links: { to: number; weight: number }[][]; byRoom: Map<string, number[]>; polygons: Map<string, V2[]> }
+function graphForLevel(graph: Graph, level: number): Graph {
+  const indices = graph.nodes.flatMap((node, i) => node.room.level === level ? [i] : []);
+  const local = new Map(indices.map((i, j) => [i, j]));
+  const nodes = indices.map(i => graph.nodes[i]), byRoom = new Map<string, number[]>();
+  nodes.forEach((node, i) => { const list = byRoom.get(node.room.id) ?? []; list.push(i); byRoom.set(node.room.id, list); });
+  return { nodes, byRoom, polygons: graph.polygons, links: indices.map(i => graph.links[i].flatMap(e => {
+    const to = local.get(e.to); return to === undefined ? [] : [{ to, weight: e.weight }];
+  })) };
+}
 function buildGraph(plan: BuildingPlan, issues: string[]): Graph {
   const byId = new Map(plan.rooms.map(r => [r.id, r])), nodes: Node[] = [], links: Graph['links'] = [], byRoom = new Map<string, number[]>();
   const polygons = new Map(plan.rooms.map(r => [r.id, r.type === 'stair' ? landingPolygon(plan.stairs.find(s => s.id === r.structuralId)!) : r.polygon]));
@@ -139,6 +148,7 @@ export function analyseCirculation(plan: BuildingPlan): { issues: string[]; effe
   if (ids.some(id => !id) || new Set(ids).size !== ids.length) return { issues: ['樓梯 ID 缺少或重複'], effectiveStairIds: [], apartments: [] };
   if (plan.rooms.some(r => r.type === 'stair' && !plan.stairs.some(s => s.id === r.structuralId))) return { issues: ['樓梯間沒有對應的獨立樓梯'], effectiveStairIds: [], apartments: [] };
   const graph = buildGraph(plan, issues);
+  const groundGraph = graphForLevel(graph, 0);
   const high = plan.levels.length - 2 >= C.doubleStairFrom;
   const required = Math.max(meta.requiredStairs, high ? 2 : 1);
   const maxTravel = high ? C.highMaxTravel : C.maxTravel;
@@ -174,8 +184,8 @@ export function analyseCirculation(plan: BuildingPlan): { issues: string[]; effe
     }
     if (s.layout.flights.length !== s.to - s.from) valid = false;
     const ground = rs.find(r => r.level === 0);
-    const ds = distances(graph, ground ? graph.byRoom.get(ground.id) ?? [] : [], r => r.level === 0 && publicRoom(r) && (r.type !== 'stair' || r.structuralId === s.id));
-    if (!graph.nodes.some((n, i) => n.exit && Number.isFinite(ds[i]))) valid = false;
+    const ds = distances(groundGraph, ground ? groundGraph.byRoom.get(ground.id) ?? [] : [], r => publicRoom(r) && (r.type !== 'stair' || r.structuralId === s.id));
+    if (!groundGraph.nodes.some((n, i) => n.exit && Number.isFinite(ds[i]))) valid = false;
     if (valid) effective.push(s.id!); else issues.push(`樓梯 ${s.id}：平台／踏步／服務範圍或一樓對外公共路徑不連續`);
   }
   // Vertical structural reservations cannot drift with floor programming or edits.
@@ -186,12 +196,26 @@ export function analyseCirculation(plan: BuildingPlan): { issues: string[]; effe
       if (!first || !r || !equipment(r) || r.doors.length || (!hole || (plan.levels[k].cls !== "R" && !hole.ceiling)) || JSON.stringify(r.polygon) !== JSON.stringify(first.polygon) || JSON.stringify(hole.polygon) !== JSON.stringify(r.polygon)) issues.push(`${plan.levels[k].name}：井道 ${id} 垂直位置／樓板孔洞不一致`);
     }
   }
+  // Only identical, fully validated horizontal graphs share the costly route audit.
+  // This map is local to one check: edited/mutated plans always rebuild and validate their doors.
+  const levelAudits = new Map<string, { issues: string[]; apartments: ApartmentRoute[] }>();
   for (const lv of plan.levels) {
-    const publicStarts = plan.rooms.filter(r => r.level === lv.index && r.type === 'stair' && effective.includes(r.structuralId!)).flatMap(r => graph.byRoom.get(r.id) ?? []);
-    const publicDs = distances(graph, publicStarts, r => r.level === lv.index && publicRoom(r));
+    const levelGraph = graphForLevel(graph, lv.index);
+    const levelRooms = plan.rooms.filter(r => r.level === lv.index), roomOrder = new Map(levelRooms.map((r, i) => [r.id, i]));
+    const key = JSON.stringify([levelRooms.map(r => [publicRoom(r) || equipment(r) ? r.type : 'private', r.apartment, r.structuralId, r.polygon, levelGraph.byRoom.get(r.id)]),
+      levelGraph.nodes.map(n => [roomOrder.get(n.room.id), n.at, n.exit]), levelGraph.links]);
+    const cached = levelAudits.get(key);
+    if (cached) {
+      issues.push(...cached.issues.map(s => lv.name + s));
+      apartments.push(...cached.apartments.map(a => ({ ...a, level: lv.index, effectiveStairIds: [...a.effectiveStairIds] })));
+      continue;
+    }
+    const issuesBefore = issues.length, apartmentsBefore = apartments.length;
+    const publicStarts = plan.rooms.filter(r => r.level === lv.index && r.type === 'stair' && effective.includes(r.structuralId!)).flatMap(r => levelGraph.byRoom.get(r.id) ?? []);
+    const publicDs = distances(levelGraph, publicStarts, publicRoom);
     for (const core of meta.cores) for (const id of core.hallIds ?? []) {
       const hall = plan.rooms.find(r => r.level === lv.index && r.structuralId === id);
-      if (!hall || hall.type !== 'liftHall' || !(graph.byRoom.get(hall.id) ?? []).some(i => Number.isFinite(publicDs[i]))) issues.push(`${lv.name}：電梯廳 ${id} 沒有公共通道`);
+      if (!hall || hall.type !== 'liftHall' || !(levelGraph.byRoom.get(hall.id) ?? []).some(i => Number.isFinite(publicDs[i]))) issues.push(`${lv.name}：電梯廳 ${id} 沒有公共通道`);
     }
     const flats = new Map<number, PlanRoom[]>();
     plan.rooms.filter(r => r.level === lv.index && r.apartment !== null).forEach(r => flats.set(r.apartment!, [...(flats.get(r.apartment!) ?? []), r]));
@@ -200,8 +224,8 @@ export function analyseCirculation(plan: BuildingPlan): { issues: string[]; effe
       const reachableIds: string[] = [], stairDistances = new Map<string, number[]>();
       for (const id of effective) {
         const r = plan.rooms.find(r => r.level === lv.index && r.structuralId === id);
-        const ds = distances(graph, r ? graph.byRoom.get(r.id) ?? [] : [], allowed);
-        if (rs.every(r => (graph.byRoom.get(r.id) ?? []).some(i => Number.isFinite(ds[i])))) { reachableIds.push(id); stairDistances.set(id, ds); }
+        const ds = distances(levelGraph, r ? levelGraph.byRoom.get(r.id) ?? [] : [], allowed);
+        if (rs.every(r => (levelGraph.byRoom.get(r.id) ?? []).some(i => Number.isFinite(ds[i])))) { reachableIds.push(id); stairDistances.set(id, ds); }
       }
       if (reachableIds.length < required) issues.push(`${lv.name}：住戶 ${apartment} 只能到 ${reachableIds.length} 座有效樓梯，需要 ${required} 座`);
       let nearest = 0, second = 0, sampled = 0;
@@ -209,7 +233,8 @@ export function analyseCirculation(plan: BuildingPlan): { issues: string[]; effe
         const xs = r.polygon.map(q => q[0]), ys = r.polygon.map(q => q[1]), points = [...r.polygon];
         for (let x = Math.min(...xs) + C.routeInset; x < Math.max(...xs); x += C.routeSampleStep) for (let y = Math.min(...ys) + C.routeInset; y < Math.max(...ys); y += C.routeSampleStep) if (inRoom(r.polygon, [x, y])) points.push([x, y]);
         for (const q of points) {
-          const options = reachableIds.map(id => Math.min(...(graph.byRoom.get(r.id) ?? []).map(i => polygonRoute(r.polygon, q, graph.nodes[i].at) + stairDistances.get(id)![i]))).sort((a, b) => a - b);
+          const origins = (levelGraph.byRoom.get(r.id) ?? []).map(i => ({ i, route: polygonRoute(r.polygon, q, levelGraph.nodes[i].at) }));
+          const options = reachableIds.map(id => Math.min(...origins.map(({ i, route }) => route + stairDistances.get(id)![i]))).sort((a, b) => a - b);
           sampled++; nearest = Math.max(nearest, options[0] ?? Infinity); second = Math.max(second, options[1] ?? Infinity);
         }
       }
@@ -217,6 +242,7 @@ export function analyseCirculation(plan: BuildingPlan): { issues: string[]; effe
       apartments.push({ level: lv.index, apartment, effectiveStairIds: reachableIds, sampledOrigins: sampled, furthestNearestStair: nearest,
         furthestSecondStair: reachableIds.length > 1 ? second : null });
     }
+    levelAudits.set(key, { issues: issues.slice(issuesBefore).map(s => s.slice(lv.name.length)), apartments: apartments.slice(apartmentsBefore) });
   }
   return { issues: [...new Set(issues)], effectiveStairIds: effective, apartments };
 }

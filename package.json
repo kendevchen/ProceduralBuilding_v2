@@ -19,6 +19,7 @@
     "check:unfold": "node scripts/check-unfold.mjs",
     "check:buildings": "node scripts/check-buildings.mjs",
     "check:facade": "node scripts/check-facade-transparency.mjs",
+    "check:performance": "node scripts/check-performance.mjs",
     "preview": "vite preview",
     "kit": "sh blender/make_kit.sh",
     "tex": "sh blender/make_kit.sh tex",

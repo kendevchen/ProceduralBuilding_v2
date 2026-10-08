@@ -23,11 +23,11 @@ const coord = (n: number) => Math.round(n * 100000);
 const pointKey = (p: V2) => p.map(coord).join(",");
 
 /** A room number is only a display ID. Match its actual footprint and openings on replay. */
-function sourceKey(plan: BuildingPlan, r: PlanRoom): string {
+function sourceKey(plan: BuildingPlan, r: PlanRoom, roomWalls: PlanWall[]): string {
   const points = r.polygon.map(pointKey);
   const start = points.indexOf([...points].sort()[0]);
   const polygon = [...points.slice(start), ...points.slice(0, start)];
-  const walls = plan.walls.filter(w => w.rooms.includes(r.id)).map(w =>
+  const walls = roomWalls.map(w =>
     [pointKey(w.a), pointKey(w.b), w.kind, coord(w.thickness), w.openings.map(o => [coord(o.at), coord(o.width), coord(o.height)])]).sort();
   const windows = r.windows.map(i => { const w = plan.windows[i]; return [pointKey(w.at), w.kind, coord(w.width), ...(w.openingKey ? [w.openingKey] : [])]; }).sort();
   return JSON.stringify([plan.levels[r.level].cls === "R" ? "attic" : r.level, r.levels, r.apartment,
@@ -137,13 +137,20 @@ export class RoomEdits {
   private undoStates: Operation[][] = [];
   private redoStates: Operation[][] = [];
   private serial = 0;
+  private revision = 0;
+  get version() { return this.revision; }
   current: EditedPlan | null = null;
   get canUndo() { return !!this.undoStates.length; }
   get canRedo() { return !!this.redoStates.length; }
   get count() { return this.operations.length; }
 
   apply(base: BuildingPlan): EditedPlan {
-    const plan = clonePlan(base), members = new Map(plan.rooms.map(r => [r.id, [sourceKey(base, r)]]));
+    const wallIndex = new Map<string, PlanWall[]>();
+    for (const wall of base.walls) for (const id of wall.rooms) {
+      if (!id) continue;
+      const list = wallIndex.get(id) ?? []; list.push(wall); wallIndex.set(id, list);
+    }
+    const plan = clonePlan(base), members = new Map(plan.rooms.map(r => [r.id, [sourceKey(base, r, wallIndex.get(r.id) ?? [])]]));
     const suspended: string[] = [];
     const find = (keys: Members) => plan.rooms.find(r => same(members.get(r.id) ?? [], keys));
     for (const op of this.operations) {
@@ -169,7 +176,7 @@ export class RoomEdits {
     return this.current = { plan, members, suspended, warnings };
   }
 
-  private save() { this.undoStates.push([...this.operations]); this.redoStates = []; }
+  private save() { this.revision++; this.undoStates.push([...this.operations]); this.redoStates = []; }
   private keys(id: string): Members {
     const keys = this.current?.members.get(id);
     if (!keys) throw new Error("房間已改變，請重新選取");
@@ -200,11 +207,11 @@ export class RoomEdits {
   }
   undo() {
     const state = this.undoStates.pop();
-    if (state) { this.redoStates.push(this.operations); this.operations = state; }
+    if (state) { this.revision++; this.redoStates.push(this.operations); this.operations = state; }
   }
   redo() {
     const state = this.redoStates.pop();
-    if (state) { this.undoStates.push(this.operations); this.operations = state; }
+    if (state) { this.revision++; this.undoStates.push(this.operations); this.operations = state; }
   }
   clear() { if (this.operations.length) { this.save(); this.operations = []; } }
 }

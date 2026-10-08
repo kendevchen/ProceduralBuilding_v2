@@ -1,7 +1,7 @@
 /**
  * Furnishings (INTERIOR_SPEC.md §6.8), in code like the stairs: plain geometry
- * merged per material. One ballroom per building, and a few studies, so there is
- * no need to instance or to go through Blender.
+ * merged per material, with repeated recipes sharing instanced geometry.
+ * Geometry remains generated here rather than going through Blender.
  *   - the ballroom: a rounded walnut table, gilt upholstered chairs, cards and
  *     floral centerpieces, chandeliers, painting, consoles and glass cabinets;
  *     its original carpet remains on the parquet (finishes.ts);
@@ -26,6 +26,7 @@ import { type InteriorMaterials, Tris, atticCeiling } from "./rooms3d";
 import type { V2 } from "./roof";
 import dims from "../blender/kit_dims.json";
 import { inRoom, roomAnchor, roomContains } from "./roomGeometry";
+import { FurnitureInstances, instanceRecipe } from './furnitureInstances';
 
 const BANQUET = dims.interior.banquetFurniture;
 const BED = dims.interior.bedroomFurniture;
@@ -544,6 +545,7 @@ function atticSet(linen: Tris, brass: Tris, decor: Tris, books: Tris, bulb: Tris
 type BedSide = -1 | 1;
 
 function doubleBed(linen: Tris, m: Matrix4): void {
+  if (instanceRecipe('doubleBed', [linen], m, [], ([l], local) => doubleBed(l, local))) return;
   const B = BED, l = new Part(linen, m);
   const w = B.bedWidth, length = B.bedLength, base = B.baseHeight, top = base + B.mattressHeight;
   l.softBox(0, length / 2, base / 2, w, length, base, B.rounding);
@@ -564,6 +566,7 @@ function doubleBed(linen: Tris, m: Matrix4): void {
 }
 
 function nightstand(linen: Tris, brass: Tris, m: Matrix4): void {
+  if (instanceRecipe('nightstand', [linen, brass], m, [], ([l, b], local) => nightstand(l, b, local))) return;
   const B = BED, x = 0, y = B.nightDepth / 2, l = new Part(linen, m), metal = new Part(brass, m);
   const f = B.frameThickness, hw = B.nightWidth / 2, hd = B.nightDepth / 2;
   l.softBox(x, y, B.nightHeight, B.nightWidth, B.nightDepth, f * 2, f);
@@ -575,6 +578,8 @@ function nightstand(linen: Tris, brass: Tris, m: Matrix4): void {
 }
 
 function bedsideLamp(brass: Tris, shade: Tris, m: Matrix4): number {
+  const instance = instanceRecipe('bedsideLamp', [brass, shade], m, [], ([b, s], local) => bedsideLamp(b, s, local));
+  if (instance) return instance.value;
   const B = BED, f = B.frameThickness, lm = m, stem = new Part(brass, lm), H = B.lampHeight;
   stem.lathe(0, 0, [[0, 0], [B.shadeTop * 0.6, 0], [B.shadeTop * 0.6, H * 0.04],
     [f, H * 0.09], [f * 0.6, H * 0.65], [0, H * 0.65]], 16);
@@ -694,8 +699,10 @@ type SalonRect = [number, number, number, number];
 function overlaps(a: V2[], b: V2[]): boolean {
   for (const poly of [a, b]) for (let i = 0; i < poly.length; i++) {
     const p = poly[i], q = poly[(i + 1) % poly.length], nx = p[1] - q[1], ny = q[0] - p[0];
-    const aa = a.map(v => v[0] * nx + v[1] * ny), bb = b.map(v => v[0] * nx + v[1] * ny);
-    if (Math.max(...aa) <= Math.min(...bb) + 1e-6 || Math.max(...bb) <= Math.min(...aa) + 1e-6) return false;
+    let amin = Infinity, amax = -Infinity, bmin = Infinity, bmax = -Infinity;
+    for (const v of a) { const t = v[0] * nx + v[1] * ny; amin = Math.min(amin, t); amax = Math.max(amax, t); }
+    for (const v of b) { const t = v[0] * nx + v[1] * ny; bmin = Math.min(bmin, t); bmax = Math.max(bmax, t); }
+    if (amax <= bmin + 1e-6 || bmax <= amin + 1e-6) return false;
   }
   return true;
 }
@@ -764,6 +771,7 @@ function salonPlacement(plan: BuildingPlan, b: Building, r: PlanRoom): Matrix4 |
 
 /** Upholstered sofa faces +y; rounded arms, separate cushions and piping seams. */
 function salonSofa(linen: Tris, wood: Tris, m: Matrix4, width: number): void {
+  if (instanceRecipe('salonSofa', [linen, wood], m, [width], ([l, w], local) => salonSofa(l, w, local, width))) return;
   const S = SALON, f = new Part(linen, m), w = new Part(wood, m), d = S.sofaDepth;
   for (const x of [-width / 2 + 0.16, width / 2 - 0.16]) for (const y of [-d / 2 + 0.15, d / 2 - 0.15])
     w.lathe(x, y, [[0, 0], [0.035, 0], [0.028, 0.13], [0, 0.13]], 10);
@@ -960,6 +968,7 @@ function colour(t: Tris, hex: string): void {
 
 /** Six Louis-style seats with oval upholstered backs, curved gilt rails and armrests. */
 function diningChair(linen: Tris, brass: Tris, decor: Tris, m: Matrix4): void {
+  if (instanceRecipe('diningChair', [linen, brass, decor], m, [], ([l, b, d], local) => diningChair(l, b, d, local))) return;
   const D = DINING, w = D.chairWidth, d = D.chairDepth, frame = new Part(linen, m), gilt = new Part(brass, m);
   for (const x of [-w * 0.38, w * 0.38]) for (const y of [-d * 0.38, d * 0.38]) frame.lathe(x, y, leg(D.seatHeight), 10);
   frame.softBox(0, 0, D.seatHeight - 0.055, w, d, 0.09, 0.025);
@@ -1013,6 +1022,7 @@ function flowerPot(decor: Tris, m: Matrix4): void {
 
 /** Three curated shelves, with empty shelves between the plate, bowls and cup. */
 function crockeryCabinet(linen: Tris, brass: Tris, decor: Tris, m: Matrix4, x0: number, width = SALON.caseWidth): void {
+  if (instanceRecipe('crockeryCabinet', [linen, brass, decor], m, [x0, width], ([l, b, d], local) => crockeryCabinet(l, b, d, local, x0, width))) return;
   let row = 0;
   displayCabinet(linen, brass, m, x0, (left, right, z) => {
     const shelf = row++;
@@ -1124,6 +1134,7 @@ function kitchenPanel(linen: Tris, decor: Tris, m: Matrix4, x0: number, x1: numb
 }
 
 function kitchenBase(linen: Tris, brass: Tris, decor: Tris, m: Matrix4, width = KITCHEN.moduleWidth): void {
+  if (instanceRecipe('kitchenBase', [linen, brass, decor], m, [width], ([l, b, d], local) => kitchenBase(l, b, d, local, width))) return;
   const K = KITCHEN, w = width / 2, p = new Part(linen, m);
   p.box(-w + 0.025, 0.035, 0, w - 0.025, K.depth - 0.04, 0.12);
   p.box(-w, 0, 0.12, w, K.depth, K.height - K.topThickness);
@@ -1135,6 +1146,7 @@ function kitchenBase(linen: Tris, brass: Tris, decor: Tris, m: Matrix4, width = 
 }
 
 function kitchenUpper(linen: Tris, brass: Tris, decor: Tris, m: Matrix4, width = KITCHEN.moduleWidth - 0.26): void {
+  if (instanceRecipe('kitchenUpper', [linen, brass, decor], m, [width], ([l, b, d], local) => kitchenUpper(l, b, d, local, width))) return;
   const K = KITCHEN, p = new Part(linen, m);
   p.box(-width / 2, 0, 0, width / 2, K.upperDepth, K.upperHeight);
   kitchenPanel(linen, decor, m, -width / 2 + 0.015, width / 2 - 0.015, K.upperDepth, 0.025, K.upperHeight - 0.025);
@@ -1143,6 +1155,7 @@ function kitchenUpper(linen: Tris, brass: Tris, decor: Tris, m: Matrix4, width =
 }
 
 function kitchenRange(linen: Tris, brass: Tris, dark: Tris, decor: Tris, m: Matrix4): void {
+  if (instanceRecipe('kitchenRange', [linen, brass, dark, decor], m, [], ([l, b, k, d], local) => kitchenRange(l, b, k, d, local))) return;
   const K = KITCHEN, w = K.rangeWidth / 2, p = new Part(linen, m), metal = new Part(brass, m), black = new Part(dark, m);
   p.box(-w, 0, 0.04, w, K.depth, K.height - 0.05);
   colour(decor, "#56616b"); new Part(decor, m).box(-w + 0.035, K.depth, 0.13, w - 0.035, K.depth + 0.018, 0.76);
@@ -1790,8 +1803,8 @@ export function buildFurnitureItems(mats: InteriorMaterials): FurnitureItem[] {
   return items;
 }
 
-/** Ballroom, studies and bedrooms, merged by material. */
-export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMaterials, look: Look): Group {
+/** Furniture merged by material, with repeated recipes sharing instance geometry. */
+export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMaterials, look: Look, options: { instancing?: boolean } = {}): Group {
   const group = new Group();
   const lamps: Vector3[] = [], lightSources: FurnitureLight[] = [];
   const banquetCrystal = new Tris(), banquetBulb = new Tris(), banquetGlass = new Tris();
@@ -1799,6 +1812,9 @@ export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMa
   const dark = new Tris(), brass = new Tris(), leather = new Tris(), shade = new Tris(), books = new Tris();
   const salonRug = new Tris(), salonArt = new Tris();
   const diningDecor = new Tris(), diningRug = new Tris();
+  const instances = new FurnitureInstances();
+  if (options.instancing !== false) instances.register([wood, fabric, linen, gold, rug, dark, brass, leather, shade, books,
+    salonRug, salonArt, diningRug, diningDecor, banquetCrystal, banquetBulb, banquetGlass]);
 
   const room = plan.rooms.find(r => r.type === "ballroom");
   if (room) {
@@ -2010,10 +2026,12 @@ export function buildFurniture(plan: BuildingPlan, b: Building, mats: InteriorMa
     [diningRug, mats.finishFloor], [diningDecor, mats.finishWall],
     [banquetCrystal, mats.furnCrystal], [banquetBulb, mats.furnBulb], [banquetGlass, mats.furnGlass],
   ];
+  const castShadow = (t: Tris) => t !== rug && t !== salonRug && t !== diningRug && t !== salonArt && t !== books && t !== shade && t !== banquetBulb && t !== banquetGlass;
+  instances.append(group, new Map(parts.map(([t, m]) => [t, { material: m, castShadow: castShadow(t) }])));
   for (const [t, m] of parts) {
     if (!t.pos.length) continue;
     const mesh = new Mesh(t.geometry(), m);
-    mesh.castShadow = t !== rug && t !== salonRug && t !== diningRug && t !== salonArt && t !== books && t !== shade && t !== banquetBulb && t !== banquetGlass;
+    mesh.castShadow = castShadow(t);
     mesh.receiveShadow = true;
     group.add(mesh);
   }

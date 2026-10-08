@@ -95,9 +95,14 @@ try {
         furniture.traverse(o => {
           if (!o.isMesh) return;
           const pos = o.geometry.getAttribute('position');
-          for (let i = 0; i < pos.count; i++) {
-            point.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
-            assert.ok(!(building.topology.deepLayout?.wells ?? [{rect:building.topology.courtyardLayout.court}]).some(w => point.x > w.rect[0] + .02 && point.x < w.rect[2] - .02 && point.y > w.rect[1] + .02 && point.y < w.rect[3] - .02), 'furniture cannot enter a lightwell');
+          const matrix = new Matrix4(), count = o.isInstancedMesh ? o.count : 1;
+          for (let k = 0; k < count; k++) {
+            if (o.isInstancedMesh) { o.getMatrixAt(k, matrix); matrix.premultiply(o.matrixWorld); }
+            else matrix.copy(o.matrixWorld);
+            for (let i = 0; i < pos.count; i++) {
+              point.fromBufferAttribute(pos, i).applyMatrix4(matrix);
+              assert.ok(!(building.topology.deepLayout?.wells ?? [{rect:building.topology.courtyardLayout.court}]).some(w => point.x > w.rect[0] + .02 && point.x < w.rect[2] - .02 && point.y > w.rect[1] + .02 && point.y < w.rect[3] - .02), 'furniture cannot enter a lightwell');
+            }
           }
         });
       }
@@ -142,7 +147,7 @@ try {
       const original = sourceMeshes.get(mesh.userData.unfoldSource); assert.ok(original);
       const triangles = g => (g.index?.count ?? g.getAttribute('position').count) / 3;
       submitted += triangles(mesh.geometry) * (mesh.isInstancedMesh ? mesh.count : 1);
-      unpruned += triangles(original.geometry) * (mesh.isInstancedMesh ? mesh.count : 1);
+      unpruned += triangles(original.geometry) * (original.isInstancedMesh ? original.count : 1);
       if (mesh.geometry === original.geometry) continue;
       owned.add(mesh.geometry);
       assert.ok(!sourceGeometries.has(mesh.geometry));

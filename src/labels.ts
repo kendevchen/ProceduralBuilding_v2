@@ -14,7 +14,12 @@ const TAG_FONT = "600 58px system-ui, -apple-system, 'PingFang TC', 'Noto Sans T
 export type LabelStyle = "outline" | "tag";
 
 /** `width` in metres; the height follows the canvas (512 x 160, or 224 for three lines) */
-export function textSprite(text: string, width = 3.4, depthTest = true, style: LabelStyle = "outline"): Sprite {
+export function textSprite(text: string, width = 3.4, depthTest = true, style: LabelStyle = "outline", textures?: Map<string, CanvasTexture>): Sprite {
+  const key = `${style}|${text}`, cached = textures?.get(key);
+  if (cached) {
+    const s = new Sprite(new SpriteMaterial({ map: cached, depthWrite: false, depthTest, transparent: true }));
+    s.scale.set(width, width * cached.image.height / CW, 1); return s;
+  }
   const lines = text.split("\n");
   const c = document.createElement("canvas");
   c.width = CW;
@@ -45,6 +50,7 @@ export function textSprite(text: string, width = 3.4, depthTest = true, style: L
   }
   const tex = new CanvasTexture(c);
   tex.colorSpace = SRGBColorSpace;
+  textures?.set(key, tex);
   const s = new Sprite(new SpriteMaterial({ map: tex, depthWrite: false, depthTest, transparent: true }));
   s.scale.set(width, (width * c.height) / CW, 1);
   return s;
