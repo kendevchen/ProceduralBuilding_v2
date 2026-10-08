@@ -1,6 +1,6 @@
 # STATE：專案現況（新對話先讀這份，其他按需要讀）
 
-更新：2026-10-08。目前開發分支 `feature/room-editor`；`interior-floors_codex` 保留臥室家具版本，原 `interior-floors` 保留既有 `/dev/` 預覽；正式站 `main` 是 `v2.0-exterior`，還沒有室內功能。
+更新：2026-10-08。目前開發分支 `feature/room-20x20`，新版預覽路徑為 `/room-20x20/`；`feature/room-editor` 保留原預覽；`interior-floors_codex` 保留臥室家具版本，原 `interior-floors` 保留既有 `/dev/` 預覽；正式站 `main` 是 `v2.0-exterior`，還沒有室內功能。
 
 ## 1. 已完成
 

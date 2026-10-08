@@ -2,13 +2,14 @@
 #   main            -> https://kendevchen.github.io/ProceduralBuilding_v2/
 #   interior-floors -> https://kendevchen.github.io/ProceduralBuilding_v2/dev/  (development preview)
 #   feature/room-editor -> https://kendevchen.github.io/ProceduralBuilding_v2/room-editor/
+#   feature/room-20x20 -> https://kendevchen.github.io/ProceduralBuilding_v2/room-20x20/
 # A push to a listed branch rebuilds all previews, since Pages publishes one site.
 # (Pages must be set to "GitHub Actions" as its source, not "Deploy from a branch".)
 name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main, interior-floors, feature/room-editor]
+    branches: [main, interior-floors, feature/room-editor, feature/room-20x20]
   workflow_dispatch:
 
 permissions:
@@ -57,6 +58,16 @@ jobs:
         run: |
           npm ci
           npx vite build --base /ProceduralBuilding_v2/room-editor/ --outDir ../main/dist/room-editor
+      - name: Check out the room 20x20 branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/room-20x20
+          path: room-20x20
+      - name: Build the room 20x20 preview under /room-20x20/
+        working-directory: room-20x20
+        run: |
+          npm ci
+          npm run build -- --base /ProceduralBuilding_v2/room-20x20/ --outDir ../main/dist/room-20x20
       - uses: actions/upload-pages-artifact@v3
         with:
           path: main/dist
