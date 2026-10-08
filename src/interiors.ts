@@ -66,7 +66,7 @@ export type RoomRule = (slot: RoomSlot) => { cells: number[]; closed?: boolean }
 
 /** atlas cells by the plan's room type; shops keep their front's cells */
 const VIEWS: Partial<Record<RoomType, number[]>> = {
-  elevator: [6], shaft: [6], liftHall: [14], bathroom: [6], closet: [6], foyer: [14], pantry: [4],
+  elevator: [6], shaft: [6], liftHall: [14], bathroom: [6], laundry: [6], closet: [6], foyer: [14], pantry: [4],
   salon: [0], dining: [1], bedroom: [2, 7], study: [3], kitchen: [4], vestibule: [14], stair: [14], corridor: [14],
   concierge: [15], shopBack: [15, 6], maid: [8, 9], ballroom: [16],
 };
@@ -83,7 +83,7 @@ export function planRule(plan: BuildingPlan): RoomRule {
   return s => {
     const r = s.at && behind.get(`${s.at.level}|${s.at.facadeId ?? s.at.side}|${s.at.bay}`);
     if (!r) return null;
-    if (r.type === "wc" || r.type === "bathroom" || r.type === "elevator" || r.type === "shaft") return { cells: CELLS[s.kind], closed: true };
+    if (r.type === "wc" || r.type === "bathroom" || r.type === "laundry" || r.type === "elevator" || r.type === "shaft") return { cells: CELLS[s.kind], closed: true };
     if (r.type === "storage") return { cells: r.level === attic ? [10] : [6] };
     const cells = VIEWS[r.type];
     return cells ? { cells } : null;

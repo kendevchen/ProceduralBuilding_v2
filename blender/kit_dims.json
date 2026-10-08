@@ -54,6 +54,10 @@
         "liftClearWidth": 2.0, "liftClearDepth": 2.0, "shaftClearWidth": 0.3,
         "minApartmentCells": 4, "maxTravel": 50.0, "highMaxTravel": 45.0, "routeSampleStep": 2.0, "routeInset": 0.02
       },
+      "templates": {
+        "maxLargeCells": 12, "minLargeCells": 7, "maxCrossWingCells": 24,
+        "symmetryChance": 0.5, "crossGroupChance": 0.3, "crossWingChance": 0.5
+      },
       "courtyard": {
         "minCourt": 6, "heightFactor": 0.5, "wingTarget": 13,
         "blindWingTarget": 9.5, "corridor": 2.4, "streetCorridorCentre": 5.5,

@@ -74,9 +74,10 @@ try {
     { floorVariety: true, type: 'corner', cornerStyle: 'panCoupe', seed: 8 },
     { layoutMode: 'auto', baysX: 14, baysY: 5, floors: 10, floorVariety: true },
     { layoutMode: 'auto', baysX: 14, baysY: 5, floors: 20, ballroom: false },
-    { layoutMode: 'courtyard', baysX: 20, baysY: 10, floors: 6, ballroom: false },
+    { layoutMode: 'courtyard', baysX: 20, baysY: 10, floors: 6, ballroom: false, floorVariety: true, seed: 3 },
     { layoutMode: 'courtyard', baysX: 20, baysY: 20, floors: 20, ballroom: false },
-    { layoutMode: 'lightwell', baysX: 10, baysY: 10, floors: 6, ballroom: false },
+    { layoutMode: 'courtyard', baysX: 20, baysY: 20, floors: 20, ballroom: false, floorVariety: true, seed: 3 },
+    { layoutMode: 'lightwell', baysX: 10, baysY: 10, floors: 6, ballroom: false, floorVariety: true, seed: 2 },
     { layoutMode: 'lightwell', baysX: 20, baysY: 20, floors: 20, ballroom: false },
   ]) {
     const params = { ...defaultParams(), ...overrides }, building = generateBuilding(params, kit);

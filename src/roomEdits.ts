@@ -4,7 +4,7 @@ import { signedArea, unionRooms } from "./roomGeometry";
 import type { V2 } from "./roof";
 import dims from "../blender/kit_dims.json";
 
-export const EDITABLE_ROOM_TYPES = ["bedroom", "study", "salon", "dining", "kitchen", "wc", "storage", "shop", "maid", "bathroom", "closet", "foyer", "pantry"] as const;
+export const EDITABLE_ROOM_TYPES = ["bedroom", "study", "salon", "dining", "kitchen", "wc", "storage", "shop", "maid", "bathroom", "closet", "foyer", "pantry", "laundry"] as const;
 export type EditableRoomType = (typeof EDITABLE_ROOM_TYPES)[number];
 export const editableType = (type: RoomType): type is EditableRoomType => (EDITABLE_ROOM_TYPES as readonly string[]).includes(type);
 export const roomTypesForLevel = (level: number, attic = false) => EDITABLE_ROOM_TYPES.filter(type => (type !== "shop" || level === 0) && (type !== "maid" || attic));
@@ -36,6 +36,7 @@ function sourceKey(plan: BuildingPlan, r: PlanRoom): string {
 
 function clonePlan(plan: BuildingPlan): BuildingPlan {
   return { ...plan,
+    ...(plan.programStructure ? { programStructure: structuredClone(plan.programStructure) } : {}),
     ...(plan.courtyard ? { courtyard: structuredClone(plan.courtyard) } : {}),
     ...(plan.daylightDiagnostics ? { daylightDiagnostics: structuredClone(plan.daylightDiagnostics) } : {}),
     ...(plan.innerBoundaries ? { innerBoundaries: structuredClone(plan.innerBoundaries) } : {}),

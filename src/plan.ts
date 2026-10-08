@@ -42,7 +42,7 @@ const OEIL = 0.6;
 export type RoomType =
   | "porch" | "vestibule" | "concierge" | "shop" | "shopBack" | "stair" | "corridor"
   | "salon" | "dining" | "ballroom" | "study" | "bedroom" | "kitchen" | "wc" | "maid" | "storage"
-  | "bathroom" | "closet" | "foyer" | "pantry" | "liftHall" | "elevator" | "shaft";
+  | "bathroom" | "closet" | "foyer" | "pantry" | "laundry" | "liftHall" | "elevator" | "shaft";
 
 /** names and diagram colours (INTERIOR_SPEC.md §4) */
 export const ROOM_INFO: Record<RoomType, { name: string; color: string }> = {
@@ -65,6 +65,7 @@ export const ROOM_INFO: Record<RoomType, { name: string; color: string }> = {
   wc: { name: "廁所", color: "#9ad8e3" },
   maid: { name: "閣樓房", color: "#b8a1d9" },
   storage: { name: "儲藏間", color: "#bdb5a6" },
+  laundry: { name: "洗衣間", color: "#b7d3d0" },
   bathroom: { name: "浴室", color: "#a9cfe0" },
   closet: { name: "衣帽間", color: "#b9c6d6" },
   foyer: { name: "玄關", color: "#ddd5c6" },
@@ -215,6 +216,7 @@ export interface FloorProgramDiagnostic {
 }
 
 export interface BuildingPlan {
+  programStructure?: import("./planning/templates").ProgramStructure;
   courtyard?: { shape: "O" | "U"; polygon: V2[]; minimum: number; blindWingCells: string[][]; porchCells: string[] };
   daylightDiagnostics?: { level: number; residentialCells: number; windowlessCells: number; ratio: number; serviceArea: number }[];
   innerBoundaries?: { id: string; polygon: V2[] }[];
@@ -960,8 +962,8 @@ function connect(units: Unit[], voids: Rect[], lv: PlanLevel, cageX: number, lan
 
 // ------------------------------------------------------------------ the plan
 
-function buildPlan(b: Building, p: BuildingParams, retries: ReadonlyMap<number, number> = new Map(), fallback: ReadonlySet<number> = new Set()): BuildingPlan {
-  if (b.topology.coreLayout) return buildCorePlan(b, p, retries, fallback);
+function buildPlan(b: Building, p: BuildingParams, retries: ReadonlyMap<number, number> = new Map(), fallback: ReadonlySet<number> = new Set(), templateOverrides: ReadonlyMap<string,string> = new Map()): BuildingPlan {
+  if (b.topology.coreLayout) return buildCorePlan(b, p, retries, fallback, templateOverrides);
   const g = buildingGrid(b);
   const levels = planLevels(b);
   const windows = facadeWindows(g, levels);
@@ -1086,10 +1088,24 @@ export function planBuilding(b: Building, p: BuildingParams): BuildingPlan {
   if (!p.floorVariety) return buildPlan(b, p);
   const retries = new Map<number, number>(), fallback = new Set<number>();
   const rejected = new Map<number, string[]>();
+  const templateOverrides = new Map<string,string>();
   const max = I.variety.maxRetries;
   // Each retry builds fresh mutable units/windows; the topology is immutable.
   for (let guard = 0; guard <= (max + 2) * (b.rows.length + 2); guard++) {
-    const plan = buildPlan(b, p, retries, fallback), diagnostics = plan.programDiagnostics!;
+    const plan = buildPlan(b, p, retries, fallback, templateOverrides), diagnostics = plan.programDiagnostics!;
+    let capacityChanged=false;
+    for(const t of plan.programStructure?.templates??[]) {
+      if(t.resolved!=='A')continue;
+      const invalid=t.apartmentIds.some(a=>{
+        const rooms=plan.rooms.filter(r=>r.level===t.level&&r.apartment===a);
+        return rooms.length>I.planning.templates.maxLargeCells||!rooms.some(r=>r.type==='study')||!rooms.some(r=>r.type==='salon'&&(r.cellIds?.length??0)>=2);
+      });
+      if(invalid) {
+        templateOverrides.set(`${t.segment}:${t.area}:${t.coreId}`,'A 實際房間含服務房超過上限或接待室／書房不足，整段退 B');
+        capacityChanged=true;
+      }
+    }
+    if(capacityChanged)continue;
     let again = false;
     for (const d of diagnostics) {
       const lv = plan.levels[d.level], previous = diagnostics[d.level - 1];
@@ -1184,7 +1200,7 @@ export function checkPlan(plan: BuildingPlan, checkUses = true): string[] {
           !a.windows.some(wi => plan.windows[wi]?.room === a.id && ["window", "dormer"].includes(plan.windows[wi].kind))) {
           issues.push(`${lv.name}：${a.name} ${a.id} 缺少採光窗`);
         }
-        if (["bathroom", "closet", "foyer", "pantry"].includes(a.type) && a.programTargets &&
+        if (["bathroom", "closet", "foyer", "pantry", "laundry"].includes(a.type) && a.programTargets &&
           (a.programTargets.some(id => !a.doors.some(d => d.to === id)) || a.doors.some(d => !a.programTargets!.includes(d.to)))) {
           issues.push(`${lv.name}：${a.name} ${a.id} 私用入口不完整`);
         }
@@ -1251,7 +1267,7 @@ export function checkPlan(plan: BuildingPlan, checkUses = true): string[] {
     const xs = r.polygon.map(q => q[0]), ys = r.polygon.map(q => q[1]);
     const w = Math.max(...xs) - Math.min(...xs), h = Math.max(...ys) - Math.min(...ys);
     const small = Math.min(w, h), big = Math.max(w, h);
-    const service = ["bathroom", "closet", "foyer", "pantry"].includes(r.type);
+    const service = ["bathroom", "closet", "foyer", "pantry", "laundry"].includes(r.type);
     const min = service ? I.variety.minServiceWidth : r.type === "bedroom" || r.type === "maid" ? M.bedroom : r.type === "wc" ? M.wc : r.type === "corridor" ? M.corridor : 0;
     if (small < min - 0.01) issues.push(`${name(r.level)}：${r.name} ${r.id} 太小（${small.toFixed(2)} m）`);
     if (service && r.area < I.variety.minServiceArea - 0.01) issues.push(`${name(r.level)}：${r.name} ${r.id} 面積不足（${r.area.toFixed(2)} m²）`);
@@ -1308,7 +1324,7 @@ export function checkPlan(plan: BuildingPlan, checkUses = true): string[] {
     for (const r of plan.rooms) {
       for (const v of plan.voids.filter(v => v.level === r.level && (v.kind === "lightwell" || v.kind === "courtyard"))) if (Math.abs(polygonArea(clipConvex(r.polygon, v.polygon))) > EPS) issues.push(`${name(r.level)}：房間 ${r.id} 跨入中庭／採光井`);
       const endColumn = r.rect[0] <= dims.wall + EPS || r.rect[2] >= plan.width - dims.wall - EPS;
-      const sharedService = r.apartment === null && r.circulation === "private" && ["bathroom", "closet", "storage", "wc"].includes(r.type);
+      const sharedService = r.apartment === null && r.circulation === "private" && ["bathroom", "closet", "storage", "wc", "laundry"].includes(r.type);
       if (!endColumn && !sharedService) continue;
       // Minimum number of OTHER rooms before a public corridor, staying within
       // one apartment. End-column rooms never require traversing a foreign flat.

@@ -50,4 +50,11 @@ export const PURPOSE = {
   planSuite: 27,
   planFoyer: 28,
   planPantry: 29,
+  planTemplate: 30,
+  planWing: 31,
+  planSymmetry: 32,
+  planCrossGroup: 33,
+  planCrossWing: 34,
+  planWellService: 35,
+  planCourtPreference: 36,
 } as const;

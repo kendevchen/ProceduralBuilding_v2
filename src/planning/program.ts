@@ -39,6 +39,9 @@ interface VariationContext {
   level: number;
   retry: number;
   choices: ProgramChoice[];
+  randomKey?: number;
+  allowReceptionMerge?: boolean;
+  roomLimit?: number;
 }
 interface Hooks {
   fuse(units: ProgramUnit[], type: RoomType): ProgramUnit;
@@ -62,13 +65,13 @@ function strip(u: ProgramUnit, edge: number, depth: number, hooks: Hooks): { mai
 
 export function varyApartment(ctx: VariationContext, apt: number, hooks: Hooks): void {
   const mine = () => ctx.units.filter(u => u.apartment === apt && u.type !== "corridor");
-  const roll = (purpose: number, extra = 0) => programRoll(ctx.seed, ctx.level, apt, purpose, ctx.retry, extra);
+  const roll = (purpose: number, extra = 0) => programRoll(ctx.seed, ctx.level, ctx.randomKey ?? apt, purpose, ctx.retry, extra);
   const pick = <T>(xs: T[], purpose: number) => xs[Math.floor(roll(purpose, 1) * xs.length)];
   const note = (feature: string, outcome: string) => ctx.choices.push({ apartment: apt, feature, outcome });
   const minimumBedrooms = mine().length >= 5 ? K.minBedrooms : 1;
   // V3: preserve rectangular rooms and at most three standard bays.
   let reception = "kept";
-  if (roll(PURPOSE.planReceptionMerge) < K.receptionMergeChance) {
+  if (ctx.allowReceptionMerge !== false && roll(PURPOSE.planReceptionMerge) < K.receptionMergeChance) {
     const salons = mine().filter(u => u.type === "salon");
     const mode = roll(PURPOSE.planReceptionMerge, 2) < 0.5 ? "salon-dining" : "three-bay-salon";
     const pairs = salons.flatMap(a => mine().filter(b => b !== a && adjacent(a, b) &&
@@ -108,7 +111,7 @@ export function varyApartment(ctx: VariationContext, apt: number, hooks: Hooks):
   const complete = ["salon", "kitchen", "wc", "bedroom"].every(t => mine().some(u => u.type === t));
   // V5a: service strip at the corridor end; all facade windows stay with the bedroom.
   let suite = "not drawn";
-  if (complete && roll(PURPOSE.planSuite) < K.suiteChance) {
+  if (complete && mine().length + 2 <= (ctx.roomLimit ?? Infinity) && roll(PURPOSE.planSuite) < K.suiteChance) {
     suite = "no safe internal strip";
     const candidates = mine().filter(u => u.type === "bedroom" && (u.part === "master-bedroom" || u.y1 - u.y0 >= K.minSuiteDepth))
       .flatMap(u => edgesAt(u, corridors()).flatMap(edge => {
@@ -130,7 +133,7 @@ export function varyApartment(ctx: VariationContext, apt: number, hooks: Hooks):
   note("V5-suite", suite);
   // V5b: the private foyer connects its reception room to an actual corridor.
   let foyer = "not drawn";
-  if (complete && roll(PURPOSE.planFoyer) < K.foyerChance) {
+  if (complete && mine().length + 1 <= (ctx.roomLimit ?? Infinity) && roll(PURPOSE.planFoyer) < K.foyerChance) {
     foyer = "no safe corridor entrance";
     const candidates = mine().filter(u => u.type === "salon" || u.type === "dining").flatMap(u => edgesAt(u, corridors()).flatMap(edge => {
       const cut = strip(u, edge, K.foyerDepth, hooks);
@@ -147,7 +150,7 @@ export function varyApartment(ctx: VariationContext, apt: number, hooks: Hooks):
   note("V5-foyer", foyer);
   // V5c: never invent a pantry bridge through a corridor or another flat.
   let pantry = "not drawn";
-  if (complete && roll(PURPOSE.planPantry) < K.pantryChance) {
+  if (complete && mine().length + 1 <= (ctx.roomLimit ?? Infinity) && roll(PURPOSE.planPantry) < K.pantryChance) {
     pantry = "no intervening room";
     const kitchen = mine().find(u => u.type === "kitchen"), dining = mine().find(u => u.type === "dining");
     if (kitchen && dining && share(unitRect(kitchen), unitRect(dining)) < neededSpan) {
@@ -172,4 +175,70 @@ export function varyApartment(ctx: VariationContext, apt: number, hooks: Hooks):
     }
   }
   note("V5-pantry", pantry);
+}
+
+/** P6 programming in the module's local column order, using actual opening semantics. */
+export function assignTemplateProgram(ctx: { units: ProgramUnit[]; windows: PlanWindow[]; choices: ProgramChoice[]; seed: number; level: number; retry: number },
+  us: ProgramUnit[], apt: number, template: import('./templates').ApartmentTemplate,
+  options: { randomKey: number; internal: boolean; serviceCourt: boolean; corner?: ProgramUnit },
+  fuse: (units: ProgramUnit[], type: RoomType) => ProgramUnit): void {
+  const free = () => ctx.units.filter(u => u.type === null && u.cells.every(c => us.some(v => v.cells.some(q => q.id === c.id))));
+  const daylight = (u: ProgramUnit) => u.win.some(i => ['window','dormer'].includes(ctx.windows[i].kind));
+  const inner = (u: ProgramUnit) => u.win.some(i => !!ctx.windows[i].facadeId);
+  const rank = (u: ProgramUnit) => Math.min(...u.cells.map(c => c.col));
+  const sorted = (xs: ProgramUnit[]) => xs.sort((a,b)=>rank(a)-rank(b)||a.y0-b.y0||a.x0-b.x0);
+  const roll = (purpose: number, extra=0) => programRoll(ctx.seed,ctx.level,options.randomKey,purpose,ctx.retry,extra);
+  const pick = (xs: ProgramUnit[], purpose: number) => sorted(xs)[Math.floor(roll(purpose)*xs.length)];
+  const set = (u: ProgramUnit, type: RoomType) => {u.type=type;u.apartment=apt;return u;};
+  const adjacentRectangle = (a:ProgramUnit,b:ProgramUnit) =>
+    (Math.abs(a.y0-b.y0)<EPS&&Math.abs(a.y1-b.y1)<EPS&&(Math.abs(a.x1-b.x0)<EPS||Math.abs(a.x0-b.x1)<EPS)) ||
+    (Math.abs(a.x0-b.x0)<EPS&&Math.abs(a.x1-b.x1)<EPS&&(Math.abs(a.y1-b.y0)<EPS||Math.abs(a.y0-b.y1)<EPS));
+  const windows = sorted(free().filter(daylight));
+  const street = windows.filter(u=>!inner(u));
+  const reception = street.length ? street : windows;
+  let salon: ProgramUnit;
+  const pairs = reception.flatMap((a,i)=>reception.slice(i+1).filter(b=>adjacentRectangle(a,b)).map(b=>[a,b]));
+  // Large and standard reception merges preserve four other essential/windowed rooms.
+  const merge = template==='A' || template!=='C'&&windows.length>=7&&roll(PURPOSE.planSalon,1)<0.5;
+  const legalPairs = pairs.filter(pair=>(!options.corner||pair.includes(options.corner))&&windows.filter(u=>!pair.includes(u)).length >= (template==='A'?5:3));
+  if(merge&&legalPairs.length) {
+    const pair=legalPairs[Math.floor(roll(PURPOSE.planSalon)*legalPairs.length)];
+    salon=fuse(pair,'salon');salon.apartment=apt;
+  } else {
+    const best=options.internal?reception.filter(u=>u.win.length===Math.max(...reception.map(v=>v.win.length))):reception;
+    salon=set(options.corner??pick(best,PURPOSE.planSalon),'salon');
+  }
+  ctx.choices.push({apartment:apt,feature:'V1',outcome:JSON.stringify(unitRect(salon))});
+  const kitchenOptions=free().filter(daylight), preference=kitchenOptions.filter(u=>options.serviceCourt?inner(u):!inner(u));
+  const kitchen=set(pick(preference.length?preference:kitchenOptions,PURPOSE.planKitchenSide),'kitchen');
+  ctx.choices.push({apartment:apt,feature:'V2',outcome:JSON.stringify(unitRect(kitchen))});
+  const dry=sorted(free().filter(u=>!daylight(u)));
+  const besideKitchen=free().filter(u=>adjacentRectangle(u,kitchen));
+  const wc=set(dry[0]??pick(template==='A'&&besideKitchen.length?besideKitchen:free(),PURPOSE.planKitchenSide),'wc');
+  // A has a study; C and internal well groups never consume their bedroom for one.
+  if(!options.internal&&template!=='C'&&free().filter(daylight).length>=3) {
+    const beds=free().filter(daylight), besideService=beds.filter(u=>adjacentRectangle(u,kitchen)||adjacentRectangle(u,wc));
+    set(pick(template==='A'&&besideService.length?besideService:beds,PURPOSE.planSalon),'study');
+  }
+  if(free().filter(daylight).length>=3) {
+    const near=free().filter(u=>daylight(u)&&adjacentRectangle(u,salon));
+    if(near.length)set(pick(near,PURPOSE.planReceptionMerge),'dining');
+  }
+  for(const u of free())set(u,daylight(u)?'bedroom':'storage');
+  if(template==='A') compactLargeApartment(ctx,apt,fuse);
+}
+
+export function compactLargeApartment(ctx: {units: ProgramUnit[]}, apt: number, fuse: (units:ProgramUnit[],type:RoomType)=>ProgramUnit): void {
+  const mine=()=>ctx.units.filter(u=>u.apartment===apt);
+  const rectangle=(a:ProgramUnit,b:ProgramUnit)=>
+    (Math.abs(a.y0-b.y0)<EPS&&Math.abs(a.y1-b.y1)<EPS&&(Math.abs(a.x1-b.x0)<EPS||Math.abs(a.x0-b.x1)<EPS)) ||
+    (Math.abs(a.x0-b.x0)<EPS&&Math.abs(a.x1-b.x1)<EPS&&(Math.abs(a.y1-b.y0)<EPS||Math.abs(a.y0-b.y1)<EPS));
+  while(mine().length>dims.interior.planning.templates.maxLargeCells) {
+    const beds=mine().filter(u=>u.type==='bedroom');
+    const pair=beds.length>2?beds.flatMap((a,i)=>beds.slice(i+1).filter(b=>rectangle(a,b)&&a.cells.length+b.cells.length<=3).map(b=>[a,b]))[0]:undefined;
+    if(pair) {const merged=fuse(pair,'bedroom');merged.apartment=apt;merged.part='large-bedroom';continue;}
+    const reception=mine().filter(u=>u.type==='salon').flatMap(a=>mine().filter(b=>b.type==='dining'&&rectangle(a,b)&&a.cells.length+b.cells.length<=3).map(b=>[a,b]))[0];
+    if(!reception)break;
+    const merged=fuse(reception,'salon');merged.apartment=apt;merged.part='large-reception';
+  }
 }
